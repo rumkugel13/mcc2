@@ -1,7 +1,9 @@
+using mcc2.AST;
+
 namespace mcc2.Tests;
 
 [TestClass]
-public class UnitTest1
+public class TestChapter01
 {
     private readonly List<Lexer.Token> return2tokens = [
         new Lexer.Token(){Type = Lexer.TokenType.IntKeyword},
@@ -30,5 +32,20 @@ public class UnitTest1
             Lexer.Token token = list[i];
             Assert.IsTrue(token.Type == return2tokens[i].Type, $"Invalid token at {i}, expected: {return2tokens[i].Type}, got: {token.Type}");
         }
+    }
+
+    [TestMethod]
+    public void TestParserReturn2()
+    {
+        Parser parser = new Parser();
+        var ast = parser.Parse(return2tokens);
+
+        Assert.IsNotNull(ast, "Invalid Program node");
+        Assert.IsNotNull(ast.Function, "Invalid Function node");
+        Assert.IsNotNull(ast.Function.Identifier, "Invalid Identifier");
+        Assert.IsNotNull(ast.Function.Body, "Invalid Statement");
+        Assert.IsInstanceOfType(ast.Function.Body, typeof(ReturnStatement), "Expected ReturnStatement type");
+        Assert.IsNotNull(((ReturnStatement)ast.Function.Body).Expression, "Invalid Expression");
+        Assert.IsInstanceOfType(((ReturnStatement)ast.Function.Body).Expression, typeof(ConstantExpression), "Expected ConstantExpression type");
     }
 }

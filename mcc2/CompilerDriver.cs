@@ -23,14 +23,16 @@ namespace mcc2
         {
             string output = $"{file[..^2]}.s";
 
+            List<Lexer.Token> tokenList = [];
             if (stages > 0)
             {
                 Lexer lexer = new Lexer();
-                var list = lexer.Lex(File.ReadAllText(file));
+                tokenList = lexer.Lex(File.ReadAllText(file));
             }
             if (stages > 1)
             {
-                //todo: run parser
+                Parser parser = new Parser();
+                var programAST = parser.Parse(tokenList);
             }
             if (stages > 2)
             {

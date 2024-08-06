@@ -71,7 +71,7 @@ namespace mcc2
 
                 if (longest == 0)
                 {
-                    throw new Exception($"Invalid Token: {source[pos]}");
+                    throw new Exception($"Lexing Error: Invalid Token: {source[pos]}");
                 }
 
                 tokens.Add(new Token() { Type = (TokenType)longestPattern, Position = pos });
