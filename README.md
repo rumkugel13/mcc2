@@ -17,7 +17,7 @@ The current goal is to output assembly for the following ISA's:
 ## Progress
 
 - [ ] Part I: The Basics
-  - [ ] 1: A Minimal Compiler
+  - [X] 1: A Minimal Compiler
   - [ ] 2: Unary Operators
   - [ ] 3: Binary Operators
   - [ ] 4: Logical and Relational Operators
