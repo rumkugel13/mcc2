@@ -74,4 +74,28 @@ public class TestChapter01
         Assert.IsInstanceOfType(((Mov)assembly.Function.Instructions[0]).src, typeof(Imm), "Expected Imm type");
         Assert.AreEqual(((Imm)((Mov)assembly.Function.Instructions[0]).src).Value, 2, "Invalid Imm value");
     }
+
+    private string assembly = 
+@"	.globl main
+main:
+	movl $2,%eax
+	ret
+	.section .note.GNU-stack,"""",@progbits
+";
+
+    [TestMethod]
+    public void TestEmitterReturn2()
+    {
+        string source = File.ReadAllText("../../../Source/return_2.c");
+        Parser parser = new Parser(source);
+        var ast = parser.Parse(return2tokens);
+
+        AssemblyGenerator assemblyGenerator = new AssemblyGenerator();
+        var assembly = assemblyGenerator.Generate(ast);
+
+        CodeEmitter emitter = new CodeEmitter();
+        var code = emitter.Emit(assembly);
+        Assert.AreEqual(code.ToString().Length, this.assembly.Length, "Should be same length");
+        Assert.AreEqual(code.ToString(), this.assembly, "Should produce the same code");
+    }
 }

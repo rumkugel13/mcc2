@@ -1,4 +1,6 @@
 using System.Diagnostics;
+using mcc2.Assembly;
+using mcc2.AST;
 
 namespace mcc2
 {
@@ -25,6 +27,8 @@ namespace mcc2
             string source = File.ReadAllText(file);
 
             List<Lexer.Token> tokenList = [];
+            ASTProgram programAST = null;
+            AssemblyProgram assembly = null;
             if (stages > 0)
             {
                 Lexer lexer = new Lexer();
@@ -33,18 +37,22 @@ namespace mcc2
             if (stages > 1)
             {
                 Parser parser = new Parser(source);
-                var programAST = parser.Parse(tokenList);
+                programAST = parser.Parse(tokenList);
 
                 //PrettyPrinter prettyPrinter = new PrettyPrinter();
                 //prettyPrinter.Print(programAST, source);
             }
             if (stages > 2)
             {
-                //todo: run codegen
+                AssemblyGenerator generator = new();
+                assembly = generator.Generate(programAST);
             }
             if (stages > 3)
             {
-                //todo: run codeemit
+                CodeEmitter codeEmitter = new();
+                var builder = codeEmitter.Emit(assembly);
+
+                File.WriteAllText(output, builder.ToString());
             }
 
             return output;
