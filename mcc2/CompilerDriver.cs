@@ -25,7 +25,9 @@ namespace mcc2
 
             if (stages > 0)
             {
-                //todo: run lexer
+                Lexer lexer = new Lexer();
+                var list = lexer.Lex(File.ReadAllText(file));
+                Console.WriteLine(list.Count);
             }
             if (stages > 1)
             {

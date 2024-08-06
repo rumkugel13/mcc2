@@ -17,7 +17,7 @@ namespace mcc2
 
             if (!File.Exists(file))
             {
-                Console.WriteLine("Invalid Source File");
+                Console.WriteLine($"Invalid Source File: {file}");
                 return -2;
             }
 
@@ -49,9 +49,10 @@ namespace mcc2
             {
                 assembly = CompilerDriver.Compile(processed, stages);
             }
-            catch
+            catch (Exception e)
             {
-                Console.WriteLine($"Error on stage {stages}");
+                Console.WriteLine($"Error on stage {stages}:");
+                Console.WriteLine(e.Message);
                 return -3 - stages;
             }
             finally
