@@ -1,16 +1,13 @@
-using System.Diagnostics;
-
 namespace mcc2.AST;
 
 public class FunctionDefinition
 {
-    public Lexer.Token Identifier;
+    public string Name;
     public Statement Body;
 
-    public FunctionDefinition(Lexer.Token identifier, Statement body)
+    public FunctionDefinition(string name, Statement body)
     {
-        Debug.Assert(identifier.Type == Lexer.TokenType.Identifier);
-        this.Identifier = identifier;
+        this.Name = name;
         this.Body = body;
     }
 }

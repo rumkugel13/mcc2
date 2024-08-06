@@ -21,8 +21,7 @@ public class PrettyPrinter
     private void PrintFunctionDefinition(FunctionDefinition functionDefinition, string source, int indent)
     {
         PrintLine("Function(", indent++);
-        var name = GetIdentifier(functionDefinition.Identifier, source);
-        PrintLine($"name=\"{name}\",", indent);
+        PrintLine($"name=\"{functionDefinition.Name}\",", indent);
         PrintLine($"body=(", indent);
         PrintStatement(functionDefinition.Body, source, indent + 1);
         PrintLine(")", indent);
@@ -46,26 +45,9 @@ public class PrettyPrinter
         switch (expression)
         {
             case ConstantExpression c:
-                var val = GetConstant(c.Constant, source);
-                PrintLine($"Constant({val})", indent);
+                PrintLine($"Constant({c.Value})", indent);
                 break;
         }
-    }
-
-    private string GetIdentifier(Lexer.Token token, string source)
-    {
-        Regex regex = new($"\\G[a-zA-Z_]\\w*\\b");
-        Match match = regex.Match(source, token.Position);
-        Debug.Assert(match.Success, "There should be an Identifier");
-        return match.Value;
-    }
-
-    private int GetConstant(Lexer.Token token, string source)
-    {
-        Regex regex = new($"\\G[0-9]+\\b");
-        Match match = regex.Match(source, token.Position);
-        Debug.Assert(match.Success, "There should be a Constant");
-        return int.Parse(match.Value);
     }
 
     private void PrintLine(string line, int indent)

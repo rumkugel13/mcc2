@@ -32,7 +32,7 @@ namespace mcc2
             }
             if (stages > 1)
             {
-                Parser parser = new Parser();
+                Parser parser = new Parser(source);
                 var programAST = parser.Parse(tokenList);
 
                 //PrettyPrinter prettyPrinter = new PrettyPrinter();
