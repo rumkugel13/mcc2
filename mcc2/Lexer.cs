@@ -56,9 +56,9 @@ namespace mcc2
 
                 for (int i = 0; i < patterns.Length; i++)
                 {
-                    Regex regex = new(patterns[i]);
+                    Regex regex = new($"\\G{patterns[i]}");
                     Match match = regex.Match(source, pos);
-                    if (match.Success && match.Index == pos)
+                    if (match.Success)
                     {
                         // note: >= matches keywords of the same length as identifiers afterwards
                         if (match.Length >= longest)
