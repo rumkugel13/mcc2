@@ -22,17 +22,21 @@ namespace mcc2
         public static string Compile(string file, int stages = 4)
         {
             string output = $"{file[..^2]}.s";
+            string source = File.ReadAllText(file);
 
             List<Lexer.Token> tokenList = [];
             if (stages > 0)
             {
                 Lexer lexer = new Lexer();
-                tokenList = lexer.Lex(File.ReadAllText(file));
+                tokenList = lexer.Lex(source);
             }
             if (stages > 1)
             {
                 Parser parser = new Parser();
                 var programAST = parser.Parse(tokenList);
+
+                //PrettyPrinter prettyPrinter = new PrettyPrinter();
+                //prettyPrinter.Print(programAST, source);
             }
             if (stages > 2)
             {
