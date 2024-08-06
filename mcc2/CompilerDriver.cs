@@ -27,7 +27,6 @@ namespace mcc2
             {
                 Lexer lexer = new Lexer();
                 var list = lexer.Lex(File.ReadAllText(file));
-                Console.WriteLine(list.Count);
             }
             if (stages > 1)
             {
@@ -40,12 +39,6 @@ namespace mcc2
             if (stages > 3)
             {
                 //todo: run codeemit
-                File.WriteAllLines(output, [
-                "   .globl main",
-                "main:",
-                "movl   $2, %eax",
-                "ret"
-            ]);
             }
 
             return output;

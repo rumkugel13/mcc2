@@ -13,36 +13,48 @@ namespace mcc2
                 return -1;
             }
 
-            string file = args[0];
+            string file = "";
+            int stages = 4;
+            bool assemble = true;
 
-            if (!File.Exists(file))
+            foreach (string arg in args)
             {
-                Console.WriteLine($"Invalid Source File: {file}");
-                return -2;
-            }
+                if (arg.StartsWith('-'))
+                {
+                    string option = arg;
+                    if (option == "--lex")
+                        stages = 1;
+                    else if (option == "--parse")
+                        stages = 2;
+                    else if (option == "--codegen")
+                        stages = 3;
+                    else if (option == "-S")
+                        assemble = false;
+                    else
+                    {
+                        Console.WriteLine($"Invalid option: {option}");
+                        return -4;
+                    }
+                }
+                else
+                {
+                    file = arg;
 
-            if (!file.EndsWith(".c"))
-            {
-                Console.WriteLine("Not a C source File");
-                return -3;
+                    if (!File.Exists(file))
+                    {
+                        Console.WriteLine($"Invalid Source File: {file}");
+                        return -2;
+                    }
+
+                    if (!file.EndsWith(".c"))
+                    {
+                        Console.WriteLine("Not a C source File");
+                        return -3;
+                    }
+                }
             }
 
             string processed = CompilerDriver.Preprocessor(file);
-
-            int stages = 4;
-            bool assemble = true;
-            if (args.Length == 2)
-            {
-                string option = args[1];
-                if (option == "--lex")
-                    stages = 1;
-                else if (option == "--parse")
-                    stages = 2;
-                else if (option == "--codegen")
-                    stages = 3;
-                else if (option == "-S")
-                    assemble = false;
-            }
 
             string assembly;
             try
