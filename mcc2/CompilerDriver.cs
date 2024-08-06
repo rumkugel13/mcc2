@@ -4,7 +4,7 @@ namespace mcc2
 {
     public class CompilerDriver
     {
-        public string Preprocessor(string file)
+        public static string Preprocessor(string file)
         {
             string output = $"{file[..^2]}.i";
             using Process process = new Process();
@@ -19,7 +19,7 @@ namespace mcc2
             return output;
         }
 
-        public string Compile(string file, int stages = 4)
+        public static string Compile(string file, int stages = 4)
         {
             string output = $"{file[..^2]}.s";
 
@@ -49,7 +49,7 @@ namespace mcc2
             return output;
         }
 
-        public string AssembleAndLink(string file)
+        public static string AssembleAndLink(string file)
         {
             string output = $"{file[..^2]}";
             using Process process = new Process();

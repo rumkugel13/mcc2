@@ -27,8 +27,7 @@ namespace mcc2
                 return -3;
             }
 
-            CompilerDriver compilerDriver = new();
-            string processed = compilerDriver.Preprocessor(file);
+            string processed = CompilerDriver.Preprocessor(file);
 
             int stages = 4;
             bool assemble = true;
@@ -48,7 +47,7 @@ namespace mcc2
             string assembly;
             try
             {
-                assembly = compilerDriver.Compile(processed, stages);
+                assembly = CompilerDriver.Compile(processed, stages);
             }
             catch
             {
@@ -61,7 +60,7 @@ namespace mcc2
             }
 
             if (stages == 4 && assemble)
-                compilerDriver.AssembleAndLink(assembly);
+                CompilerDriver.AssembleAndLink(assembly);
             if (assemble)
                 File.Delete(assembly);
 
