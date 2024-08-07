@@ -52,20 +52,72 @@ public class Parser
 
     private Expression ParseExpression(List<Token> tokens, ref int tokenPos)
     {
-        var constant = Expect(Lexer.TokenType.Constant, tokens, ref tokenPos);
-        return new ConstantExpression(GetConstant(constant, this.source));
+        var nextToken = Peek(tokens, ref tokenPos);
+
+        if (nextToken.Type == Lexer.TokenType.Constant)
+        {
+            var constant = TakeToken(tokens, ref tokenPos);
+            return new ConstantExpression(GetConstant(constant, this.source));
+        }
+        else if (nextToken.Type == Lexer.TokenType.Hyphen || nextToken.Type == Lexer.TokenType.Tilde)
+        {
+            var op = ParseUnaryOperator(nextToken, tokens, ref tokenPos);
+            var innerExpression = ParseExpression(tokens, ref tokenPos);
+            return new UnaryExpression(op, innerExpression);
+        }
+        else if (nextToken.Type == Lexer.TokenType.OpenParenthesis)
+        {
+            TakeToken(tokens, ref tokenPos);
+            var innerExpression = ParseExpression(tokens, ref tokenPos);
+            Expect(Lexer.TokenType.CloseParenthesis, tokens, ref tokenPos);
+            return innerExpression;
+        }
+        else
+        {
+            throw new Exception($"Parsing Error: Unsupported Token '{nextToken.Type}'");
+        }
     }
 
-    private Token Expect(Lexer.TokenType tokenType, List<Token> tokens, ref int tokenPos)
+    private UnaryExpression.UnaryOperator ParseUnaryOperator(Token current, List<Token> tokens, ref int tokenPos)
+    {
+        TakeToken(tokens, ref tokenPos);
+        if (current.Type == Lexer.TokenType.Hyphen)
+        {
+            return UnaryExpression.UnaryOperator.Negate;
+        }
+        else if (current.Type == Lexer.TokenType.Tilde)
+        {
+            return UnaryExpression.UnaryOperator.Complement;
+        }
+        else
+        {
+            throw new Exception($"Parsing Error: Unknown Unary Operatpr: {current.Type}");
+        }
+    }
+
+    private Token Peek(List<Token> tokens, ref int tokenPos)
     {
         if (tokenPos >= tokens.Count)
             throw new Exception("Parsing Error: No more Tokens");
 
-        Token actual = tokens[tokenPos++];
+        return tokens[tokenPos];
+    }
+
+    private Token Expect(Lexer.TokenType tokenType, List<Token> tokens, ref int tokenPos)
+    {
+        Token actual = TakeToken(tokens, ref tokenPos);
         if (actual.Type != tokenType)
             throw new Exception($"Parsing Error: Expected {tokenType}, got {actual.Type}");
 
         return actual;
+    }
+
+    private Token TakeToken(List<Token> tokens, ref int tokenPos)
+    {
+        if (tokenPos >= tokens.Count)
+            throw new Exception("Parsing Error: No more Tokens");
+
+        return tokens[tokenPos++];
     }
 
     private string GetIdentifier(Lexer.Token token, string source)
