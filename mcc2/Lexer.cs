@@ -17,11 +17,14 @@ namespace mcc2
             IntKeyword,
             VoidKeyword,
             ReturnKeyword,
+            DoubleHyphen,
             OpenParenthesis,
             CloseParenthesis,
             OpenBrace,
             CloseBrace,
-            Semicolon
+            Semicolon,
+            Hyphen,
+            Tilde,
         }
 
         // note: pattern order needs to match tokentype order
@@ -31,11 +34,14 @@ namespace mcc2
             "int\\b",
             "void\\b",
             "return\\b",
+            "--",
             "\\(",
             "\\)",
             "{",
             "}",
             ";",
+            "-",
+            "~",
         ];
 
         public List<Token> Lex(string source)
