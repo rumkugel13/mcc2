@@ -6,6 +6,16 @@ namespace mcc2
 {
     public class CompilerDriver
     {
+        public enum Stages
+        {
+            None,
+            Lex,
+            Parse,
+            Tacky,
+            Assembly,
+            Emitter,
+        }
+
         public static string Preprocessor(string file)
         {
             string output = $"{file[..^2]}.i";
@@ -21,17 +31,17 @@ namespace mcc2
             return output;
         }
 
-        public static string Compile(string file, int stages = 4)
+        public static string Compile(string file, Stages stages = Stages.Emitter)
         {
             string output = $"{file[..^2]}.s";
             string source = File.ReadAllText(file);
 
-            if (stages > 0)
+            if (stages >= Stages.Lex)
             {
                 Lexer lexer = new();
                 List<Lexer.Token> tokenList = lexer.Lex(source);
 
-                if (stages > 1)
+                if (stages >= Stages.Parse)
                 {
                     Parser parser = new(source);
                     ASTProgram programAST = parser.Parse(tokenList);
@@ -39,17 +49,23 @@ namespace mcc2
                     //PrettyPrinter prettyPrinter = new PrettyPrinter();
                     //prettyPrinter.Print(programAST, source);
 
-                    if (stages > 2)
+                    if (stages >= Stages.Tacky)
                     {
-                        AssemblyGenerator generator = new();
-                        AssemblyProgram assembly = generator.Generate(programAST);
+                        TackyEmitter tackyEmitter = new TackyEmitter();
+                        var tacky = tackyEmitter.Emit(programAST);
 
-                        if (stages > 3)
+                        if (stages >= Stages.Assembly)
                         {
-                            CodeEmitter codeEmitter = new();
-                            var builder = codeEmitter.Emit(assembly);
+                            AssemblyGenerator generator = new();
+                            AssemblyProgram assembly = generator.Generate(programAST);
 
-                            File.WriteAllText(output, builder.ToString());
+                            if (stages >= Stages.Emitter)
+                            {
+                                CodeEmitter codeEmitter = new();
+                                var builder = codeEmitter.Emit(assembly);
+
+                                File.WriteAllText(output, builder.ToString());
+                            }
                         }
                     }
                 }

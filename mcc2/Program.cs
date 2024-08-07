@@ -1,6 +1,4 @@
-﻿using System;
-using System.IO;
-
+﻿
 namespace mcc2
 {
     internal class Program
@@ -14,7 +12,7 @@ namespace mcc2
             }
 
             string file = "";
-            int stages = 4;
+            CompilerDriver.Stages stages = CompilerDriver.Stages.Emitter;
             bool assemble = true;
 
             foreach (string arg in args)
@@ -23,11 +21,13 @@ namespace mcc2
                 {
                     string option = arg;
                     if (option == "--lex")
-                        stages = 1;
+                        stages = CompilerDriver.Stages.Lex;
                     else if (option == "--parse")
-                        stages = 2;
+                        stages = CompilerDriver.Stages.Parse;
+                    else if (option == "--tacky")
+                        stages = CompilerDriver.Stages.Tacky;
                     else if (option == "--codegen")
-                        stages = 3;
+                        stages = CompilerDriver.Stages.Assembly;
                     else if (option == "-S")
                         assemble = false;
                     else
@@ -65,14 +65,14 @@ namespace mcc2
             {
                 Console.WriteLine($"Error on stage {stages}:");
                 Console.WriteLine(e.Message);
-                return -3 - stages;
+                return -3 - (int)stages;
             }
             finally
             {
                 File.Delete(processed);
             }
 
-            if (stages == 4 && assemble)
+            if (stages == CompilerDriver.Stages.Emitter && assemble)
                 CompilerDriver.AssembleAndLink(assembly);
             if (assemble)
                 File.Delete(assembly);
