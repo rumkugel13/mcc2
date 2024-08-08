@@ -14,9 +14,45 @@ public class InstructionFixer
                 if (mov.src is Stack && mov.dst is Stack)
                 {
                     Reg reg = new Reg(Reg.RegisterName.R10);
-                    Mov second = new Mov(reg, mov.dst);
-                    mov.dst = reg;
-                    instructions.Insert(i + 1, second);
+                    Mov moveBefore = new Mov(mov.src, reg);
+                    instructions.Insert(i, moveBefore);
+                    mov.src = reg;
+                }
+            }
+            else if (inst is Idiv idiv)
+            {
+                if (idiv.Operand is Imm imm)
+                {
+                    Reg reg = new Reg(Reg.RegisterName.R10);
+                    Mov moveBefore = new Mov(imm, reg);
+                    instructions.Insert(i, moveBefore);
+                    idiv.Operand = reg;
+                }
+            }
+            else if (inst is Binary binary)
+            {
+                if (binary.Operator == Binary.BinaryOperator.Add && binary.SrcOperand is Stack && binary.DstOperand is Stack)
+                {
+                    Reg reg = new Reg(Reg.RegisterName.R10);
+                    Mov moveBefore = new Mov(binary.SrcOperand, reg);
+                    instructions.Insert(i, moveBefore);
+                    binary.SrcOperand = reg;
+                }
+                else if (binary.Operator == Binary.BinaryOperator.Sub && binary.SrcOperand is Stack && binary.DstOperand is Stack)
+                {
+                    Reg reg = new Reg(Reg.RegisterName.R10);
+                    Mov moveBefore = new Mov(binary.SrcOperand, reg);
+                    instructions.Insert(i, moveBefore);
+                    binary.SrcOperand = reg;
+                }
+                else if (binary.Operator == Binary.BinaryOperator.Mult && binary.DstOperand is Stack)
+                {
+                    Reg reg = new Reg(Reg.RegisterName.R11);
+                    Mov moveBefore = new Mov(binary.DstOperand, reg);
+                    Mov moveAfter = new Mov(reg, binary.DstOperand);
+                    binary.DstOperand = reg;
+                    instructions.Insert(i + 1, moveAfter);
+                    instructions.Insert(i - 1, moveBefore);
                 }
             }
         }

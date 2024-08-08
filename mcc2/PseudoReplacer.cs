@@ -9,22 +9,40 @@ public class PseudoReplacer
 
     public int Replace(List<Instruction> instructions)
     {
-        foreach(var inst in instructions)
+        foreach (var inst in instructions)
         {
             switch (inst)
             {
                 case Mov mov:
-                    if (mov.src is Pseudo pseudoSrc)
-                        mov.src = ReplacePseudo(pseudoSrc.Identifier);
-                    
-                    if (mov.dst is Pseudo pseudoDst)
-                        mov.dst = ReplacePseudo(pseudoDst.Identifier);
-                    
-                    break;
+                    {
+                        if (mov.src is Pseudo pseudoSrc)
+                            mov.src = ReplacePseudo(pseudoSrc.Identifier);
+
+                        if (mov.dst is Pseudo pseudoDst)
+                            mov.dst = ReplacePseudo(pseudoDst.Identifier);
+                        break;
+                    }
                 case Unary unary:
-                    if (unary.Operand is Pseudo pseudoOp)
-                        unary.Operand = ReplacePseudo(pseudoOp.Identifier);
-                    break;
+                    {
+                        if (unary.Operand is Pseudo pseudoOp)
+                            unary.Operand = ReplacePseudo(pseudoOp.Identifier);
+                        break;
+                    }
+                case Binary binary:
+                    {
+                        if (binary.SrcOperand is Pseudo pseudoSrc)
+                            binary.SrcOperand = ReplacePseudo(pseudoSrc.Identifier);
+
+                        if (binary.DstOperand is Pseudo pseudoDst)
+                            binary.DstOperand = ReplacePseudo(pseudoDst.Identifier);
+                        break;
+                    }
+                case Idiv idiv:
+                    {
+                        if (idiv.Operand is Pseudo pseudo)
+                            idiv.Operand = ReplacePseudo(pseudo.Identifier);
+                        break;
+                    }
             }
         }
 
