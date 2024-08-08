@@ -19,7 +19,7 @@ The current goal is to output assembly for the following ISA's:
 - [ ] Part I: The Basics
   - [X] 1: A Minimal Compiler
   - [X] 2: Unary Operators
-  - [ ] 3: Binary Operators
+  - [X] 3: Binary Operators
   - [ ] 4: Logical and Relational Operators
   - [ ] 5: Local Variables
   - [ ] 6: if Statements and Conditional Expressions
