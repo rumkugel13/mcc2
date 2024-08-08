@@ -58,14 +58,44 @@ public class CodeEmitter
             case AllocateStack allocateStack:
                 builder.AppendLine($"\tsubq ${allocateStack.Bytes}, %rsp");
                 break;
+            case Cmp cmp:
+                builder.AppendLine($"\tcmpl {EmitOperand(cmp.OperandA)}, {EmitOperand(cmp.OperandB)}");
+                break;
+            case Jmp jmp:
+                builder.AppendLine($"\tjmp .L{jmp.Identifier}");
+                break;
+            case JmpCC jmpCC:
+                builder.AppendLine($"\tj{EmitConditionCode(jmpCC.Condition)} .L{jmpCC.Identifier}");
+                break;
+            case SetCC setCC:
+                builder.AppendLine($"\tset{EmitConditionCode(setCC.Condition)} {EmitOperand(setCC.Operand, 1)}");
+                break;
+            case Label label:
+                builder.AppendLine($".L{label.Identifier}:");
+                break;
             default:
                 throw new NotImplementedException();
         }
     }
 
+    private string EmitConditionCode(JmpCC.ConditionCode condition)
+    {
+        return condition switch
+        {
+            JmpCC.ConditionCode.E => "e",
+            JmpCC.ConditionCode.NE => "ne",
+            JmpCC.ConditionCode.G => "g",
+            JmpCC.ConditionCode.GE => "ge",
+            JmpCC.ConditionCode.L => "l",
+            JmpCC.ConditionCode.LE => "le",
+            _ => throw new NotImplementedException()
+        };
+    }
+
     private string EmitBinaryOperator(Binary.BinaryOperator binaryOperator)
     {
-        return binaryOperator switch {
+        return binaryOperator switch
+        {
             Binary.BinaryOperator.Add => "addl",
             Binary.BinaryOperator.Sub => "subl",
             Binary.BinaryOperator.Mult => "imull",
@@ -75,21 +105,24 @@ public class CodeEmitter
 
     private string EmitUnaryOperator(Unary.UnaryOperator unaryOperator)
     {
-        return unaryOperator switch {
+        return unaryOperator switch
+        {
             Unary.UnaryOperator.Neg => "negl",
             Unary.UnaryOperator.Not => "notl",
             _ => throw new NotImplementedException()
         };
     }
 
-    private string EmitOperand(Operand operand)
+    private string EmitOperand(Operand operand, int bytes = 4)
     {
-        return operand switch {
-            Reg reg => reg.Register switch {
-                Reg.RegisterName.AX => "%eax",
-                Reg.RegisterName.DX => "%edx",
-                Reg.RegisterName.R10 => "%r10d",
-                Reg.RegisterName.R11 => "%r11d",
+        return operand switch
+        {
+            Reg reg => reg.Register switch
+            {
+                Reg.RegisterName.AX => bytes == 4 ? "%eax" : "%al",
+                Reg.RegisterName.DX => bytes == 4 ? "%edx" : "%dl",
+                Reg.RegisterName.R10 => bytes == 4 ? "%r10d" : "%r10b",
+                Reg.RegisterName.R11 => bytes == 4 ? "%r11d" : "%r11b",
                 _ => throw new NotImplementedException()
             },
             Imm imm => $"${imm.Value}",
