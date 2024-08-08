@@ -43,6 +43,21 @@ public class PseudoReplacer
                             idiv.Operand = ReplacePseudo(pseudo.Identifier);
                         break;
                     }
+                case Cmp cmp:
+                    {
+                        if (cmp.OperandA is Pseudo pseudoA)
+                            cmp.OperandA = ReplacePseudo(pseudoA.Identifier);
+
+                        if (cmp.OperandB is Pseudo pseudoB)
+                            cmp.OperandB = ReplacePseudo(pseudoB.Identifier);
+                        break;
+                    }
+                case SetCC setCC:
+                    {
+                        if (setCC.Operand is Pseudo pseudo)
+                            setCC.Operand = ReplacePseudo(pseudo.Identifier);
+                        break;
+                    }
             }
         }
 

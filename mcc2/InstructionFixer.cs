@@ -19,6 +19,23 @@ public class InstructionFixer
                     mov.src = reg;
                 }
             }
+            else if (inst is Cmp cmp)
+            {
+                if (cmp.OperandA is Stack && cmp.OperandB is Stack)
+                {
+                    Reg reg = new Reg(Reg.RegisterName.R10);
+                    Mov moveBefore = new Mov(cmp.OperandA, reg);
+                    instructions.Insert(i, moveBefore);
+                    cmp.OperandA = reg;
+                }
+                else if (cmp.OperandB is Imm imm)
+                {
+                    Reg reg = new Reg(Reg.RegisterName.R11);
+                    Mov moveBefore = new Mov(cmp.OperandB, reg);
+                    instructions.Insert(i, moveBefore);
+                    cmp.OperandB = reg;
+                }
+            }
             else if (inst is Idiv idiv)
             {
                 if (idiv.Operand is Imm imm)
