@@ -28,7 +28,8 @@ public class PseudoReplacer
             }
         }
 
-        return currentOffset;
+        // note: we sub the offset from rsp, so we need to negate it
+        return -currentOffset;
     }
 
     private Stack ReplacePseudo(string name)

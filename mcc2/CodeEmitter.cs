@@ -9,7 +9,8 @@ public class CodeEmitter
     {
         StringBuilder builder = new();
         EmitProgram(program, builder);
-        builder.AppendLine("\t.section .note.GNU-stack,\"\",@progbits");
+        if (OperatingSystem.IsLinux())
+            builder.AppendLine("\t.section .note.GNU-stack,\"\",@progbits");
         return builder;
     }
 
@@ -22,6 +23,8 @@ public class CodeEmitter
     {
         builder.AppendLine($"\t.globl {function.Name}");
         builder.AppendLine($"{function.Name}:");
+        builder.AppendLine($"\tpushq %rbp");
+        builder.AppendLine($"\tmovq %rsp, %rbp");
         foreach (var inst in function.Instructions)
         {
             EmitInstruction(inst, builder);
@@ -30,20 +33,47 @@ public class CodeEmitter
 
     private void EmitInstruction(Instruction instruction, StringBuilder builder)
     {
-        builder.AppendLine($"\t{instruction switch {
-            Mov mov => $"movl {EmitOperand(mov.src)},{EmitOperand(mov.dst)}",
-            Ret ret => "ret",
-            _ => ""
+        switch (instruction)
+        {
+            case Mov mov:
+                builder.AppendLine($"\tmovl {EmitOperand(mov.src)},{EmitOperand(mov.dst)}");
+                break;
+            case Ret ret:
+                builder.AppendLine($"\tmovq %rbp, %rsp");
+                builder.AppendLine($"\tpopq %rbp");
+                builder.AppendLine("\tret");
+                break;
+            case Unary unary:
+                builder.AppendLine($"\t{EmitUnaryOperator(unary.Operator)} {EmitOperand(unary.Operand)}");
+                break;
+            case AllocateStack allocateStack:
+                builder.AppendLine($"\tsubq ${allocateStack.Bytes}, %rsp");
+                break;
+            default:
+                throw new NotImplementedException();
         }
-        }");
+    }
+
+    private string EmitUnaryOperator(Unary.UnaryOperator unaryOperator)
+    {
+        return unaryOperator switch {
+            Unary.UnaryOperator.Neg => "negl",
+            Unary.UnaryOperator.Not => "notl",
+            _ => throw new NotImplementedException()
+        };
     }
 
     private string EmitOperand(Operand operand)
     {
         return operand switch {
-            Reg reg => "%eax",
+            Reg reg => reg.Register switch {
+                Reg.RegisterName.AX => "%eax",
+                Reg.RegisterName.R10 => "%r10d",
+                _ => throw new NotImplementedException()
+            },
             Imm imm => $"${imm.Value}",
-            _ => ""
+            Stack stack => $"{stack.Offset}(%rbp)",
+            _ => throw new NotImplementedException()
         };
     }
 }
