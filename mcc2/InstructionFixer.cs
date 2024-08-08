@@ -52,7 +52,7 @@ public class InstructionFixer
                     Mov moveAfter = new Mov(reg, binary.DstOperand);
                     binary.DstOperand = reg;
                     instructions.Insert(i + 1, moveAfter);
-                    instructions.Insert(i - 1, moveBefore);
+                    instructions.Insert(i, moveBefore);
                 }
             }
         }
