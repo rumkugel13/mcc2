@@ -1,47 +1,76 @@
 namespace mcc2;
 
 using mcc2.Assembly;
-using mcc2.AST;
 
 public class AssemblyGenerator
 {
-    public AssemblyProgram Generate(ASTProgram astProgram)
+    public AssemblyProgram Generate(TAC.TACProgam program)
     {
-        return GenerateProgram(astProgram);
+        return GenerateProgram(program);
     }
 
-    private AssemblyProgram GenerateProgram(ASTProgram astProgram)
+    private AssemblyProgram GenerateProgram(TAC.TACProgam program)
     {
-        return new AssemblyProgram(GenerateFunction(astProgram.Function));
+        return new AssemblyProgram(GenerateFunction(program.FunctionDefinition));
     }
 
-    private Function GenerateFunction(FunctionDefinition functionDefinition)
+    private Function GenerateFunction(TAC.Function function)
     {
-        return new Function(functionDefinition.Name, GenerateInstructions(functionDefinition.Body));
+        Function fn = new Function(function.Name, GenerateInstructions(function.Instructions));
+
+        PseudoReplacer stackAllocator = new PseudoReplacer();
+        var bytes = stackAllocator.Replace(fn.Instructions);
+
+        fn.Instructions.Insert(0, new AllocateStack(bytes));
+
+        InstructionFixer instructionFixer = new InstructionFixer();
+        instructionFixer.Fix(fn.Instructions);
+
+        return fn;
     }
 
-    private List<Instruction> GenerateInstructions(Statement statement)
+    private List<Instruction> GenerateInstructions(List<TAC.Instruction> tacInstructions)
     {
         List<Instruction> instructions = [];
-        switch (statement)
+        foreach (var inst in tacInstructions)
         {
-            case ReturnStatement ret:
-                instructions.Add(new Mov(GenerateOperand(ret.Expression), new Register()));
-                instructions.Add(new Ret());
-            break;
+            switch (inst)
+            {
+                case TAC.Return ret:
+                    instructions.Add(new Mov(GenerateOperand(ret.Value), new Reg(Reg.RegisterName.AX)));
+                    instructions.Add(new Ret());
+                    break;
+                case TAC.Unary unary:
+                    instructions.Add(new Mov(GenerateOperand(unary.src), GenerateOperand(unary.dst)));
+                    instructions.Add(new Unary(Convert(unary.UnaryOperator), GenerateOperand(unary.dst)));
+                    break;
+                default:
+                    throw new NotImplementedException();
+            }
         }
 
         return instructions;
     }
 
-    private Operand GenerateOperand(Expression expression)
+    private Operand GenerateOperand(TAC.Val val)
     {
-        switch (expression)
+        switch (val)
         {
-            case ConstantExpression c:
+            case TAC.Constant c:
                 return new Imm(c.Value);
+            case TAC.Variable v:
+                return new Pseudo(v.Name);
+            default:
+                throw new NotImplementedException();
         }
+    }
 
-        return new Register();
+    private Unary.UnaryOperator Convert(AST.UnaryExpression.UnaryOperator unaryOperator)
+    {
+        return unaryOperator switch {
+            AST.UnaryExpression.UnaryOperator.Complement => Unary.UnaryOperator.Not,
+            AST.UnaryExpression.UnaryOperator.Negate => Unary.UnaryOperator.Neg,
+            _ => throw new NotImplementedException()
+        };
     }
 }

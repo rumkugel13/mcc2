@@ -57,7 +57,7 @@ namespace mcc2
                         if (stages >= Stages.Assembly)
                         {
                             AssemblyGenerator generator = new();
-                            AssemblyProgram assembly = generator.Generate(programAST);
+                            AssemblyProgram assembly = generator.Generate(tacky);
 
                             if (stages >= Stages.Emitter)
                             {

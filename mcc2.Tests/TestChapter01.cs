@@ -59,8 +59,11 @@ public class TestChapter01
         Parser parser = new Parser(source);
         var ast = parser.Parse(return2tokens);
 
+        TackyEmitter tackyEmitter = new TackyEmitter();
+        var tacky = tackyEmitter.Emit(ast);
+
         AssemblyGenerator assemblyGenerator = new AssemblyGenerator();
-        var assembly = assemblyGenerator.Generate(ast);
+        var assembly = assemblyGenerator.Generate(tacky);
 
         Assert.IsNotNull(assembly, "Invalid Assembly node");
         Assert.IsNotNull(assembly.Function, "Invalid Function node");
@@ -90,8 +93,11 @@ main:
         Parser parser = new Parser(source);
         var ast = parser.Parse(return2tokens);
 
+        TackyEmitter tackyEmitter = new TackyEmitter();
+        var tacky = tackyEmitter.Emit(ast);
+
         AssemblyGenerator assemblyGenerator = new AssemblyGenerator();
-        var assembly = assemblyGenerator.Generate(ast);
+        var assembly = assemblyGenerator.Generate(tacky);
 
         CodeEmitter emitter = new CodeEmitter();
         var code = emitter.Emit(assembly);

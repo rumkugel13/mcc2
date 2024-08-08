@@ -41,7 +41,7 @@ public class CodeEmitter
     private string EmitOperand(Operand operand)
     {
         return operand switch {
-            Register reg => "%eax",
+            Reg reg => "%eax",
             Imm imm => $"${imm.Value}",
             _ => ""
         };
