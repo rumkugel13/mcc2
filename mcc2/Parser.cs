@@ -56,6 +56,14 @@ public class Parser
         {Lexer.TokenType.Percent, 50},
         {Lexer.TokenType.Plus, 45},
         {Lexer.TokenType.Hyphen, 45},
+        {Lexer.TokenType.LessThan, 35},
+        {Lexer.TokenType.LessThanEquals, 35},
+        {Lexer.TokenType.GreaterThan, 35},
+        {Lexer.TokenType.GreaterThanEquals, 35},
+        {Lexer.TokenType.DoubleEquals, 30},
+        {Lexer.TokenType.ExclamationEquals, 30},
+        {Lexer.TokenType.DoubleAmpersand, 10},
+        {Lexer.TokenType.DoubleVertical, 5},
     };
 
     private Expression ParseExpression(List<Token> tokens, ref int tokenPos, int minPrecedence = 0)
@@ -81,7 +89,7 @@ public class Parser
             var constant = TakeToken(tokens, ref tokenPos);
             return new ConstantExpression(GetConstant(constant, this.source));
         }
-        else if (nextToken.Type == Lexer.TokenType.Hyphen || nextToken.Type == Lexer.TokenType.Tilde)
+        else if (nextToken.Type == Lexer.TokenType.Hyphen || nextToken.Type == Lexer.TokenType.Tilde || nextToken.Type == Lexer.TokenType.Exclamation)
         {
             var op = ParseUnaryOperator(nextToken, tokens, ref tokenPos);
             var innerExpression = ParseFactor(tokens, ref tokenPos);
@@ -110,6 +118,14 @@ public class Parser
             Lexer.TokenType.Asterisk => BinaryExpression.BinaryOperator.Multiply,
             Lexer.TokenType.ForwardSlash => BinaryExpression.BinaryOperator.Divide,
             Lexer.TokenType.Percent => BinaryExpression.BinaryOperator.Remainder,
+            Lexer.TokenType.DoubleAmpersand => BinaryExpression.BinaryOperator.And,
+            Lexer.TokenType.DoubleVertical => BinaryExpression.BinaryOperator.Or,
+            Lexer.TokenType.DoubleEquals => BinaryExpression.BinaryOperator.Equal,
+            Lexer.TokenType.ExclamationEquals => BinaryExpression.BinaryOperator.NotEqual,
+            Lexer.TokenType.LessThan => BinaryExpression.BinaryOperator.LessThan,
+            Lexer.TokenType.LessThanEquals => BinaryExpression.BinaryOperator.LessOrEqual,
+            Lexer.TokenType.GreaterThan => BinaryExpression.BinaryOperator.GreaterThan,
+            Lexer.TokenType.GreaterThanEquals => BinaryExpression.BinaryOperator.GreaterOrEqual,
             _ => throw new Exception($"Parsing Error: Unknown Binary Operator: {current.Type}")
         };
     }
@@ -121,6 +137,7 @@ public class Parser
         {
             Lexer.TokenType.Hyphen => UnaryExpression.UnaryOperator.Negate,
             Lexer.TokenType.Tilde => UnaryExpression.UnaryOperator.Complement,
+            Lexer.TokenType.Exclamation => UnaryExpression.UnaryOperator.Not,
             _ => throw new Exception($"Parsing Error: Unknown Unary Operator: {current.Type}")
         };
     }

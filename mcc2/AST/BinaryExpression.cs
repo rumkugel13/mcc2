@@ -9,6 +9,14 @@ public class BinaryExpression : Expression
         Multiply,
         Divide,
         Remainder,
+        And,
+        Or,
+        Equal,
+        NotEqual,
+        LessThan,
+        LessOrEqual,
+        GreaterThan,
+        GreaterOrEqual
     }
 
     public BinaryOperator Operator;

@@ -6,6 +6,7 @@ public class UnaryExpression : Expression
     {
         Complement,
         Negate,
+        Not,
     }
 
     public UnaryOperator Operator;
