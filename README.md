@@ -20,22 +20,28 @@ The current goal is to output assembly for the following ISA's:
   - [X] 1: A Minimal Compiler
   - [X] 2: Unary Operators
   - [X] 3: Binary Operators
+    - [ ] Extra: Bitwise Operators
   - [ ] 4: Logical and Relational Operators
   - [ ] 5: Local Variables
+    - [ ] Extra: Compound Assignment Operators
   - [ ] 6: if Statements and Conditional Expressions
+    - [ ] Extra: Labeled Statements and goto
   - [ ] 7: Compound Statements
   - [ ] 8: Loops
+    - [ ] Extra: switch Statements
   - [ ] 9: Functions
   - [ ] 10: File Scope Variable Declarations and Storage-Class Specifiers
 - [ ] Part II: Types beyond int
   - [ ] 11: Long Integers
   - [ ] 12: Unsigned Integers
   - [ ] 13: Floating-Point Numbers
+    - [ ] Extra: NaN
   - [ ] 14: Pointers
   - [ ] 15: Arrays and Pointer Arithmetic
   - [ ] 16: Characters and Strings
   - [ ] 17: Supporting Dynamic Memory Allocation
   - [ ] 18: Structures
+    - [ ] Extra: Unions
 - [ ] Part III: Optimizations
   - [ ] 19: Optimizing TACKY Programs
   - [ ] 20: Register Allocation
