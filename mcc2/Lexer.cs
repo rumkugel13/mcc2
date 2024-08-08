@@ -18,6 +18,12 @@ namespace mcc2
             VoidKeyword,
             ReturnKeyword,
             DoubleHyphen,
+            DoubleAmpersand,
+            DoubleVertical,
+            DoubleEquals,
+            ExclamationEquals,
+            LessThanEquals,
+            GreaterThanEquals,
             OpenParenthesis,
             CloseParenthesis,
             OpenBrace,
@@ -29,6 +35,9 @@ namespace mcc2
             Asterisk,
             ForwardSlash,
             Percent,
+            Exclamation,
+            LessThan,
+            GreaterThan,
         }
 
         // note: pattern order needs to match tokentype order
@@ -39,6 +48,12 @@ namespace mcc2
             "void\\b",
             "return\\b",
             "--",
+            "&&",
+            "\\|\\|",
+            "==",
+            "!=",
+            "<=",
+            ">=",
             "\\(",
             "\\)",
             "{",
@@ -50,6 +65,9 @@ namespace mcc2
             "\\*",
             "\\/",
             "%",
+            "!",
+            "<",
+            ">",
         ];
 
         public List<Token> Lex(string source)
