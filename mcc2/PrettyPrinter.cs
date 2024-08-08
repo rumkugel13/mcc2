@@ -1,5 +1,3 @@
-using System.Diagnostics;
-using System.Text.RegularExpressions;
 using mcc2.AST;
 
 namespace mcc2;
@@ -46,6 +44,19 @@ public class PrettyPrinter
         {
             case ConstantExpression c:
                 PrintLine($"Constant({c.Value})", indent);
+                break;
+            case UnaryExpression unaryExpression:
+                PrintLine($"Unary(", indent);
+                PrintLine($"{unaryExpression.Operator}(", indent + 1);
+                PrintExpression(unaryExpression.Expression, source, indent + 2);
+                PrintLine($")", indent + 1);
+                break;
+            case BinaryExpression binaryExpression:
+                PrintLine($"Unary(", indent);
+                PrintExpression(binaryExpression.ExpressionLeft, source, indent + 2);
+                PrintLine($"{binaryExpression.Operator}(", indent + 1);
+                PrintExpression(binaryExpression.ExpressionRight, source, indent + 2);
+                PrintLine($")", indent + 1);
                 break;
         }
     }
