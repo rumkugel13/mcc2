@@ -25,6 +25,10 @@ namespace mcc2
             Semicolon,
             Hyphen,
             Tilde,
+            Plus,
+            Asterisk,
+            ForwardSlash,
+            Percent,
         }
 
         // note: pattern order needs to match tokentype order
@@ -42,6 +46,10 @@ namespace mcc2
             ";",
             "-",
             "~",
+            "\\+",
+            "\\*",
+            "\\/",
+            "%",
         ];
 
         public List<Token> Lex(string source)
