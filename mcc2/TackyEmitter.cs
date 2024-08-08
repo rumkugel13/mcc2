@@ -44,11 +44,22 @@ public class TackyEmitter
             case ConstantExpression constant:
                 return new Constant(constant.Value);
             case UnaryExpression unary:
-                var src = EmitInstruction(unary.Expression, instructions);
-                var dstName = MakeTemporary();
-                var dst = new Variable(dstName);
-                instructions.Add(new Unary(unary.Operator, src, dst));
-                return dst;
+                {
+                    var src = EmitInstruction(unary.Expression, instructions);
+                    var dstName = MakeTemporary();
+                    var dst = new Variable(dstName);
+                    instructions.Add(new Unary(unary.Operator, src, dst));
+                    return dst;
+                }
+            case BinaryExpression binary:
+                {
+                    var v1 = EmitInstruction(binary.ExpressionLeft, instructions);
+                    var v2 = EmitInstruction(binary.ExpressionRight, instructions);
+                    var dstName = MakeTemporary();
+                    var dst = new Variable(dstName);
+                    instructions.Add(new Binary(binary.Operator, v1, v2, dst));
+                    return dst;
+                }
             default:
                 throw new NotImplementedException();
         }
