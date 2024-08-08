@@ -50,7 +50,29 @@ public class Parser
         return new ReturnStatement(exp);
     }
 
-    private Expression ParseExpression(List<Token> tokens, ref int tokenPos)
+    private readonly Dictionary<Lexer.TokenType, int> PrecedenceLevels = new(){
+        {Lexer.TokenType.Asterisk, 50},
+        {Lexer.TokenType.ForwardSlash, 50},
+        {Lexer.TokenType.Percent, 50},
+        {Lexer.TokenType.Plus, 45},
+        {Lexer.TokenType.Hyphen, 45},
+    };
+
+    private Expression ParseExpression(List<Token> tokens, ref int tokenPos, int minPrecedence = 0)
+    {
+        var left = ParseFactor(tokens, ref tokenPos);
+        var nextToken = Peek(tokens, ref tokenPos);
+        while (PrecedenceLevels.TryGetValue(nextToken.Type, out int precedence) && precedence >= minPrecedence)
+        {
+            var op = ParseBinaryOperator(nextToken, tokens, ref tokenPos);
+            var right = ParseExpression(tokens, ref tokenPos, precedence + 1);
+            left = new BinaryExpression(op, left, right);
+            nextToken = Peek(tokens, ref tokenPos);
+        }
+        return left;
+    }
+
+    private Expression ParseFactor(List<Token> tokens, ref int tokenPos)
     {
         var nextToken = Peek(tokens, ref tokenPos);
 
@@ -62,7 +84,7 @@ public class Parser
         else if (nextToken.Type == Lexer.TokenType.Hyphen || nextToken.Type == Lexer.TokenType.Tilde)
         {
             var op = ParseUnaryOperator(nextToken, tokens, ref tokenPos);
-            var innerExpression = ParseExpression(tokens, ref tokenPos);
+            var innerExpression = ParseFactor(tokens, ref tokenPos);
             return new UnaryExpression(op, innerExpression);
         }
         else if (nextToken.Type == Lexer.TokenType.OpenParenthesis)
@@ -78,21 +100,29 @@ public class Parser
         }
     }
 
+    private BinaryExpression.BinaryOperator ParseBinaryOperator(Token current, List<Token> tokens, ref int tokenPos)
+    {
+        TakeToken(tokens, ref tokenPos);
+        return current.Type switch
+        {
+            Lexer.TokenType.Hyphen => BinaryExpression.BinaryOperator.Subtract,
+            Lexer.TokenType.Plus => BinaryExpression.BinaryOperator.Add,
+            Lexer.TokenType.Asterisk => BinaryExpression.BinaryOperator.Multiply,
+            Lexer.TokenType.ForwardSlash => BinaryExpression.BinaryOperator.Divide,
+            Lexer.TokenType.Percent => BinaryExpression.BinaryOperator.Remainder,
+            _ => throw new Exception($"Parsing Error: Unknown Binary Operator: {current.Type}")
+        };
+    }
+
     private UnaryExpression.UnaryOperator ParseUnaryOperator(Token current, List<Token> tokens, ref int tokenPos)
     {
         TakeToken(tokens, ref tokenPos);
-        if (current.Type == Lexer.TokenType.Hyphen)
+        return current.Type switch
         {
-            return UnaryExpression.UnaryOperator.Negate;
-        }
-        else if (current.Type == Lexer.TokenType.Tilde)
-        {
-            return UnaryExpression.UnaryOperator.Complement;
-        }
-        else
-        {
-            throw new Exception($"Parsing Error: Unknown Unary Operatpr: {current.Type}");
-        }
+            Lexer.TokenType.Hyphen => UnaryExpression.UnaryOperator.Negate,
+            Lexer.TokenType.Tilde => UnaryExpression.UnaryOperator.Complement,
+            _ => throw new Exception($"Parsing Error: Unknown Unary Operator: {current.Type}")
+        };
     }
 
     private Token Peek(List<Token> tokens, ref int tokenPos)
