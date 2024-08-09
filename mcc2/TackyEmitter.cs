@@ -63,6 +63,10 @@ public class TackyEmitter
                 }
                 instructions.Add(new Label(endLabel));
                 break;
+            case CompoundStatement compoundStatement:
+                foreach (var item in compoundStatement.Block.BlockItems)
+                    EmitInstruction(item, instructions);
+                break;
             default:
                 throw new NotImplementedException();
         }
