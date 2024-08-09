@@ -52,11 +52,53 @@ public class SemanticAnalyzer
                     ResolveStatement(ifStatement.Else, variableMap);
                 break;
             case CompoundStatement compoundStatement:
-                var newVarMap = CopyVarMap(variableMap);
-                ResolveBlock(compoundStatement.Block, newVarMap);
+                {
+                    var newVarMap = CopyVarMap(variableMap);
+                    ResolveBlock(compoundStatement.Block, newVarMap);
+                    break;
+                }
+            case BreakStatement:
                 break;
+            case ContinueStatement:
+                break;
+            case WhileStatement whileStatement:
+                ResolveExpression(whileStatement.Condition, variableMap);
+                ResolveStatement(whileStatement.Body, variableMap);
+                break;
+            case DoWhileStatement doWhileStatement:
+                ResolveStatement(doWhileStatement.Body, variableMap);
+                ResolveExpression(doWhileStatement.Condition, variableMap);
+                break;
+            case ForStatement forStatement:
+                {
+                    var newVarMap = CopyVarMap(variableMap);
+                    ResolveForInit(forStatement.Init, newVarMap);
+                    ResolveOptionalExpression(forStatement.Condition, newVarMap);
+                    ResolveOptionalExpression(forStatement.Post, newVarMap);
+                    ResolveStatement(forStatement.Body, newVarMap);
+                    break;
+                }
             default:
                 throw new NotImplementedException();
+        }
+    }
+
+    private void ResolveOptionalExpression(Expression? expression, Dictionary<string, MapEntry> variableMap)
+    {
+        if (expression != null)
+            ResolveExpression(expression, variableMap);
+    }
+
+    private void ResolveForInit(ForInit init, Dictionary<string, MapEntry> variableMap)
+    {
+        switch (init)
+        {
+            case InitExpression initExpression:
+                ResolveOptionalExpression(initExpression.Expression, variableMap);
+                break;
+            case InitDeclaration initDeclaration:
+                ResolveDeclaration(initDeclaration.Declaration, variableMap);
+                break;
         }
     }
 
@@ -65,7 +107,7 @@ public class SemanticAnalyzer
         Dictionary<string, MapEntry> newMap = [];
         foreach (var item in variableMap)
         {
-            newMap.Add(item.Key, new MapEntry(){NewName = item.Value.NewName, FromCurrentBlock = false});
+            newMap.Add(item.Key, new MapEntry() { NewName = item.Value.NewName, FromCurrentBlock = false });
         }
         return newMap;
     }
@@ -112,7 +154,7 @@ public class SemanticAnalyzer
             throw new Exception("Semantic Error: Duplicate variable declaration");
 
         var uniqueName = MakeTemporary(declaration.Identifier);
-        variableMap[declaration.Identifier] = new MapEntry(){NewName = uniqueName, FromCurrentBlock = true};
+        variableMap[declaration.Identifier] = new MapEntry() { NewName = uniqueName, FromCurrentBlock = true };
         if (declaration.Initializer != null)
         {
             ResolveExpression(declaration.Initializer, variableMap);
