@@ -20,13 +20,14 @@ public class TackyEmitter
     private Function EmitFunction(FunctionDefinition functionDefinition)
     {
         List<Instruction> instructions = [];
-        EmitInstruction(functionDefinition.Body, instructions);
+        foreach (var item in functionDefinition.Body)
+            EmitInstruction(item, instructions);
         return new Function(functionDefinition.Name, instructions);
     }
 
-    private void EmitInstruction(Statement statement, List<Instruction> instructions)
+    private void EmitInstruction(BlockItem blockItem, List<Instruction> instructions)
     {
-        switch (statement)
+        switch (blockItem)
         {
             case ReturnStatement returnStatement:
                 var val = EmitInstruction(returnStatement.Expression, instructions);

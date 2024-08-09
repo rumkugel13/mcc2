@@ -11,7 +11,7 @@
             "preLaunchTask": "dotnet: build",
             "program": "${workspaceFolder}/mcc2/bin/Debug/net8.0/mcc2",
             "args": [
-                "-S", "mcc2.Tests/Source/nested_ops.c"
+                "-S", "mcc2.Tests/Source/assign_val_in_initializer.c"
             ],
             "cwd": "${workspaceFolder}",
             "stopAtEntry": false,

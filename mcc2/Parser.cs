@@ -37,17 +37,69 @@ public class Parser
         Expect(Lexer.TokenType.VoidKeyword, tokens, ref tokenPos);
         Expect(Lexer.TokenType.CloseParenthesis, tokens, ref tokenPos);
         Expect(Lexer.TokenType.OpenBrace, tokens, ref tokenPos);
-        var statement = ParseStatement(tokens, ref tokenPos);
-        Expect(Lexer.TokenType.CloseBrace, tokens, ref tokenPos);
-        return new FunctionDefinition(GetIdentifier(id, this.source), statement);
+
+        List<BlockItem> body = [];
+        while (Peek(tokens, ref tokenPos).Type != Lexer.TokenType.CloseBrace)
+        {
+            body.Add(ParseBlockItem(tokens, ref tokenPos));
+        }
+
+        TakeToken(tokens, ref tokenPos);
+        return new FunctionDefinition(GetIdentifier(id, this.source), body);
+    }
+
+    private BlockItem ParseBlockItem(List<Token> tokens, ref int tokenPos)
+    {
+        var nextToken = Peek(tokens, ref tokenPos);
+        if (nextToken.Type == Lexer.TokenType.IntKeyword)
+        {
+            return ParseDeclaration(tokens, ref tokenPos);
+        }
+        else
+        {
+            return ParseStatement(tokens, ref tokenPos);
+        }
+    }
+
+    private Declaration ParseDeclaration(List<Token> tokens, ref int tokenPos)
+    {
+        Expect(Lexer.TokenType.IntKeyword, tokens, ref tokenPos);
+        var id = Expect(Lexer.TokenType.Identifier, tokens, ref tokenPos);
+        Expression? expression = null;
+        var nextToken = Peek(tokens, ref tokenPos);
+
+        if (nextToken.Type == Lexer.TokenType.Equals)
+        {
+            TakeToken(tokens, ref tokenPos);
+            expression = ParseExpression(tokens, ref tokenPos);
+        }
+
+        Expect(Lexer.TokenType.Semicolon, tokens, ref tokenPos);
+        return new Declaration(GetIdentifier(id, this.source), expression);
     }
 
     private Statement ParseStatement(List<Token> tokens, ref int tokenPos)
     {
-        Expect(Lexer.TokenType.ReturnKeyword, tokens, ref tokenPos);
-        var exp = ParseExpression(tokens, ref tokenPos);
-        Expect(Lexer.TokenType.Semicolon, tokens, ref tokenPos);
-        return new ReturnStatement(exp);
+        var nextToken = Peek(tokens, ref tokenPos);
+
+        if (nextToken.Type == Lexer.TokenType.ReturnKeyword)
+        {
+            TakeToken(tokens, ref tokenPos);
+            var exp = ParseExpression(tokens, ref tokenPos);
+            Expect(Lexer.TokenType.Semicolon, tokens, ref tokenPos);
+            return new ReturnStatement(exp);
+        }
+        else if (nextToken.Type == Lexer.TokenType.Semicolon)
+        {
+            TakeToken(tokens, ref tokenPos);
+            return new NullStatement();
+        }
+        else
+        {
+            var exp = ParseExpression(tokens, ref tokenPos);
+            Expect(Lexer.TokenType.Semicolon, tokens, ref tokenPos);
+            return new ExpressionStatement(exp);
+        }
     }
 
     private readonly Dictionary<Lexer.TokenType, int> PrecedenceLevels = new(){
@@ -64,6 +116,7 @@ public class Parser
         {Lexer.TokenType.ExclamationEquals, 30},
         {Lexer.TokenType.DoubleAmpersand, 10},
         {Lexer.TokenType.DoubleVertical, 5},
+        {Lexer.TokenType.Equals, 1},
     };
 
     private Expression ParseExpression(List<Token> tokens, ref int tokenPos, int minPrecedence = 0)
@@ -72,9 +125,18 @@ public class Parser
         var nextToken = Peek(tokens, ref tokenPos);
         while (PrecedenceLevels.TryGetValue(nextToken.Type, out int precedence) && precedence >= minPrecedence)
         {
-            var op = ParseBinaryOperator(nextToken, tokens, ref tokenPos);
-            var right = ParseExpression(tokens, ref tokenPos, precedence + 1);
-            left = new BinaryExpression(op, left, right);
+            if (nextToken.Type == Lexer.TokenType.Equals)
+            {
+                TakeToken(tokens, ref tokenPos);
+                var right = ParseExpression(tokens, ref tokenPos, precedence);
+                left = new AssignmentExpression(left, right);
+            }
+            else
+            {
+                var op = ParseBinaryOperator(nextToken, tokens, ref tokenPos);
+                var right = ParseExpression(tokens, ref tokenPos, precedence + 1);
+                left = new BinaryExpression(op, left, right);
+            }
             nextToken = Peek(tokens, ref tokenPos);
         }
         return left;
@@ -101,6 +163,11 @@ public class Parser
             var innerExpression = ParseExpression(tokens, ref tokenPos);
             Expect(Lexer.TokenType.CloseParenthesis, tokens, ref tokenPos);
             return innerExpression;
+        }
+        else if (nextToken.Type == Lexer.TokenType.Identifier)
+        {
+            var id = TakeToken(tokens, ref tokenPos);
+            return new VariableExpression(GetIdentifier(id, this.source));
         }
         else
         {

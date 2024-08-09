@@ -38,6 +38,7 @@ namespace mcc2
             Exclamation,
             LessThan,
             GreaterThan,
+            Equals,
         }
 
         // note: pattern order needs to match tokentype order
@@ -68,6 +69,7 @@ namespace mcc2
             "!",
             "<",
             ">",
+            "=",
         ];
 
         public List<Token> Lex(string source)

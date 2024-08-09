@@ -1,6 +1,6 @@
 namespace mcc2.AST;
 
-public abstract class Statement
+public abstract class Statement : BlockItem
 {
 
 }

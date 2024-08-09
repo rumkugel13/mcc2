@@ -21,14 +21,15 @@ public class PrettyPrinter
         PrintLine("Function(", indent++);
         PrintLine($"name=\"{functionDefinition.Name}\",", indent);
         PrintLine($"body=(", indent);
-        PrintStatement(functionDefinition.Body, source, indent + 1);
+        foreach (var item in functionDefinition.Body)
+            PrintBlockItem(item, source, indent + 1);
         PrintLine(")", indent);
         PrintLine(")", --indent);
     }
 
-    private void PrintStatement(Statement statement, string source, int indent)
+    private void PrintBlockItem(BlockItem blockItem, string source, int indent)
     {
-        switch (statement)
+        switch (blockItem)
         {
             case ReturnStatement ret:
                 PrintLine($"Return(", indent);
