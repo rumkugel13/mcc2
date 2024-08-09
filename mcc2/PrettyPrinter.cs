@@ -31,16 +31,40 @@ public class PrettyPrinter
     {
         switch (blockItem)
         {
-            case ReturnStatement ret:
-                PrintLine($"Return(", indent);
-                PrintExpression(ret.Expression, source, indent + 1);
-                PrintLine(")", indent);
+            case Statement statement:
+                PrintStatement(statement, source, indent);
                 break;
             case Declaration declaration:
                 PrintLine($"Declare(", indent);
                 PrintLine($"name=\"{declaration.Identifier}\",", indent + 1);
                 if (declaration.Initializer != null)
                     PrintExpression(declaration.Initializer, source, indent + 1);
+                PrintLine(")", indent);
+                break;
+        }
+    }
+
+    private void PrintStatement(Statement statement, string source, int indent)
+    {
+        switch (statement)
+        {
+            case ReturnStatement ret:
+                PrintLine($"Return(", indent);
+                PrintExpression(ret.Expression, source, indent + 1);
+                PrintLine(")", indent);
+                break;
+            case IfStatement ifStatement:
+                PrintLine($"If(", indent);
+                PrintExpression(ifStatement.Condition, source, indent + 1);
+                PrintLine($"Then(", indent + 1);
+                PrintStatement(ifStatement.Then, source, indent + 2);
+                PrintLine(")", indent + 1);
+                if (ifStatement.Else != null)
+                {
+                    PrintLine($"Else(", indent + 1);
+                    PrintStatement(ifStatement.Else, source, indent + 2);
+                    PrintLine(")", indent + 1);
+                }
                 PrintLine(")", indent);
                 break;
         }
@@ -65,6 +89,7 @@ public class PrettyPrinter
                 PrintLine($"{binaryExpression.Operator}(", indent + 1);
                 PrintExpression(binaryExpression.ExpressionRight, source, indent + 2);
                 PrintLine($")", indent + 1);
+                PrintLine(")", indent);
                 break;
             case VariableExpression variableExpression:
                 PrintLine($"Var(", indent);
@@ -77,6 +102,20 @@ public class PrettyPrinter
                 PrintLine($"Equals(", indent + 1);
                 PrintExpression(assignmentExpression.ExpressionRight, source, indent + 2);
                 PrintLine(")", indent + 1);
+                PrintLine(")", indent);
+                break;
+            case ConditionalExpression conditionalExpression:
+                PrintLine($"Conditional(", indent);
+                PrintExpression(conditionalExpression.Condition, source, indent + 1);
+                PrintLine($"Then(", indent + 1);
+                PrintExpression(conditionalExpression.Then, source, indent + 2);
+                PrintLine(")", indent + 1);
+                if (conditionalExpression.Else != null)
+                {
+                    PrintLine($"Else(", indent + 1);
+                    PrintExpression(conditionalExpression.Else, source, indent + 2);
+                    PrintLine(")", indent + 1);
+                }
                 PrintLine(")", indent);
                 break;
         }

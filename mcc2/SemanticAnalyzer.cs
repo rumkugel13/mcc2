@@ -37,6 +37,12 @@ public class SemanticAnalyzer
                 break;
             case NullStatement:
                 break;
+            case IfStatement ifStatement:
+                ResolveExpression(ifStatement.Condition, variableMap);
+                ResolveStatement(ifStatement.Then, variableMap);
+                if (ifStatement.Else != null)
+                    ResolveStatement(ifStatement.Else, variableMap);
+                break;
             default:
                 throw new NotImplementedException();
         }
@@ -67,6 +73,11 @@ public class SemanticAnalyzer
                 ResolveExpression(binaryExpression.ExpressionRight, variableMap);
                 break;
             case ConstantExpression:
+                break;
+            case ConditionalExpression conditionalExpression:
+                ResolveExpression(conditionalExpression.Condition, variableMap);
+                ResolveExpression(conditionalExpression.Then, variableMap);
+                ResolveExpression(conditionalExpression.Else, variableMap);
                 break;
             default:
                 throw new NotImplementedException();
