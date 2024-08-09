@@ -11,6 +11,7 @@ namespace mcc2
             None,
             Lex,
             Parse,
+            Validate,
             Tacky,
             Assembly,
             Emitter,
@@ -46,28 +47,34 @@ namespace mcc2
                     Parser parser = new(source);
                     ASTProgram programAST = parser.Parse(tokenList);
 
-                    if (prettyPrint)
+                    if (stages >= Stages.Validate)
                     {
-                        PrettyPrinter prettyPrinter = new PrettyPrinter();
-                        prettyPrinter.Print(programAST, source);
-                    }
+                        SemanticAnalyzer semanticAnalyzer = new SemanticAnalyzer();
+                        semanticAnalyzer.Analyze(programAST);
 
-                    if (stages >= Stages.Tacky)
-                    {
-                        TackyEmitter tackyEmitter = new TackyEmitter();
-                        var tacky = tackyEmitter.Emit(programAST);
-
-                        if (stages >= Stages.Assembly)
+                        if (prettyPrint)
                         {
-                            AssemblyGenerator generator = new();
-                            AssemblyProgram assembly = generator.Generate(tacky);
+                            PrettyPrinter prettyPrinter = new PrettyPrinter();
+                            prettyPrinter.Print(programAST, source);
+                        }
 
-                            if (stages >= Stages.Emitter)
+                        if (stages >= Stages.Tacky)
+                        {
+                            TackyEmitter tackyEmitter = new TackyEmitter();
+                            var tacky = tackyEmitter.Emit(programAST);
+
+                            if (stages >= Stages.Assembly)
                             {
-                                CodeEmitter codeEmitter = new();
-                                var builder = codeEmitter.Emit(assembly);
+                                AssemblyGenerator generator = new();
+                                AssemblyProgram assembly = generator.Generate(tacky);
 
-                                File.WriteAllText(output, builder.ToString());
+                                if (stages >= Stages.Emitter)
+                                {
+                                    CodeEmitter codeEmitter = new();
+                                    var builder = codeEmitter.Emit(assembly);
+
+                                    File.WriteAllText(output, builder.ToString());
+                                }
                             }
                         }
                     }

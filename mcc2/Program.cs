@@ -25,6 +25,8 @@ namespace mcc2
                         stages = CompilerDriver.Stages.Lex;
                     else if (option == "--parse")
                         stages = CompilerDriver.Stages.Parse;
+                    else if (option == "--validate")
+                        stages = CompilerDriver.Stages.Validate;
                     else if (option == "--tacky")
                         stages = CompilerDriver.Stages.Tacky;
                     else if (option == "--codegen")
