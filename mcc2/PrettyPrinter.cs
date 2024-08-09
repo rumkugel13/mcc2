@@ -36,6 +36,13 @@ public class PrettyPrinter
                 PrintExpression(ret.Expression, source, indent + 1);
                 PrintLine(")", indent);
                 break;
+            case Declaration declaration:
+                PrintLine($"Declare(", indent);
+                PrintLine($"name=\"{declaration.Identifier}\",", indent + 1);
+                if (declaration.Initializer != null)
+                    PrintExpression(declaration.Initializer, source, indent + 1);
+                PrintLine(")", indent);
+                break;
         }
     }
 
@@ -58,6 +65,19 @@ public class PrettyPrinter
                 PrintLine($"{binaryExpression.Operator}(", indent + 1);
                 PrintExpression(binaryExpression.ExpressionRight, source, indent + 2);
                 PrintLine($")", indent + 1);
+                break;
+            case VariableExpression variableExpression:
+                PrintLine($"Var(", indent);
+                PrintLine($"name=\"{variableExpression.Identifier}\",", indent + 1);
+                PrintLine(")", indent);
+                break;
+            case AssignmentExpression assignmentExpression:
+                PrintLine($"Assign(", indent);
+                PrintExpression(assignmentExpression.ExpressionLeft, source, indent + 1);
+                PrintLine($"Equals(", indent + 1);
+                PrintExpression(assignmentExpression.ExpressionRight, source, indent + 2);
+                PrintLine(")", indent + 1);
+                PrintLine(")", indent);
                 break;
         }
     }

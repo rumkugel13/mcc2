@@ -31,7 +31,7 @@ namespace mcc2
             return output;
         }
 
-        public static string Compile(string file, Stages stages = Stages.Emitter)
+        public static string Compile(string file, Stages stages = Stages.Emitter, bool prettyPrint = false)
         {
             string output = $"{file[..^2]}.s";
             string source = File.ReadAllText(file);
@@ -46,8 +46,11 @@ namespace mcc2
                     Parser parser = new(source);
                     ASTProgram programAST = parser.Parse(tokenList);
 
-                    //PrettyPrinter prettyPrinter = new PrettyPrinter();
-                    //prettyPrinter.Print(programAST, source);
+                    if (prettyPrint)
+                    {
+                        PrettyPrinter prettyPrinter = new PrettyPrinter();
+                        prettyPrinter.Print(programAST, source);
+                    }
 
                     if (stages >= Stages.Tacky)
                     {

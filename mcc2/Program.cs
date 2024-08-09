@@ -14,6 +14,7 @@ namespace mcc2
             string file = "";
             CompilerDriver.Stages stages = CompilerDriver.Stages.Emitter;
             bool assemble = true;
+            bool prettyPrint = false;
 
             foreach (string arg in args)
             {
@@ -30,6 +31,8 @@ namespace mcc2
                         stages = CompilerDriver.Stages.Assembly;
                     else if (option == "-S")
                         assemble = false;
+                    else if (option == "--pretty")
+                        prettyPrint = true;
                     else
                     {
                         Console.WriteLine($"Invalid option: {option}");
@@ -59,7 +62,7 @@ namespace mcc2
             string assembly;
             try
             {
-                assembly = CompilerDriver.Compile(processed, stages);
+                assembly = CompilerDriver.Compile(processed, stages, prettyPrint);
             }
             catch (Exception e)
             {
