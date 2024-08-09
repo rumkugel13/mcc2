@@ -84,6 +84,7 @@ public class SemanticAnalyzer
         {
             ResolveExpression(declaration.Initializer, variableMap);
         }
+        declaration.Identifier = uniqueName;
     }
 
     private string MakeTemporary(string varName)
