@@ -22,6 +22,7 @@ public class TackyEmitter
         List<Instruction> instructions = [];
         foreach (var item in functionDefinition.Body)
             EmitInstruction(item, instructions);
+        instructions.Add(new Return(new Constant(0)));
         return new Function(functionDefinition.Name, instructions);
     }
 
@@ -32,6 +33,18 @@ public class TackyEmitter
             case ReturnStatement returnStatement:
                 var val = EmitInstruction(returnStatement.Expression, instructions);
                 instructions.Add(new Return(val));
+                break;
+            case Declaration declaration:
+                if (declaration.Initializer != null)
+                {
+                    var result = EmitInstruction(declaration.Initializer, instructions);
+                    instructions.Add(new Copy(result, new Variable(declaration.Identifier)));
+                }
+                break;
+            case ExpressionStatement expressionStatement:
+                EmitInstruction(expressionStatement.Expression, instructions);
+                break;
+            case NullStatement:
                 break;
             default:
                 throw new NotImplementedException();
@@ -65,6 +78,15 @@ public class TackyEmitter
                     var dstName = MakeTemporary();
                     var dst = new Variable(dstName);
                     instructions.Add(new Binary(binary.Operator, v1, v2, dst));
+                    return dst;
+                }
+            case VariableExpression variableExpression:
+                return new Variable(variableExpression.Identifier);
+            case AssignmentExpression assignmentExpression:
+                {
+                    var result = EmitInstruction(assignmentExpression.ExpressionRight, instructions);
+                    var dst = new Variable(((VariableExpression)assignmentExpression.ExpressionLeft).Identifier);
+                    instructions.Add(new Copy(result, dst));
                     return dst;
                 }
             default:
