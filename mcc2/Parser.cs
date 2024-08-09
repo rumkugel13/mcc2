@@ -95,6 +95,23 @@ public class Parser
             TakeToken(tokens);
             return new NullStatement();
         }
+        else if (nextToken.Type == Lexer.TokenType.IfKeyword)
+        {
+            TakeToken(tokens);
+            Expect(Lexer.TokenType.OpenParenthesis, tokens);
+            var cond = ParseExpression(tokens);
+            Expect(Lexer.TokenType.CloseParenthesis, tokens);
+            var thenStatement = ParseStatement(tokens);
+            Statement? elseStatement = null;
+            
+            var maybeElse = Peek(tokens);
+            if (maybeElse.Type == Lexer.TokenType.ElseKeyword)
+            {
+                TakeToken(tokens);
+                elseStatement = ParseStatement(tokens);
+            }
+            return new IfStatement(cond, thenStatement, elseStatement);
+        }
         else
         {
             var exp = ParseExpression(tokens);
@@ -117,6 +134,7 @@ public class Parser
         {Lexer.TokenType.ExclamationEquals, 30},
         {Lexer.TokenType.DoubleAmpersand, 10},
         {Lexer.TokenType.DoubleVertical, 5},
+        {Lexer.TokenType.Question, 3},
         {Lexer.TokenType.Equals, 1},
     };
 
@@ -132,6 +150,12 @@ public class Parser
                 var right = ParseExpression(tokens, precedence);
                 left = new AssignmentExpression(left, right);
             }
+            else if (nextToken.Type == Lexer.TokenType.Question)
+            {
+                var middle = ParseConditionalMiddle(tokens);
+                var right = ParseExpression(tokens, precedence);
+                left = new ConditionalExpression(left, middle, right);
+            }
             else
             {
                 var op = ParseBinaryOperator(nextToken, tokens);
@@ -141,6 +165,14 @@ public class Parser
             nextToken = Peek(tokens);
         }
         return left;
+    }
+
+    private Expression ParseConditionalMiddle(List<Token> tokens)
+    {
+        TakeToken(tokens);
+        var exp = ParseExpression(tokens, 0);
+        Expect(Lexer.TokenType.Colon, tokens);
+        return exp;
     }
 
     private Expression ParseFactor(List<Token> tokens)

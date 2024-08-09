@@ -17,6 +17,8 @@ namespace mcc2
             IntKeyword,
             VoidKeyword,
             ReturnKeyword,
+            IfKeyword,
+            ElseKeyword,
             DoubleHyphen,
             DoubleAmpersand,
             DoubleVertical,
@@ -39,6 +41,8 @@ namespace mcc2
             LessThan,
             GreaterThan,
             Equals,
+            Question,
+            Colon,
         }
 
         // note: pattern order needs to match tokentype order
@@ -48,6 +52,8 @@ namespace mcc2
             "int\\b",
             "void\\b",
             "return\\b",
+            "if\\b",
+            "else\\b",
             "--",
             "&&",
             "\\|\\|",
@@ -70,6 +76,8 @@ namespace mcc2
             "<",
             ">",
             "=",
+            "\\?",
+            ":",
         ];
 
         public List<Token> Lex(string source)
