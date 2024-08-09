@@ -46,6 +46,23 @@ public class TackyEmitter
                 break;
             case NullStatement:
                 break;
+            case IfStatement ifStatement:
+                var cond = EmitInstruction(ifStatement.Condition, instructions);
+                var endLabel = MakeLabel();
+                var elseLabel = MakeLabel();
+                if (ifStatement.Else == null)
+                    instructions.Add(new JumpIfZero(cond, endLabel));
+                else
+                    instructions.Add(new JumpIfZero(cond, elseLabel));
+                EmitInstruction(ifStatement.Then, instructions);
+                if (ifStatement.Else != null)
+                {
+                    instructions.Add(new Jump(endLabel));
+                    instructions.Add(new Label(elseLabel));
+                    EmitInstruction(ifStatement.Else, instructions);
+                }
+                instructions.Add(new Label(endLabel));
+                break;
             default:
                 throw new NotImplementedException();
         }
@@ -67,7 +84,7 @@ public class TackyEmitter
                 }
             case BinaryExpression binary:
                 {
-                    if (binary.Operator == BinaryExpression.BinaryOperator.And || 
+                    if (binary.Operator == BinaryExpression.BinaryOperator.And ||
                         binary.Operator == BinaryExpression.BinaryOperator.Or)
                     {
                         return EmitShortCurcuit(binary, instructions);
@@ -87,6 +104,23 @@ public class TackyEmitter
                     var result = EmitInstruction(assignmentExpression.ExpressionRight, instructions);
                     var dst = new Variable(((VariableExpression)assignmentExpression.ExpressionLeft).Identifier);
                     instructions.Add(new Copy(result, dst));
+                    return dst;
+                }
+            case ConditionalExpression conditionalExpression:
+                {
+                    var cond = EmitInstruction(conditionalExpression.Condition, instructions);
+                    var exp2Label = MakeLabel();
+                    instructions.Add(new JumpIfZero(cond, exp2Label));
+                    var var1 = EmitInstruction(conditionalExpression.Then, instructions);
+                    var dstName = MakeTemporary();
+                    var dst = new Variable(dstName);
+                    instructions.Add(new Copy(var1, dst));
+                    var endLabel = MakeLabel();
+                    instructions.Add(new Jump(endLabel));
+                    instructions.Add(new Label(exp2Label));
+                    var var2 = EmitInstruction(conditionalExpression.Else, instructions);
+                    instructions.Add(new Copy(var2, dst));
+                    instructions.Add(new Label(endLabel));
                     return dst;
                 }
             default:
@@ -138,6 +172,6 @@ public class TackyEmitter
 
     private string MakeLabel()
     {
-         return $"jmp.{counter++}";
+        return $"jmp.{counter++}";
     }
 }
