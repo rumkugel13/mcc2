@@ -37,49 +37,36 @@ namespace mcc2
             string output = $"{file[..^2]}.s";
             string source = File.ReadAllText(file);
 
-            if (stages >= Stages.Lex)
-            {
-                Lexer lexer = new();
-                List<Lexer.Token> tokenList = lexer.Lex(source);
+            if (stages < Stages.Lex)
+                return output;
 
-                if (stages >= Stages.Parse)
-                {
-                    Parser parser = new(source);
-                    ASTProgram programAST = parser.Parse(tokenList);
+            List<Lexer.Token> tokenList = new Lexer().Lex(source);
 
-                    if (stages >= Stages.Validate)
-                    {
-                        SemanticAnalyzer semanticAnalyzer = new SemanticAnalyzer();
-                        semanticAnalyzer.Analyze(programAST);
+            if (stages < Stages.Parse)
+                return output;
 
-                        if (prettyPrint)
-                        {
-                            PrettyPrinter prettyPrinter = new PrettyPrinter();
-                            prettyPrinter.Print(programAST, source);
-                        }
+            ASTProgram programAST = new Parser(source).Parse(tokenList);
 
-                        if (stages >= Stages.Tacky)
-                        {
-                            TackyEmitter tackyEmitter = new TackyEmitter();
-                            var tacky = tackyEmitter.Emit(programAST);
+            if (stages < Stages.Validate)
+                return output;
 
-                            if (stages >= Stages.Assembly)
-                            {
-                                AssemblyGenerator generator = new();
-                                AssemblyProgram assembly = generator.Generate(tacky);
+            new SemanticAnalyzer().Analyze(programAST);
 
-                                if (stages >= Stages.Emitter)
-                                {
-                                    CodeEmitter codeEmitter = new();
-                                    var builder = codeEmitter.Emit(assembly);
+            if (prettyPrint)
+                new PrettyPrinter().Print(programAST, source);
 
-                                    File.WriteAllText(output, builder.ToString());
-                                }
-                            }
-                        }
-                    }
-                }
-            }
+            if (stages < Stages.Tacky)
+                return output;
+
+            TAC.TACProgam tacky = new TackyEmitter().Emit(programAST);
+
+            if (stages < Stages.Assembly)
+                return output;
+
+            AssemblyProgram assembly = new AssemblyGenerator().Generate(tacky);
+
+            if (stages >= Stages.Emitter)
+                File.WriteAllText(output, new CodeEmitter().Emit(assembly).ToString());
 
             return output;
         }
