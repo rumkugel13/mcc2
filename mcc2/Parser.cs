@@ -87,46 +87,120 @@ public class Parser
     {
         var nextToken = Peek(tokens);
 
-        if (nextToken.Type == Lexer.TokenType.ReturnKeyword)
+        switch (nextToken.Type)
         {
-            TakeToken(tokens);
-            var exp = ParseExpression(tokens);
-            Expect(Lexer.TokenType.Semicolon, tokens);
-            return new ReturnStatement(exp);
-        }
-        else if (nextToken.Type == Lexer.TokenType.Semicolon)
-        {
-            TakeToken(tokens);
-            return new NullStatement();
-        }
-        else if (nextToken.Type == Lexer.TokenType.IfKeyword)
-        {
-            TakeToken(tokens);
-            Expect(Lexer.TokenType.OpenParenthesis, tokens);
-            var cond = ParseExpression(tokens);
-            Expect(Lexer.TokenType.CloseParenthesis, tokens);
-            var thenStatement = ParseStatement(tokens);
-            Statement? elseStatement = null;
-            
-            var maybeElse = Peek(tokens);
-            if (maybeElse.Type == Lexer.TokenType.ElseKeyword)
-            {
+            case Lexer.TokenType.ReturnKeyword:
+                {
+                    TakeToken(tokens);
+                    var exp = ParseExpression(tokens);
+                    Expect(Lexer.TokenType.Semicolon, tokens);
+                    return new ReturnStatement(exp);
+                }
+
+            case Lexer.TokenType.Semicolon:
                 TakeToken(tokens);
-                elseStatement = ParseStatement(tokens);
-            }
-            return new IfStatement(cond, thenStatement, elseStatement);
+                return new NullStatement();
+            case Lexer.TokenType.IfKeyword:
+                {
+                    TakeToken(tokens);
+                    Expect(Lexer.TokenType.OpenParenthesis, tokens);
+                    var cond = ParseExpression(tokens);
+                    Expect(Lexer.TokenType.CloseParenthesis, tokens);
+                    var thenStatement = ParseStatement(tokens);
+                    Statement? elseStatement = null;
+
+                    var maybeElse = Peek(tokens);
+                    if (maybeElse.Type == Lexer.TokenType.ElseKeyword)
+                    {
+                        TakeToken(tokens);
+                        elseStatement = ParseStatement(tokens);
+                    }
+                    return new IfStatement(cond, thenStatement, elseStatement);
+                }
+
+            case Lexer.TokenType.OpenBrace:
+                {
+                    var block = ParseBlock(tokens);
+                    return new CompoundStatement(block);
+                }
+
+            case Lexer.TokenType.BreakKeyword:
+                TakeToken(tokens);
+                Expect(Lexer.TokenType.Semicolon, tokens);
+                return new BreakStatement();
+            case Lexer.TokenType.ContinueKeyword:
+                TakeToken(tokens);
+                Expect(Lexer.TokenType.Semicolon, tokens);
+                return new ContinueStatement();
+            case Lexer.TokenType.WhileKeyword:
+                {
+                    TakeToken(tokens);
+                    Expect(Lexer.TokenType.OpenParenthesis, tokens);
+                    var cond = ParseExpression(tokens);
+                    Expect(Lexer.TokenType.CloseParenthesis, tokens);
+                    var body = ParseStatement(tokens);
+                    return new WhileStatement(cond, body);
+                }
+            case Lexer.TokenType.DoKeyword:
+                {
+                    TakeToken(tokens);
+                    var body = ParseStatement(tokens);
+                    Expect(Lexer.TokenType.WhileKeyword, tokens);
+                    Expect(Lexer.TokenType.OpenParenthesis, tokens);
+                    var cond = ParseExpression(tokens);
+                    Expect(Lexer.TokenType.CloseParenthesis, tokens);
+                    Expect(Lexer.TokenType.Semicolon, tokens);
+                    return new DoWhileStatement(body, cond);
+                }
+            case Lexer.TokenType.ForKeyword:
+                {
+                    TakeToken(tokens);
+                    Expect(Lexer.TokenType.OpenParenthesis, tokens);
+                    var init = ParseForInit(tokens);
+                    var cond = ParseOptionalExpression(tokens, Lexer.TokenType.Semicolon);
+                    var post = ParseOptionalExpression(tokens, Lexer.TokenType.CloseParenthesis);
+                    var body = ParseStatement(tokens);
+                    return new ForStatement(init, cond, post, body);
+                }
+
+            default:
+                {
+                    var exp = ParseExpression(tokens);
+                    Expect(Lexer.TokenType.Semicolon, tokens);
+                    return new ExpressionStatement(exp);
+                }
         }
-        else if (nextToken.Type == Lexer.TokenType.OpenBrace)
+    }
+
+    private ForInit ParseForInit(List<Token> tokens)
+    {
+        var nextToken = Peek(tokens);
+
+        if (nextToken.Type == Lexer.TokenType.IntKeyword)
         {
-            var block = ParseBlock(tokens);
-            return new CompoundStatement(block);
+            var decl = ParseDeclaration(tokens);
+            return new InitDeclaration(decl);
         }
         else
         {
-            var exp = ParseExpression(tokens);
-            Expect(Lexer.TokenType.Semicolon, tokens);
-            return new ExpressionStatement(exp);
+            var exp = ParseOptionalExpression(tokens, Lexer.TokenType.Semicolon);
+            return new InitExpression(exp);
         }
+    }
+
+    private Expression? ParseOptionalExpression(List<Token> tokens, Lexer.TokenType endToken)
+    {
+        var nextToken = Peek(tokens);
+
+        if (nextToken.Type != endToken)
+        {
+            var exp = ParseExpression(tokens);
+            Expect(endToken, tokens);
+            return exp;
+        }
+
+        Expect(endToken, tokens);
+        return null;
     }
 
     private readonly Dictionary<Lexer.TokenType, int> PrecedenceLevels = new(){
