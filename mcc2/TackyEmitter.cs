@@ -31,9 +31,11 @@ public class TackyEmitter
         switch (blockItem)
         {
             case ReturnStatement returnStatement:
-                var val = EmitInstruction(returnStatement.Expression, instructions);
-                instructions.Add(new Return(val));
-                break;
+                {
+                    var val = EmitInstruction(returnStatement.Expression, instructions);
+                    instructions.Add(new Return(val));
+                    break;
+                }
             case Declaration declaration:
                 if (declaration.Initializer != null)
                 {
@@ -47,28 +49,91 @@ public class TackyEmitter
             case NullStatement:
                 break;
             case IfStatement ifStatement:
-                var cond = EmitInstruction(ifStatement.Condition, instructions);
-                var endLabel = MakeLabel();
-                var elseLabel = MakeLabel();
-                if (ifStatement.Else == null)
-                    instructions.Add(new JumpIfZero(cond, endLabel));
-                else
-                    instructions.Add(new JumpIfZero(cond, elseLabel));
-                EmitInstruction(ifStatement.Then, instructions);
-                if (ifStatement.Else != null)
                 {
-                    instructions.Add(new Jump(endLabel));
-                    instructions.Add(new Label(elseLabel));
-                    EmitInstruction(ifStatement.Else, instructions);
+                    var cond = EmitInstruction(ifStatement.Condition, instructions);
+                    var endLabel = MakeLabel();
+                    var elseLabel = MakeLabel();
+                    if (ifStatement.Else == null)
+                        instructions.Add(new JumpIfZero(cond, endLabel));
+                    else
+                        instructions.Add(new JumpIfZero(cond, elseLabel));
+                    EmitInstruction(ifStatement.Then, instructions);
+                    if (ifStatement.Else != null)
+                    {
+                        instructions.Add(new Jump(endLabel));
+                        instructions.Add(new Label(elseLabel));
+                        EmitInstruction(ifStatement.Else, instructions);
+                    }
+                    instructions.Add(new Label(endLabel));
+                    break;
                 }
-                instructions.Add(new Label(endLabel));
-                break;
             case CompoundStatement compoundStatement:
                 foreach (var item in compoundStatement.Block.BlockItems)
                     EmitInstruction(item, instructions);
                 break;
+            case BreakStatement breakStatement:
+                instructions.Add(new Jump(MakeBreakLabel(breakStatement.Label)));
+                break;
+            case ContinueStatement continueStatement:
+                instructions.Add(new Jump(MakeContinueLabel(continueStatement.Label)));
+                break;
+            case DoWhileStatement doWhileStatement:
+                {
+                    var start = MakeStartLabel(doWhileStatement.Label);
+                    instructions.Add(new Label(start));
+                    EmitInstruction(doWhileStatement.Body, instructions);
+                    instructions.Add(new Label(MakeContinueLabel(doWhileStatement.Label)));
+                    var val = EmitInstruction(doWhileStatement.Condition, instructions);
+                    instructions.Add(new JumpIfNotZero(val, start));
+                    instructions.Add(new Label(MakeBreakLabel(doWhileStatement.Label)));
+                    break;
+                }
+            case WhileStatement whileStatement:
+                {
+                    var continueLabel = MakeContinueLabel(whileStatement.Label);
+                    instructions.Add(new Label(continueLabel));
+                    var val = EmitInstruction(whileStatement.Condition, instructions);
+                    var breakLabel = MakeBreakLabel(whileStatement.Label);
+                    instructions.Add(new JumpIfZero(val, breakLabel));
+                    EmitInstruction(whileStatement.Body, instructions);
+                    instructions.Add(new Jump(continueLabel));
+                    instructions.Add(new Label(breakLabel));
+                    break;
+                }
+            case ForStatement forStatement:
+                {
+                    EmitInstruction(forStatement.Init, instructions);
+                    var start = MakeStartLabel(forStatement.Label);
+                    instructions.Add(new Label(start));
+                    var breakLabel = MakeBreakLabel(forStatement.Label);
+                    if (forStatement.Condition != null)
+                    {
+                        var val = EmitInstruction(forStatement.Condition, instructions);
+                        instructions.Add(new JumpIfZero(val, breakLabel));
+                    }
+                    EmitInstruction(forStatement.Body, instructions);
+                    var continueLabel = MakeContinueLabel(forStatement.Label);
+                    instructions.Add(new Label(continueLabel));
+                    if (forStatement.Post != null)
+                        EmitInstruction(forStatement.Post, instructions);
+                    instructions.Add(new Jump(start));
+                    instructions.Add(new Label(breakLabel));
+                    break;
+                }
             default:
                 throw new NotImplementedException();
+        }
+    }
+
+    private void EmitInstruction(ForInit init, List<Instruction> instructions)
+    {
+        if (init is InitDeclaration initDeclaration)
+        {
+            EmitInstruction(initDeclaration.Declaration, instructions);
+        }
+        else if (init is InitExpression initExpression && initExpression.Expression != null)
+        {
+            EmitInstruction(initExpression.Expression, instructions);
         }
     }
 
@@ -177,5 +242,20 @@ public class TackyEmitter
     private string MakeLabel()
     {
         return $"jmp.{counter++}";
+    }
+
+    private string MakeBreakLabel(string? loop)
+    {
+        return $"break_{loop}";
+    }
+
+    private string MakeContinueLabel(string? loop)
+    {
+        return $"continue_{loop}";
+    }
+
+    private string MakeStartLabel(string? loop)
+    {
+        return $"start_{loop}";
     }
 }
