@@ -24,7 +24,7 @@ The current goal is to output assembly for the following ISA's:
   - [X] 4: Logical and Relational Operators
   - [X] 5: Local Variables
     - [ ] Extra: Compound Assignment Operators
-  - [ ] 6: if Statements and Conditional Expressions
+  - [X] 6: if Statements and Conditional Expressions
     - [ ] Extra: Labeled Statements and goto
   - [ ] 7: Compound Statements
   - [ ] 8: Loops
