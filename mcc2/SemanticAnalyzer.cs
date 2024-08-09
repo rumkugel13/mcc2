@@ -12,7 +12,7 @@ public class SemanticAnalyzer
     {
         VarMap variableMap = [];
 
-        foreach (var item in program.Function.Body)
+        foreach (var item in program.Function.Body.BlockItems)
         {
             if (item is Declaration declaration)
             {

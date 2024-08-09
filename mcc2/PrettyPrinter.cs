@@ -21,7 +21,7 @@ public class PrettyPrinter
         PrintLine("Function(", indent++);
         PrintLine($"name=\"{functionDefinition.Name}\",", indent);
         PrintLine($"body=(", indent);
-        foreach (var item in functionDefinition.Body)
+        foreach (var item in functionDefinition.Body.BlockItems)
             PrintBlockItem(item, source, indent + 1);
         PrintLine(")", indent);
         PrintLine(")", --indent);
@@ -66,6 +66,10 @@ public class PrettyPrinter
                     PrintLine(")", indent + 1);
                 }
                 PrintLine(")", indent);
+                break;
+            case CompoundStatement compoundStatement:
+                foreach (var item in compoundStatement.Block.BlockItems)
+                    PrintBlockItem(item, source, indent + 1);
                 break;
         }
     }

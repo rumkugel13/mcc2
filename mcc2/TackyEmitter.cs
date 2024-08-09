@@ -20,7 +20,7 @@ public class TackyEmitter
     private Function EmitFunction(FunctionDefinition functionDefinition)
     {
         List<Instruction> instructions = [];
-        foreach (var item in functionDefinition.Body)
+        foreach (var item in functionDefinition.Body.BlockItems)
             EmitInstruction(item, instructions);
         instructions.Add(new Return(new Constant(0)));
         return new Function(functionDefinition.Name, instructions);

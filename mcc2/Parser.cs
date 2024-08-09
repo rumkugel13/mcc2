@@ -37,16 +37,20 @@ public class Parser
         Expect(Lexer.TokenType.OpenParenthesis, tokens);
         Expect(Lexer.TokenType.VoidKeyword, tokens);
         Expect(Lexer.TokenType.CloseParenthesis, tokens);
-        Expect(Lexer.TokenType.OpenBrace, tokens);
+        var body = ParseBlock(tokens);
+        return new FunctionDefinition(GetIdentifier(id, this.source), body);
+    }
 
+    private Block ParseBlock(List<Token> tokens)
+    {
+        Expect(Lexer.TokenType.OpenBrace, tokens);
         List<BlockItem> body = [];
         while (Peek(tokens).Type != Lexer.TokenType.CloseBrace)
         {
             body.Add(ParseBlockItem(tokens));
         }
-
         TakeToken(tokens);
-        return new FunctionDefinition(GetIdentifier(id, this.source), body);
+        return new Block(body);
     }
 
     private BlockItem ParseBlockItem(List<Token> tokens)
@@ -111,6 +115,11 @@ public class Parser
                 elseStatement = ParseStatement(tokens);
             }
             return new IfStatement(cond, thenStatement, elseStatement);
+        }
+        else if (nextToken.Type == Lexer.TokenType.OpenBrace)
+        {
+            var block = ParseBlock(tokens);
+            return new CompoundStatement(block);
         }
         else
         {

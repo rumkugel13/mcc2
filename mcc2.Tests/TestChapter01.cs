@@ -47,9 +47,9 @@ public class TestChapter01
         Assert.AreEqual(ast.Function.Name, "main", "Invalid Identifier");
         Assert.IsNotNull(ast.Function.Body, "Invalid Statement");
         Assert.IsInstanceOfType(ast.Function.Body, typeof(ReturnStatement), "Expected ReturnStatement type");
-        Assert.IsNotNull(((ReturnStatement)ast.Function.Body[0]).Expression, "Invalid Expression");
-        Assert.IsInstanceOfType(((ReturnStatement)ast.Function.Body[0]).Expression, typeof(ConstantExpression), "Expected ConstantExpression type");
-        Assert.AreEqual(((ConstantExpression)((ReturnStatement)ast.Function.Body[0]).Expression).Value, 2, "Invalid Constant");
+        Assert.IsNotNull(((ReturnStatement)ast.Function.Body.BlockItems[0]).Expression, "Invalid Expression");
+        Assert.IsInstanceOfType(((ReturnStatement)ast.Function.Body.BlockItems[0]).Expression, typeof(ConstantExpression), "Expected ConstantExpression type");
+        Assert.AreEqual(((ConstantExpression)((ReturnStatement)ast.Function.Body.BlockItems[0]).Expression).Value, 2, "Invalid Constant");
     }
 
     [TestMethod]
