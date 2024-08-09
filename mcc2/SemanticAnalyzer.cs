@@ -2,17 +2,25 @@ using mcc2.AST;
 
 namespace mcc2;
 
-using VarMap = Dictionary<string, string>;
-
 public class SemanticAnalyzer
 {
     private int varCounter;
 
+    private struct MapEntry
+    {
+        public string NewName;
+        public bool FromCurrentBlock;
+    }
+
     public void Analyze(ASTProgram program)
     {
-        VarMap variableMap = [];
+        Dictionary<string, MapEntry> variableMap = [];
+        ResolveBlock(program.Function.Body, variableMap);
+    }
 
-        foreach (var item in program.Function.Body.BlockItems)
+    private void ResolveBlock(Block block, Dictionary<string, MapEntry> variableMap)
+    {
+        foreach (var item in block.BlockItems)
         {
             if (item is Declaration declaration)
             {
@@ -25,7 +33,7 @@ public class SemanticAnalyzer
         }
     }
 
-    private void ResolveStatement(Statement statement, VarMap variableMap)
+    private void ResolveStatement(Statement statement, Dictionary<string, MapEntry> variableMap)
     {
         switch (statement)
         {
@@ -43,12 +51,26 @@ public class SemanticAnalyzer
                 if (ifStatement.Else != null)
                     ResolveStatement(ifStatement.Else, variableMap);
                 break;
+            case CompoundStatement compoundStatement:
+                var newVarMap = CopyVarMap(variableMap);
+                ResolveBlock(compoundStatement.Block, newVarMap);
+                break;
             default:
                 throw new NotImplementedException();
         }
     }
 
-    private void ResolveExpression(Expression expression, VarMap variableMap)
+    private Dictionary<string, MapEntry> CopyVarMap(Dictionary<string, MapEntry> variableMap)
+    {
+        Dictionary<string, MapEntry> newMap = [];
+        foreach (var item in variableMap)
+        {
+            newMap.Add(item.Key, new MapEntry(){NewName = item.Value.NewName, FromCurrentBlock = false});
+        }
+        return newMap;
+    }
+
+    private void ResolveExpression(Expression expression, Dictionary<string, MapEntry> variableMap)
     {
         switch (expression)
         {
@@ -60,8 +82,8 @@ public class SemanticAnalyzer
                 ResolveExpression(assignmentExpression.ExpressionRight, variableMap);
                 break;
             case VariableExpression variableExpression:
-                if (variableMap.TryGetValue(variableExpression.Identifier, out string? newVariable))
-                    variableExpression.Identifier = newVariable;
+                if (variableMap.TryGetValue(variableExpression.Identifier, out MapEntry newVariable))
+                    variableExpression.Identifier = newVariable.NewName;
                 else
                     throw new Exception("Semantic Error: Undeclared variable");
                 break;
@@ -84,13 +106,13 @@ public class SemanticAnalyzer
         }
     }
 
-    private void ResolveDeclaration(Declaration declaration, VarMap variableMap)
+    private void ResolveDeclaration(Declaration declaration, Dictionary<string, MapEntry> variableMap)
     {
-        if (variableMap.ContainsKey(declaration.Identifier))
+        if (variableMap.TryGetValue(declaration.Identifier, out MapEntry newVariable) && newVariable.FromCurrentBlock)
             throw new Exception("Semantic Error: Duplicate variable declaration");
 
         var uniqueName = MakeTemporary(declaration.Identifier);
-        variableMap.Add(declaration.Identifier, uniqueName);
+        variableMap[declaration.Identifier] = new MapEntry(){NewName = uniqueName, FromCurrentBlock = true};
         if (declaration.Initializer != null)
         {
             ResolveExpression(declaration.Initializer, variableMap);
