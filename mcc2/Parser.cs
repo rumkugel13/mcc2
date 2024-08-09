@@ -8,6 +8,7 @@ using Token = Lexer.Token;
 public class Parser
 {
     private string source;
+    private int tokenPos;
 
     public Parser(string source)
     {
@@ -16,88 +17,88 @@ public class Parser
 
     public ASTProgram Parse(List<Token> tokens)
     {
-        int tokenPos = 0;
-        var program = ParseProgram(tokens, ref tokenPos);
+        tokenPos = 0;
+        var program = ParseProgram(tokens);
         if (tokenPos < tokens.Count)
             throw new Exception("Parsing Error: Too many Tokens");
         return program;
     }
 
-    private ASTProgram ParseProgram(List<Token> tokens, ref int tokenPos)
+    private ASTProgram ParseProgram(List<Token> tokens)
     {
-        var fun = ParseFunctionDefinition(tokens, ref tokenPos);
+        var fun = ParseFunctionDefinition(tokens);
         return new ASTProgram(fun);
     }
 
-    private FunctionDefinition ParseFunctionDefinition(List<Token> tokens, ref int tokenPos)
+    private FunctionDefinition ParseFunctionDefinition(List<Token> tokens)
     {
-        Expect(Lexer.TokenType.IntKeyword, tokens, ref tokenPos);
-        var id = Expect(Lexer.TokenType.Identifier, tokens, ref tokenPos);
-        Expect(Lexer.TokenType.OpenParenthesis, tokens, ref tokenPos);
-        Expect(Lexer.TokenType.VoidKeyword, tokens, ref tokenPos);
-        Expect(Lexer.TokenType.CloseParenthesis, tokens, ref tokenPos);
-        Expect(Lexer.TokenType.OpenBrace, tokens, ref tokenPos);
+        Expect(Lexer.TokenType.IntKeyword, tokens);
+        var id = Expect(Lexer.TokenType.Identifier, tokens);
+        Expect(Lexer.TokenType.OpenParenthesis, tokens);
+        Expect(Lexer.TokenType.VoidKeyword, tokens);
+        Expect(Lexer.TokenType.CloseParenthesis, tokens);
+        Expect(Lexer.TokenType.OpenBrace, tokens);
 
         List<BlockItem> body = [];
-        while (Peek(tokens, ref tokenPos).Type != Lexer.TokenType.CloseBrace)
+        while (Peek(tokens).Type != Lexer.TokenType.CloseBrace)
         {
-            body.Add(ParseBlockItem(tokens, ref tokenPos));
+            body.Add(ParseBlockItem(tokens));
         }
 
-        TakeToken(tokens, ref tokenPos);
+        TakeToken(tokens);
         return new FunctionDefinition(GetIdentifier(id, this.source), body);
     }
 
-    private BlockItem ParseBlockItem(List<Token> tokens, ref int tokenPos)
+    private BlockItem ParseBlockItem(List<Token> tokens)
     {
-        var nextToken = Peek(tokens, ref tokenPos);
+        var nextToken = Peek(tokens);
         if (nextToken.Type == Lexer.TokenType.IntKeyword)
         {
-            return ParseDeclaration(tokens, ref tokenPos);
+            return ParseDeclaration(tokens);
         }
         else
         {
-            return ParseStatement(tokens, ref tokenPos);
+            return ParseStatement(tokens);
         }
     }
 
-    private Declaration ParseDeclaration(List<Token> tokens, ref int tokenPos)
+    private Declaration ParseDeclaration(List<Token> tokens)
     {
-        Expect(Lexer.TokenType.IntKeyword, tokens, ref tokenPos);
-        var id = Expect(Lexer.TokenType.Identifier, tokens, ref tokenPos);
+        Expect(Lexer.TokenType.IntKeyword, tokens);
+        var id = Expect(Lexer.TokenType.Identifier, tokens);
         Expression? expression = null;
-        var nextToken = Peek(tokens, ref tokenPos);
+        var nextToken = Peek(tokens);
 
         if (nextToken.Type == Lexer.TokenType.Equals)
         {
-            TakeToken(tokens, ref tokenPos);
-            expression = ParseExpression(tokens, ref tokenPos);
+            TakeToken(tokens);
+            expression = ParseExpression(tokens);
         }
 
-        Expect(Lexer.TokenType.Semicolon, tokens, ref tokenPos);
+        Expect(Lexer.TokenType.Semicolon, tokens);
         return new Declaration(GetIdentifier(id, this.source), expression);
     }
 
-    private Statement ParseStatement(List<Token> tokens, ref int tokenPos)
+    private Statement ParseStatement(List<Token> tokens)
     {
-        var nextToken = Peek(tokens, ref tokenPos);
+        var nextToken = Peek(tokens);
 
         if (nextToken.Type == Lexer.TokenType.ReturnKeyword)
         {
-            TakeToken(tokens, ref tokenPos);
-            var exp = ParseExpression(tokens, ref tokenPos);
-            Expect(Lexer.TokenType.Semicolon, tokens, ref tokenPos);
+            TakeToken(tokens);
+            var exp = ParseExpression(tokens);
+            Expect(Lexer.TokenType.Semicolon, tokens);
             return new ReturnStatement(exp);
         }
         else if (nextToken.Type == Lexer.TokenType.Semicolon)
         {
-            TakeToken(tokens, ref tokenPos);
+            TakeToken(tokens);
             return new NullStatement();
         }
         else
         {
-            var exp = ParseExpression(tokens, ref tokenPos);
-            Expect(Lexer.TokenType.Semicolon, tokens, ref tokenPos);
+            var exp = ParseExpression(tokens);
+            Expect(Lexer.TokenType.Semicolon, tokens);
             return new ExpressionStatement(exp);
         }
     }
@@ -119,54 +120,54 @@ public class Parser
         {Lexer.TokenType.Equals, 1},
     };
 
-    private Expression ParseExpression(List<Token> tokens, ref int tokenPos, int minPrecedence = 0)
+    private Expression ParseExpression(List<Token> tokens, int minPrecedence = 0)
     {
-        var left = ParseFactor(tokens, ref tokenPos);
-        var nextToken = Peek(tokens, ref tokenPos);
+        var left = ParseFactor(tokens);
+        var nextToken = Peek(tokens);
         while (PrecedenceLevels.TryGetValue(nextToken.Type, out int precedence) && precedence >= minPrecedence)
         {
             if (nextToken.Type == Lexer.TokenType.Equals)
             {
-                TakeToken(tokens, ref tokenPos);
-                var right = ParseExpression(tokens, ref tokenPos, precedence);
+                TakeToken(tokens);
+                var right = ParseExpression(tokens, precedence);
                 left = new AssignmentExpression(left, right);
             }
             else
             {
-                var op = ParseBinaryOperator(nextToken, tokens, ref tokenPos);
-                var right = ParseExpression(tokens, ref tokenPos, precedence + 1);
+                var op = ParseBinaryOperator(nextToken, tokens);
+                var right = ParseExpression(tokens, precedence + 1);
                 left = new BinaryExpression(op, left, right);
             }
-            nextToken = Peek(tokens, ref tokenPos);
+            nextToken = Peek(tokens);
         }
         return left;
     }
 
-    private Expression ParseFactor(List<Token> tokens, ref int tokenPos)
+    private Expression ParseFactor(List<Token> tokens)
     {
-        var nextToken = Peek(tokens, ref tokenPos);
+        var nextToken = Peek(tokens);
 
         if (nextToken.Type == Lexer.TokenType.Constant)
         {
-            var constant = TakeToken(tokens, ref tokenPos);
+            var constant = TakeToken(tokens);
             return new ConstantExpression(GetConstant(constant, this.source));
         }
         else if (nextToken.Type == Lexer.TokenType.Hyphen || nextToken.Type == Lexer.TokenType.Tilde || nextToken.Type == Lexer.TokenType.Exclamation)
         {
-            var op = ParseUnaryOperator(nextToken, tokens, ref tokenPos);
-            var innerExpression = ParseFactor(tokens, ref tokenPos);
+            var op = ParseUnaryOperator(nextToken, tokens);
+            var innerExpression = ParseFactor(tokens);
             return new UnaryExpression(op, innerExpression);
         }
         else if (nextToken.Type == Lexer.TokenType.OpenParenthesis)
         {
-            TakeToken(tokens, ref tokenPos);
-            var innerExpression = ParseExpression(tokens, ref tokenPos);
-            Expect(Lexer.TokenType.CloseParenthesis, tokens, ref tokenPos);
+            TakeToken(tokens);
+            var innerExpression = ParseExpression(tokens);
+            Expect(Lexer.TokenType.CloseParenthesis, tokens);
             return innerExpression;
         }
         else if (nextToken.Type == Lexer.TokenType.Identifier)
         {
-            var id = TakeToken(tokens, ref tokenPos);
+            var id = TakeToken(tokens);
             return new VariableExpression(GetIdentifier(id, this.source));
         }
         else
@@ -175,9 +176,9 @@ public class Parser
         }
     }
 
-    private BinaryExpression.BinaryOperator ParseBinaryOperator(Token current, List<Token> tokens, ref int tokenPos)
+    private BinaryExpression.BinaryOperator ParseBinaryOperator(Token current, List<Token> tokens)
     {
-        TakeToken(tokens, ref tokenPos);
+        TakeToken(tokens);
         return current.Type switch
         {
             Lexer.TokenType.Hyphen => BinaryExpression.BinaryOperator.Subtract,
@@ -197,9 +198,9 @@ public class Parser
         };
     }
 
-    private UnaryExpression.UnaryOperator ParseUnaryOperator(Token current, List<Token> tokens, ref int tokenPos)
+    private UnaryExpression.UnaryOperator ParseUnaryOperator(Token current, List<Token> tokens)
     {
-        TakeToken(tokens, ref tokenPos);
+        TakeToken(tokens);
         return current.Type switch
         {
             Lexer.TokenType.Hyphen => UnaryExpression.UnaryOperator.Negate,
@@ -209,7 +210,7 @@ public class Parser
         };
     }
 
-    private Token Peek(List<Token> tokens, ref int tokenPos)
+    private Token Peek(List<Token> tokens)
     {
         if (tokenPos >= tokens.Count)
             throw new Exception("Parsing Error: No more Tokens");
@@ -217,16 +218,16 @@ public class Parser
         return tokens[tokenPos];
     }
 
-    private Token Expect(Lexer.TokenType tokenType, List<Token> tokens, ref int tokenPos)
+    private Token Expect(Lexer.TokenType tokenType, List<Token> tokens)
     {
-        Token actual = TakeToken(tokens, ref tokenPos);
+        Token actual = TakeToken(tokens);
         if (actual.Type != tokenType)
             throw new Exception($"Parsing Error: Expected {tokenType}, got {actual.Type}");
 
         return actual;
     }
 
-    private Token TakeToken(List<Token> tokens, ref int tokenPos)
+    private Token TakeToken(List<Token> tokens)
     {
         if (tokenPos >= tokens.Count)
             throw new Exception("Parsing Error: No more Tokens");
