@@ -26,7 +26,7 @@ The current goal is to output assembly for the following ISA's:
     - [ ] Extra: Compound Assignment Operators
   - [X] 6: if Statements and Conditional Expressions
     - [ ] Extra: Labeled Statements and goto
-  - [ ] 7: Compound Statements
+  - [X] 7: Compound Statements
   - [ ] 8: Loops
     - [ ] Extra: switch Statements
   - [ ] 9: Functions
