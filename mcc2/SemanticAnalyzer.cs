@@ -5,6 +5,7 @@ namespace mcc2;
 public class SemanticAnalyzer
 {
     private int varCounter;
+    private int loopCounter;
 
     private struct MapEntry
     {
@@ -16,6 +17,75 @@ public class SemanticAnalyzer
     {
         Dictionary<string, MapEntry> variableMap = [];
         ResolveBlock(program.Function.Body, variableMap);
+        LabelBlock(program.Function.Body, null);
+    }
+
+    private void LabelBlock(Block block, string? currentLabel)
+    {
+        foreach (var item in block.BlockItems)
+        {
+            if (item is Statement statement)
+                LabelStatement(statement, currentLabel);
+        }
+    }
+
+    private void LabelStatement(Statement statement, string? currentLabel)
+    {
+        switch (statement)
+        {
+            case ReturnStatement:
+                break;
+            case ExpressionStatement:
+                break;
+            case NullStatement:
+                break;
+            case IfStatement ifStatement:
+                LabelStatement(ifStatement.Then, currentLabel);
+                if (ifStatement.Else != null)
+                    LabelStatement(ifStatement.Else, currentLabel);
+                break;
+            case CompoundStatement compoundStatement:
+                LabelBlock(compoundStatement.Block, currentLabel);
+                break;
+            case BreakStatement breakStatement:
+                if (currentLabel == null)
+                    throw new Exception("Semantic Error: Break statement outside of loop");
+                breakStatement.Label = currentLabel;
+                break;
+            case ContinueStatement continueStatement:
+                if (currentLabel == null)
+                    throw new Exception("Semantic Error: Continue statement outside of loop");
+                continueStatement.Label = currentLabel;
+                break;
+            case WhileStatement whileStatement:
+                {
+                    var newLabel = MakeLabel();
+                    LabelStatement(whileStatement.Body, newLabel);
+                    whileStatement.Label = newLabel;
+                    break;
+                }
+            case DoWhileStatement doWhileStatement:
+                {
+                    var newLabel = MakeLabel();
+                    LabelStatement(doWhileStatement.Body, newLabel);
+                    doWhileStatement.Label = newLabel;
+                    break;
+                }
+            case ForStatement forStatement:
+                {
+                    var newLabel = MakeLabel();
+                    LabelStatement(forStatement.Body, newLabel);
+                    forStatement.Label = newLabel;
+                    break;
+                }
+            default:
+                throw new NotImplementedException();
+        }
+    }
+
+    private string MakeLabel()
+    {
+        return $"loop.{loopCounter++}";
     }
 
     private void ResolveBlock(Block block, Dictionary<string, MapEntry> variableMap)
