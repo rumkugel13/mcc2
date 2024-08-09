@@ -22,7 +22,7 @@ The current goal is to output assembly for the following ISA's:
   - [X] 3: Binary Operators
     - [ ] Extra: Bitwise Operators
   - [X] 4: Logical and Relational Operators
-  - [ ] 5: Local Variables
+  - [X] 5: Local Variables
     - [ ] Extra: Compound Assignment Operators
   - [ ] 6: if Statements and Conditional Expressions
     - [ ] Extra: Labeled Statements and goto
