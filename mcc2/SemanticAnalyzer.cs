@@ -1,4 +1,5 @@
 using mcc2.AST;
+using mcc2.Types;
 
 namespace mcc2;
 
@@ -13,6 +14,12 @@ public class SemanticAnalyzer
         public bool FromCurrentScope, HasLinkage;
     }
 
+    private struct SymbolEntry
+    {
+        public Types.Type Type;
+        public bool Defined;
+    }
+
     public void Analyze(ASTProgram program)
     {
         Dictionary<string, MapEntry> identifierMap = [];
@@ -20,10 +27,175 @@ public class SemanticAnalyzer
         {
             ResolveFunctionDeclaration(fun, identifierMap);
         }
+
+        Dictionary<string, SymbolEntry> symbolTable = [];
+        foreach (var fun in program.FunctionDeclarations)
+        {
+            TypeCheckFunctionDeclaration(fun, symbolTable);
+        }
+
         foreach (var fun in program.FunctionDeclarations)
         {
             LabelFunction(fun, null);
         }
+    }
+
+    private void TypeCheckFunctionDeclaration(FunctionDeclaration functionDeclaration, Dictionary<string, SymbolEntry> symbolTable)
+    {
+        FunctionType funType = new FunctionType(functionDeclaration.Parameters.Count);
+        bool hasBody = functionDeclaration.Body != null;
+        bool alreadyDefined = false;
+
+        if (symbolTable.TryGetValue(functionDeclaration.Identifier, out SymbolEntry prevEntry))
+        {
+            if (prevEntry.Type is not FunctionType funcA || funcA.ParameterCount != funType.ParameterCount)
+                throw new Exception("Type Error: Incompatible function declarations");
+            alreadyDefined = prevEntry.Defined;
+            if (alreadyDefined && hasBody)
+                throw new Exception("Type Error: Function is defined more than once");
+        }
+
+        symbolTable[functionDeclaration.Identifier] = new SymbolEntry() { Type = funType, Defined = alreadyDefined || hasBody };
+
+        if (functionDeclaration.Body != null)
+        {
+            foreach (var param in functionDeclaration.Parameters)
+                symbolTable.Add(param, new SymbolEntry() { Type = new Int() });
+            TypeCheckBlock(functionDeclaration.Body, symbolTable);
+        }
+    }
+
+    private void TypeCheckBlock(Block block, Dictionary<string, SymbolEntry> symbolTable)
+    {
+        foreach (var item in block.BlockItems)
+        {
+            if (item is VariableDeclaration declaration)
+            {
+                TypeCheckVariableDeclaration(declaration, symbolTable);
+            }
+            else if (item is FunctionDeclaration functionDeclaration)
+            {
+                TypeCheckFunctionDeclaration(functionDeclaration, symbolTable);
+            }
+            else if (item is Statement statement)
+            {
+                TypeCheckStatement(statement, symbolTable);
+            }
+        }
+    }
+
+    private void TypeCheckVariableDeclaration(VariableDeclaration variableDeclaration, Dictionary<string, SymbolEntry> symbolTable)
+    {
+        symbolTable.Add(variableDeclaration.Identifier, new SymbolEntry() { Type = new Int() });
+        if (variableDeclaration.Initializer != null)
+            TypeCheckExpression(variableDeclaration.Initializer, symbolTable);
+    }
+
+    private void TypeCheckExpression(Expression expression, Dictionary<string, SymbolEntry> symbolTable)
+    {
+        switch (expression)
+        {
+            case AssignmentExpression assignmentExpression:
+                TypeCheckExpression(assignmentExpression.ExpressionLeft, symbolTable);
+                TypeCheckExpression(assignmentExpression.ExpressionRight, symbolTable);
+                break;
+            case VariableExpression variableExpression:
+                if (symbolTable[variableExpression.Identifier].Type is not Int)
+                    throw new Exception("Type Error: Function name used as variable");
+                break;
+            case UnaryExpression unaryExpression:
+                TypeCheckExpression(unaryExpression.Expression, symbolTable);
+                break;
+            case BinaryExpression binaryExpression:
+                TypeCheckExpression(binaryExpression.ExpressionLeft, symbolTable);
+                TypeCheckExpression(binaryExpression.ExpressionRight, symbolTable);
+                break;
+            case ConstantExpression:
+                break;
+            case ConditionalExpression conditionalExpression:
+                TypeCheckExpression(conditionalExpression.Condition, symbolTable);
+                TypeCheckExpression(conditionalExpression.Then, symbolTable);
+                TypeCheckExpression(conditionalExpression.Else, symbolTable);
+                break;
+            case FunctionCallExpression functionCallExpression:
+                var funType = symbolTable[functionCallExpression.Identifier].Type;
+                if (funType is Int)
+                    throw new Exception("Type Error: Variable used as function name");
+
+                if (funType is FunctionType functionType && functionType.ParameterCount != functionCallExpression.Arguments.Count)
+                    throw new Exception("Type Error: Function called with the wrong number of arguments");
+
+                foreach (var arg in functionCallExpression.Arguments)
+                    TypeCheckExpression(arg, symbolTable);
+                break;
+            default:
+                throw new NotImplementedException();
+        }
+    }
+
+    private void TypeCheckStatement(Statement statement, Dictionary<string, SymbolEntry> symbolTable)
+    {
+        switch (statement)
+        {
+            case ReturnStatement ret:
+                TypeCheckExpression(ret.Expression, symbolTable);
+                break;
+            case ExpressionStatement expressionStatement:
+                TypeCheckExpression(expressionStatement.Expression, symbolTable);
+                break;
+            case NullStatement:
+                break;
+            case IfStatement ifStatement:
+                TypeCheckExpression(ifStatement.Condition, symbolTable);
+                TypeCheckStatement(ifStatement.Then, symbolTable);
+                if (ifStatement.Else != null)
+                    TypeCheckStatement(ifStatement.Else, symbolTable);
+                break;
+            case CompoundStatement compoundStatement:
+                TypeCheckBlock(compoundStatement.Block, symbolTable);
+                break;
+            case BreakStatement:
+                break;
+            case ContinueStatement:
+                break;
+            case WhileStatement whileStatement:
+                TypeCheckExpression(whileStatement.Condition, symbolTable);
+                TypeCheckStatement(whileStatement.Body, symbolTable);
+                break;
+            case DoWhileStatement doWhileStatement:
+                TypeCheckStatement(doWhileStatement.Body, symbolTable);
+                TypeCheckExpression(doWhileStatement.Condition, symbolTable);
+                break;
+            case ForStatement forStatement:
+                {
+                    TypeCheckForInit(forStatement.Init, symbolTable);
+                    TypeCheckOptionalExpression(forStatement.Condition, symbolTable);
+                    TypeCheckOptionalExpression(forStatement.Post, symbolTable);
+                    TypeCheckStatement(forStatement.Body, symbolTable);
+                    break;
+                }
+            default:
+                throw new NotImplementedException();
+        }
+    }
+
+    private void TypeCheckForInit(ForInit init, Dictionary<string, SymbolEntry> symbolTable)
+    {
+        switch (init)
+        {
+            case InitExpression initExpression:
+                TypeCheckOptionalExpression(initExpression.Expression, symbolTable);
+                break;
+            case InitDeclaration initDeclaration:
+                TypeCheckVariableDeclaration(initDeclaration.Declaration, symbolTable);
+                break;
+        }
+    }
+
+    private void TypeCheckOptionalExpression(Expression? expression, Dictionary<string, SymbolEntry> symbolTable)
+    {
+        if (expression != null)
+            TypeCheckExpression(expression, symbolTable);
     }
 
     private void LabelFunction(FunctionDeclaration functionDeclaration, string? currentLabel)
@@ -117,7 +289,7 @@ public class SemanticAnalyzer
         {
             string? parameter = functionDeclaration.Parameters[i];
             ResolveParameter(ref parameter, innerMap);
-             functionDeclaration.Parameters[i] = parameter;
+            functionDeclaration.Parameters[i] = parameter;
         }
 
         if (functionDeclaration.Body != null)
