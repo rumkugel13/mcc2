@@ -2,10 +2,10 @@ namespace mcc2.Assembly;
 
 public class AssemblyProgram
 {
-    public Function Function;
+    public List<Function> Functions;
 
-    public AssemblyProgram(Function function)
+    public AssemblyProgram(List<Function> functions)
     {
-        this.Function = function;
+        this.Functions = functions;
     }
 }

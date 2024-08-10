@@ -2,9 +2,9 @@ namespace mcc2.AST;
 
 public class InitDeclaration : ForInit
 {
-    public Declaration Declaration;
+    public VariableDeclaration Declaration;
 
-    public InitDeclaration(Declaration declaration)
+    public InitDeclaration(VariableDeclaration declaration)
     {
         this.Declaration = declaration;
     }

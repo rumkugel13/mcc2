@@ -14,16 +14,20 @@ public class TackyEmitter
 
     private TACProgam EmitProgram(ASTProgram astProgram)
     {
-        return new TACProgam(EmitFunction(astProgram.Function));
+        List<Function> functionDefinitions = [];
+        foreach (var fun in astProgram.FunctionDeclarations)
+            functionDefinitions.Add(EmitFunction(fun));
+        return new TACProgam(functionDefinitions);
     }
 
-    private Function EmitFunction(FunctionDefinition functionDefinition)
+    private Function EmitFunction(FunctionDeclaration functionDefinition)
     {
         List<Instruction> instructions = [];
-        foreach (var item in functionDefinition.Body.BlockItems)
-            EmitInstruction(item, instructions);
+        if (functionDefinition.Body != null)
+            foreach (var item in functionDefinition.Body.BlockItems)
+                EmitInstruction(item, instructions);
         instructions.Add(new Return(new Constant(0)));
-        return new Function(functionDefinition.Name, instructions);
+        return new Function(functionDefinition.Identifier, instructions);
     }
 
     private void EmitInstruction(BlockItem blockItem, List<Instruction> instructions)
@@ -36,7 +40,7 @@ public class TackyEmitter
                     instructions.Add(new Return(val));
                     break;
                 }
-            case Declaration declaration:
+            case VariableDeclaration declaration:
                 if (declaration.Initializer != null)
                 {
                     var result = EmitInstruction(declaration.Initializer, instructions);

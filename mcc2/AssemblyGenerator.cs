@@ -11,7 +11,10 @@ public class AssemblyGenerator
 
     private AssemblyProgram GenerateProgram(TAC.TACProgam program)
     {
-        return new AssemblyProgram(GenerateFunction(program.FunctionDefinition));
+        List<Function> functionDefinitions = [];
+        foreach (var fun in program.FunctionDefinitions)
+            functionDefinitions.Add(GenerateFunction(fun));
+        return new AssemblyProgram(functionDefinitions);
     }
 
     private Function GenerateFunction(TAC.Function function)

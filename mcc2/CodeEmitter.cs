@@ -16,7 +16,8 @@ public class CodeEmitter
 
     private void EmitProgram(AssemblyProgram program, StringBuilder builder)
     {
-        EmitFunction(program.Function, builder);
+        foreach (var fun in program.Functions)
+            EmitFunction(fun, builder);
     }
 
     private void EmitFunction(Function function, StringBuilder builder)

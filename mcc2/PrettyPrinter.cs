@@ -12,17 +12,19 @@ public class PrettyPrinter
     private void PrintProgram(ASTProgram program, string source, int indent)
     {
         PrintLine("Program(", indent);
-        PrintFunctionDefinition(program.Function, source, indent + 1);
+        foreach (var fun in program.FunctionDeclarations)
+            PrintFunctionDefinition(fun, source, indent + 1);
         PrintLine(")", indent);
     }
 
-    private void PrintFunctionDefinition(FunctionDefinition functionDefinition, string source, int indent)
+    private void PrintFunctionDefinition(FunctionDeclaration functionDefinition, string source, int indent)
     {
         PrintLine("Function(", indent++);
-        PrintLine($"name=\"{functionDefinition.Name}\",", indent);
+        PrintLine($"name=\"{functionDefinition.Identifier}\",", indent);
         PrintLine($"body=(", indent);
-        foreach (var item in functionDefinition.Body.BlockItems)
-            PrintBlockItem(item, source, indent + 1);
+        if (functionDefinition.Body != null)
+            foreach (var item in functionDefinition.Body.BlockItems)
+                PrintBlockItem(item, source, indent + 1);
         PrintLine(")", indent);
         PrintLine(")", --indent);
     }
@@ -34,7 +36,7 @@ public class PrettyPrinter
             case Statement statement:
                 PrintStatement(statement, source, indent);
                 break;
-            case Declaration declaration:
+            case VariableDeclaration declaration:
                 PrintLine($"Declare(", indent);
                 PrintLine($"name=\"{declaration.Identifier}\",", indent + 1);
                 if (declaration.Initializer != null)

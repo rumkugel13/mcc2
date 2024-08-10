@@ -11,7 +11,7 @@
             "preLaunchTask": "dotnet: build",
             "program": "${workspaceFolder}/mcc2/bin/Debug/net8.0/mcc2",
             "args": [
-                "-S", "--pretty", "mcc2.Tests/Source/assign_to_self.c"
+                "-S", "--pretty", "mcc2.Tests/Source/multiple_declarations.c"
             ],
             "cwd": "${workspaceFolder}",
             "stopAtEntry": false,

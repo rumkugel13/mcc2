@@ -43,13 +43,13 @@ public class TestChapter01
         var ast = parser.Parse(return2tokens);
 
         Assert.IsNotNull(ast, "Invalid Program node");
-        Assert.IsNotNull(ast.Function, "Invalid Function node");
-        Assert.AreEqual(ast.Function.Name, "main", "Invalid Identifier");
-        Assert.IsNotNull(ast.Function.Body, "Invalid Statement");
-        Assert.IsInstanceOfType(ast.Function.Body, typeof(ReturnStatement), "Expected ReturnStatement type");
-        Assert.IsNotNull(((ReturnStatement)ast.Function.Body.BlockItems[0]).Expression, "Invalid Expression");
-        Assert.IsInstanceOfType(((ReturnStatement)ast.Function.Body.BlockItems[0]).Expression, typeof(ConstantExpression), "Expected ConstantExpression type");
-        Assert.AreEqual(((ConstantExpression)((ReturnStatement)ast.Function.Body.BlockItems[0]).Expression).Value, 2, "Invalid Constant");
+        Assert.IsNotNull(ast.FunctionDeclarations, "Invalid Function node");
+        Assert.AreEqual(ast.FunctionDeclarations[0].Identifier, "main", "Invalid Identifier");
+        Assert.IsNotNull(ast.FunctionDeclarations[0].Body, "Invalid Statement");
+        Assert.IsInstanceOfType(ast.FunctionDeclarations[0].Body, typeof(ReturnStatement), "Expected ReturnStatement type");
+        Assert.IsNotNull(((ReturnStatement)ast.FunctionDeclarations[0].Body.BlockItems[0]).Expression, "Invalid Expression");
+        Assert.IsInstanceOfType(((ReturnStatement)ast.FunctionDeclarations[0].Body.BlockItems[0]).Expression, typeof(ConstantExpression), "Expected ConstantExpression type");
+        Assert.AreEqual(((ConstantExpression)((ReturnStatement)ast.FunctionDeclarations[0].Body.BlockItems[0]).Expression).Value, 2, "Invalid Constant");
     }
 
     [TestMethod]
@@ -66,16 +66,16 @@ public class TestChapter01
         var assembly = assemblyGenerator.Generate(tacky);
 
         Assert.IsNotNull(assembly, "Invalid Assembly node");
-        Assert.IsNotNull(assembly.Function, "Invalid Function node");
-        Assert.AreEqual(assembly.Function.Name, "main", "Invalid Identifier");
-        Assert.AreEqual(assembly.Function.Instructions.Count, 2, "Invalid Instruction Count");
+        Assert.IsNotNull(assembly.Functions[0], "Invalid Function node");
+        Assert.AreEqual(assembly.Functions[0].Name, "main", "Invalid Identifier");
+        Assert.AreEqual(assembly.Functions[0].Instructions.Count, 2, "Invalid Instruction Count");
 
-        Assert.IsInstanceOfType(assembly.Function.Instructions[0], typeof(Mov), "Expected Mov type");
-        Assert.IsInstanceOfType(assembly.Function.Instructions[1], typeof(Ret), "Expected Mov type");
+        Assert.IsInstanceOfType(assembly.Functions[0].Instructions[0], typeof(Mov), "Expected Mov type");
+        Assert.IsInstanceOfType(assembly.Functions[0].Instructions[1], typeof(Ret), "Expected Mov type");
 
-        Assert.IsNotNull(((Mov)assembly.Function.Instructions[0]).src, "Invalid src");
-        Assert.IsInstanceOfType(((Mov)assembly.Function.Instructions[0]).src, typeof(Imm), "Expected Imm type");
-        Assert.AreEqual(((Imm)((Mov)assembly.Function.Instructions[0]).src).Value, 2, "Invalid Imm value");
+        Assert.IsNotNull(((Mov)assembly.Functions[0].Instructions[0]).src, "Invalid src");
+        Assert.IsInstanceOfType(((Mov)assembly.Functions[0].Instructions[0]).src, typeof(Imm), "Expected Imm type");
+        Assert.AreEqual(((Imm)((Mov)assembly.Functions[0].Instructions[0]).src).Value, 2, "Invalid Imm value");
     }
 
     private string assembly = 

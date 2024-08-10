@@ -26,19 +26,60 @@ public class Parser
 
     private ASTProgram ParseProgram(List<Token> tokens)
     {
-        var fun = ParseFunctionDefinition(tokens);
-        return new ASTProgram(fun);
+        List<FunctionDeclaration> functionDeclarations = [];
+        while (tokenPos < tokens.Count && Peek(tokens).Type == Lexer.TokenType.IntKeyword)
+        {
+            var fun = ParseFunctionDeclaration(tokens);
+            functionDeclarations.Add(fun);
+        }
+        return new ASTProgram(functionDeclarations);
     }
 
-    private FunctionDefinition ParseFunctionDefinition(List<Token> tokens)
+    private FunctionDeclaration ParseFunctionDeclaration(List<Token> tokens)
     {
         Expect(Lexer.TokenType.IntKeyword, tokens);
         var id = Expect(Lexer.TokenType.Identifier, tokens);
         Expect(Lexer.TokenType.OpenParenthesis, tokens);
-        Expect(Lexer.TokenType.VoidKeyword, tokens);
+
+        List<string> parameters = [];
+        var nextToken = Peek(tokens);
+        if (nextToken.Type == Lexer.TokenType.IntKeyword)
+        {
+            TakeToken(tokens);
+            var paramId = Expect(Lexer.TokenType.Identifier, tokens);
+            parameters.Add(GetIdentifier(paramId, source));
+            while (Peek(tokens).Type == Lexer.TokenType.Comma)
+            {
+                TakeToken(tokens);
+                Expect(Lexer.TokenType.IntKeyword, tokens);
+                paramId = Expect(Lexer.TokenType.Identifier, tokens);
+                parameters.Add(GetIdentifier(paramId, source));
+            }
+        }
+        else
+            Expect(Lexer.TokenType.VoidKeyword, tokens);
+
         Expect(Lexer.TokenType.CloseParenthesis, tokens);
-        var body = ParseBlock(tokens);
-        return new FunctionDefinition(GetIdentifier(id, this.source), body);
+
+        Block? body = null;
+        if (Peek(tokens).Type == Lexer.TokenType.OpenBrace)
+            body = ParseBlock(tokens);
+        else
+            Expect(Lexer.TokenType.Semicolon, tokens);
+        return new FunctionDeclaration(GetIdentifier(id, this.source), parameters, body);
+    }
+
+    private Declaration ParseDeclaration(List<Token> tokens)
+    {
+        // 0 ahead = int, 1 ahead = id, 2 ahead is openParen or not
+        if (PeekAhead(tokens, 2).Type == Lexer.TokenType.OpenParenthesis)
+        {
+            return ParseFunctionDeclaration(tokens);
+        }
+        else
+        {
+            return ParseVariableDeclaration(tokens);
+        }
     }
 
     private Block ParseBlock(List<Token> tokens)
@@ -66,7 +107,7 @@ public class Parser
         }
     }
 
-    private Declaration ParseDeclaration(List<Token> tokens)
+    private VariableDeclaration ParseVariableDeclaration(List<Token> tokens)
     {
         Expect(Lexer.TokenType.IntKeyword, tokens);
         var id = Expect(Lexer.TokenType.Identifier, tokens);
@@ -80,7 +121,7 @@ public class Parser
         }
 
         Expect(Lexer.TokenType.Semicolon, tokens);
-        return new Declaration(GetIdentifier(id, this.source), expression);
+        return new VariableDeclaration(GetIdentifier(id, this.source), expression);
     }
 
     private Statement ParseStatement(List<Token> tokens)
@@ -178,7 +219,7 @@ public class Parser
 
         if (nextToken.Type == Lexer.TokenType.IntKeyword)
         {
-            var decl = ParseDeclaration(tokens);
+            var decl = ParseVariableDeclaration(tokens);
             return new InitDeclaration(decl);
         }
         else
@@ -283,6 +324,26 @@ public class Parser
         else if (nextToken.Type == Lexer.TokenType.Identifier)
         {
             var id = TakeToken(tokens);
+
+            if (Peek(tokens).Type == Lexer.TokenType.OpenParenthesis)
+            {
+                TakeToken(tokens);
+                List<Expression> arguments = [];
+
+                if (Peek(tokens).Type != Lexer.TokenType.CloseParenthesis)
+                {
+                    arguments.Add(ParseExpression(tokens));
+                    while (Peek(tokens).Type == Lexer.TokenType.Comma)
+                    {
+                        TakeToken(tokens);
+                        arguments.Add(ParseExpression(tokens));
+                    }
+                }
+                
+                Expect(Lexer.TokenType.CloseParenthesis, tokens);
+                return new FunctionCallExpression(GetIdentifier(id, this.source), arguments);
+            }
+
             return new VariableExpression(GetIdentifier(id, this.source));
         }
         else
@@ -331,6 +392,14 @@ public class Parser
             throw new Exception("Parsing Error: No more Tokens");
 
         return tokens[tokenPos];
+    }
+
+    private Token PeekAhead(List<Token> tokens, int ahead)
+    {
+        if (tokenPos + ahead >= tokens.Count)
+            throw new Exception("Parsing Error: No more Tokens");
+
+        return tokens[tokenPos + ahead];
     }
 
     private Token Expect(Lexer.TokenType tokenType, List<Token> tokens)

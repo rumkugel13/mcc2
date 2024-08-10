@@ -16,8 +16,12 @@ public class SemanticAnalyzer
     public void Analyze(ASTProgram program)
     {
         Dictionary<string, MapEntry> variableMap = [];
-        ResolveBlock(program.Function.Body, variableMap);
-        LabelBlock(program.Function.Body, null);
+        foreach (var fun in program.FunctionDeclarations)
+            if (fun.Body != null)
+            {
+                ResolveBlock(fun.Body, variableMap);
+                LabelBlock(fun.Body, null);
+            }
     }
 
     private void LabelBlock(Block block, string? currentLabel)
@@ -92,7 +96,7 @@ public class SemanticAnalyzer
     {
         foreach (var item in block.BlockItems)
         {
-            if (item is Declaration declaration)
+            if (item is VariableDeclaration declaration)
             {
                 ResolveDeclaration(declaration, variableMap);
             }
@@ -218,7 +222,7 @@ public class SemanticAnalyzer
         }
     }
 
-    private void ResolveDeclaration(Declaration declaration, Dictionary<string, MapEntry> variableMap)
+    private void ResolveDeclaration(VariableDeclaration declaration, Dictionary<string, MapEntry> variableMap)
     {
         if (variableMap.TryGetValue(declaration.Identifier, out MapEntry newVariable) && newVariable.FromCurrentBlock)
             throw new Exception("Semantic Error: Duplicate variable declaration");
