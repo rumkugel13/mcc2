@@ -10,18 +10,28 @@ public class SemanticAnalyzer
     private struct MapEntry
     {
         public string NewName;
-        public bool FromCurrentBlock;
+        public bool FromCurrentScope, HasLinkage;
     }
 
     public void Analyze(ASTProgram program)
     {
-        Dictionary<string, MapEntry> variableMap = [];
+        Dictionary<string, MapEntry> identifierMap = [];
         foreach (var fun in program.FunctionDeclarations)
-            if (fun.Body != null)
-            {
-                ResolveBlock(fun.Body, variableMap);
-                LabelBlock(fun.Body, null);
-            }
+        {
+            ResolveFunctionDeclaration(fun, identifierMap);
+        }
+        foreach (var fun in program.FunctionDeclarations)
+        {
+            LabelFunction(fun, null);
+        }
+    }
+
+    private void LabelFunction(FunctionDeclaration functionDeclaration, string? currentLabel)
+    {
+        if (functionDeclaration.Body != null)
+        {
+            LabelBlock(functionDeclaration.Body, null);
+        }
     }
 
     private void LabelBlock(Block block, string? currentLabel)
@@ -92,43 +102,84 @@ public class SemanticAnalyzer
         return $"loop.{loopCounter++}";
     }
 
-    private void ResolveBlock(Block block, Dictionary<string, MapEntry> variableMap)
+    private void ResolveFunctionDeclaration(FunctionDeclaration functionDeclaration, Dictionary<string, MapEntry> identifierMap)
+    {
+        if (identifierMap.TryGetValue(functionDeclaration.Identifier, out MapEntry prevEntry))
+        {
+            if (prevEntry.FromCurrentScope && !prevEntry.HasLinkage)
+                throw new Exception("Semantic Error: Duplicate declaration");
+        }
+
+        identifierMap[functionDeclaration.Identifier] = new MapEntry() { NewName = functionDeclaration.Identifier, FromCurrentScope = true, HasLinkage = true };
+
+        var innerMap = CopyIdentifierMap(identifierMap);
+        for (int i = 0; i < functionDeclaration.Parameters.Count; i++)
+        {
+            string? parameter = functionDeclaration.Parameters[i];
+            ResolveParameter(ref parameter, innerMap);
+             functionDeclaration.Parameters[i] = parameter;
+        }
+
+        if (functionDeclaration.Body != null)
+        {
+            ResolveBlock(functionDeclaration.Body, innerMap);
+        }
+    }
+
+    private void ResolveParameter(ref string parameter, Dictionary<string, MapEntry> identifierMap)
+    {
+        if (identifierMap.TryGetValue(parameter, out MapEntry newVariable) && newVariable.FromCurrentScope)
+            throw new Exception("Semantic Error: Duplicate parameter declaration");
+
+        var uniqueName = MakeTemporary(parameter);
+        identifierMap[parameter] = new MapEntry() { NewName = uniqueName, FromCurrentScope = true };
+        parameter = uniqueName;
+    }
+
+    private void ResolveBlock(Block block, Dictionary<string, MapEntry> identifierMap)
     {
         foreach (var item in block.BlockItems)
         {
             if (item is VariableDeclaration declaration)
             {
-                ResolveDeclaration(declaration, variableMap);
+                ResolveVariableDeclaration(declaration, identifierMap);
+            }
+            else if (item is FunctionDeclaration functionDeclaration)
+            {
+                if (functionDeclaration.Body != null)
+                    throw new Exception("Semantic Error: Local function definition");
+
+                ResolveFunctionDeclaration(functionDeclaration, identifierMap);
             }
             else if (item is Statement statement)
             {
-                ResolveStatement(statement, variableMap);
+                ResolveStatement(statement, identifierMap);
             }
         }
     }
 
-    private void ResolveStatement(Statement statement, Dictionary<string, MapEntry> variableMap)
+    private void ResolveStatement(Statement statement, Dictionary<string, MapEntry> identifierMap)
     {
         switch (statement)
         {
             case ReturnStatement ret:
-                ResolveExpression(ret.Expression, variableMap);
+                ResolveExpression(ret.Expression, identifierMap);
                 break;
             case ExpressionStatement expressionStatement:
-                ResolveExpression(expressionStatement.Expression, variableMap);
+                ResolveExpression(expressionStatement.Expression, identifierMap);
                 break;
             case NullStatement:
                 break;
             case IfStatement ifStatement:
-                ResolveExpression(ifStatement.Condition, variableMap);
-                ResolveStatement(ifStatement.Then, variableMap);
+                ResolveExpression(ifStatement.Condition, identifierMap);
+                ResolveStatement(ifStatement.Then, identifierMap);
                 if (ifStatement.Else != null)
-                    ResolveStatement(ifStatement.Else, variableMap);
+                    ResolveStatement(ifStatement.Else, identifierMap);
                 break;
             case CompoundStatement compoundStatement:
                 {
-                    var newVarMap = CopyVarMap(variableMap);
-                    ResolveBlock(compoundStatement.Block, newVarMap);
+                    var newIdentifierMap = CopyIdentifierMap(identifierMap);
+                    ResolveBlock(compoundStatement.Block, newIdentifierMap);
                     break;
                 }
             case BreakStatement:
@@ -136,16 +187,16 @@ public class SemanticAnalyzer
             case ContinueStatement:
                 break;
             case WhileStatement whileStatement:
-                ResolveExpression(whileStatement.Condition, variableMap);
-                ResolveStatement(whileStatement.Body, variableMap);
+                ResolveExpression(whileStatement.Condition, identifierMap);
+                ResolveStatement(whileStatement.Body, identifierMap);
                 break;
             case DoWhileStatement doWhileStatement:
-                ResolveStatement(doWhileStatement.Body, variableMap);
-                ResolveExpression(doWhileStatement.Condition, variableMap);
+                ResolveStatement(doWhileStatement.Body, identifierMap);
+                ResolveExpression(doWhileStatement.Condition, identifierMap);
                 break;
             case ForStatement forStatement:
                 {
-                    var newVarMap = CopyVarMap(variableMap);
+                    var newVarMap = CopyIdentifierMap(identifierMap);
                     ResolveForInit(forStatement.Init, newVarMap);
                     ResolveOptionalExpression(forStatement.Condition, newVarMap);
                     ResolveOptionalExpression(forStatement.Post, newVarMap);
@@ -157,36 +208,36 @@ public class SemanticAnalyzer
         }
     }
 
-    private void ResolveOptionalExpression(Expression? expression, Dictionary<string, MapEntry> variableMap)
+    private void ResolveOptionalExpression(Expression? expression, Dictionary<string, MapEntry> identifierMap)
     {
         if (expression != null)
-            ResolveExpression(expression, variableMap);
+            ResolveExpression(expression, identifierMap);
     }
 
-    private void ResolveForInit(ForInit init, Dictionary<string, MapEntry> variableMap)
+    private void ResolveForInit(ForInit init, Dictionary<string, MapEntry> identifierMap)
     {
         switch (init)
         {
             case InitExpression initExpression:
-                ResolveOptionalExpression(initExpression.Expression, variableMap);
+                ResolveOptionalExpression(initExpression.Expression, identifierMap);
                 break;
             case InitDeclaration initDeclaration:
-                ResolveDeclaration(initDeclaration.Declaration, variableMap);
+                ResolveVariableDeclaration(initDeclaration.Declaration, identifierMap);
                 break;
         }
     }
 
-    private Dictionary<string, MapEntry> CopyVarMap(Dictionary<string, MapEntry> variableMap)
+    private Dictionary<string, MapEntry> CopyIdentifierMap(Dictionary<string, MapEntry> identifierMap)
     {
         Dictionary<string, MapEntry> newMap = [];
-        foreach (var item in variableMap)
+        foreach (var item in identifierMap)
         {
-            newMap.Add(item.Key, new MapEntry() { NewName = item.Value.NewName, FromCurrentBlock = false });
+            newMap.Add(item.Key, new MapEntry() { NewName = item.Value.NewName, FromCurrentScope = false });
         }
         return newMap;
     }
 
-    private void ResolveExpression(Expression expression, Dictionary<string, MapEntry> variableMap)
+    private void ResolveExpression(Expression expression, Dictionary<string, MapEntry> identifierMap)
     {
         switch (expression)
         {
@@ -194,44 +245,54 @@ public class SemanticAnalyzer
                 if (assignmentExpression.ExpressionLeft is not VariableExpression)
                     throw new Exception("Semantic Error: Invalid lvalue");
 
-                ResolveExpression(assignmentExpression.ExpressionLeft, variableMap);
-                ResolveExpression(assignmentExpression.ExpressionRight, variableMap);
+                ResolveExpression(assignmentExpression.ExpressionLeft, identifierMap);
+                ResolveExpression(assignmentExpression.ExpressionRight, identifierMap);
                 break;
             case VariableExpression variableExpression:
-                if (variableMap.TryGetValue(variableExpression.Identifier, out MapEntry newVariable))
+                if (identifierMap.TryGetValue(variableExpression.Identifier, out MapEntry newVariable))
                     variableExpression.Identifier = newVariable.NewName;
                 else
                     throw new Exception("Semantic Error: Undeclared variable");
                 break;
             case UnaryExpression unaryExpression:
-                ResolveExpression(unaryExpression.Expression, variableMap);
+                ResolveExpression(unaryExpression.Expression, identifierMap);
                 break;
             case BinaryExpression binaryExpression:
-                ResolveExpression(binaryExpression.ExpressionLeft, variableMap);
-                ResolveExpression(binaryExpression.ExpressionRight, variableMap);
+                ResolveExpression(binaryExpression.ExpressionLeft, identifierMap);
+                ResolveExpression(binaryExpression.ExpressionRight, identifierMap);
                 break;
             case ConstantExpression:
                 break;
             case ConditionalExpression conditionalExpression:
-                ResolveExpression(conditionalExpression.Condition, variableMap);
-                ResolveExpression(conditionalExpression.Then, variableMap);
-                ResolveExpression(conditionalExpression.Else, variableMap);
+                ResolveExpression(conditionalExpression.Condition, identifierMap);
+                ResolveExpression(conditionalExpression.Then, identifierMap);
+                ResolveExpression(conditionalExpression.Else, identifierMap);
+                break;
+            case FunctionCallExpression functionCallExpression:
+                if (identifierMap.TryGetValue(functionCallExpression.Identifier, out MapEntry entry))
+                {
+                    functionCallExpression.Identifier = entry.NewName;
+                    foreach (var arg in functionCallExpression.Arguments)
+                        ResolveExpression(arg, identifierMap);
+                }
+                else
+                    throw new Exception("Semantic Error: Undeclared function");
                 break;
             default:
                 throw new NotImplementedException();
         }
     }
 
-    private void ResolveDeclaration(VariableDeclaration declaration, Dictionary<string, MapEntry> variableMap)
+    private void ResolveVariableDeclaration(VariableDeclaration declaration, Dictionary<string, MapEntry> identifierMap)
     {
-        if (variableMap.TryGetValue(declaration.Identifier, out MapEntry newVariable) && newVariable.FromCurrentBlock)
+        if (identifierMap.TryGetValue(declaration.Identifier, out MapEntry newVariable) && newVariable.FromCurrentScope)
             throw new Exception("Semantic Error: Duplicate variable declaration");
 
         var uniqueName = MakeTemporary(declaration.Identifier);
-        variableMap[declaration.Identifier] = new MapEntry() { NewName = uniqueName, FromCurrentBlock = true };
+        identifierMap[declaration.Identifier] = new MapEntry() { NewName = uniqueName, FromCurrentScope = true, HasLinkage = false };
         if (declaration.Initializer != null)
         {
-            ResolveExpression(declaration.Initializer, variableMap);
+            ResolveExpression(declaration.Initializer, identifierMap);
         }
         declaration.Identifier = uniqueName;
     }
