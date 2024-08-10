@@ -14,6 +14,7 @@ namespace mcc2
             string file = "";
             CompilerDriver.Stages stages = CompilerDriver.Stages.Emitter;
             bool assemble = true;
+            bool link = true;
             bool prettyPrint = false;
 
             foreach (string arg in args)
@@ -33,6 +34,8 @@ namespace mcc2
                         stages = CompilerDriver.Stages.Assembly;
                     else if (option == "-S")
                         assemble = false;
+                    else if (option == "-c")
+                        link = false;
                     else if (option == "--pretty")
                         prettyPrint = true;
                     else
@@ -77,9 +80,15 @@ namespace mcc2
                 File.Delete(processed);
             }
 
-            if (stages == CompilerDriver.Stages.Emitter && assemble)
-                CompilerDriver.AssembleAndLink(assembly);
-            if (assemble)
+            if (stages == CompilerDriver.Stages.Emitter)
+            {
+                if (assemble && link)
+                    CompilerDriver.AssembleAndLink(assembly);
+                else if (assemble)
+                    CompilerDriver.AssembleOnly(assembly);
+            }
+
+            if (assemble || link)
                 File.Delete(assembly);
 
             return 0;

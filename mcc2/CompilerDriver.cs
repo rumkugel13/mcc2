@@ -85,5 +85,20 @@ namespace mcc2
             }
             return output;
         }
+
+        public static string AssembleOnly(string file)
+        {
+            string output = $"{file[..^2]}.o";
+            using Process process = new Process();
+            process.StartInfo.FileName = "gcc";
+            process.StartInfo.Arguments = $"-c {file} -o {output}";
+            process.Start();
+            process.WaitForExit();
+            if (process.ExitCode != 0)
+            {
+                Console.WriteLine("Error running AssembleOnly");
+            }
+            return output;
+        }
     }
 }
