@@ -48,6 +48,7 @@ namespace mcc2
             Equals,
             Question,
             Colon,
+            Comma,
         }
 
         // note: pattern order needs to match tokentype order
@@ -88,6 +89,7 @@ namespace mcc2
             "=",
             "\\?",
             ":",
+            ",",
         ];
 
         public List<Token> Lex(string source)
