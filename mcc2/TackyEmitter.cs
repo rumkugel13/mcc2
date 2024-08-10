@@ -16,7 +16,8 @@ public class TackyEmitter
     {
         List<Function> functionDefinitions = [];
         foreach (var fun in astProgram.FunctionDeclarations)
-            functionDefinitions.Add(EmitFunction(fun));
+            if (fun.Body != null)
+                functionDefinitions.Add(EmitFunction(fun));
         return new TACProgam(functionDefinitions);
     }
 
@@ -24,10 +25,12 @@ public class TackyEmitter
     {
         List<Instruction> instructions = [];
         if (functionDefinition.Body != null)
+        {
             foreach (var item in functionDefinition.Body.BlockItems)
                 EmitInstruction(item, instructions);
-        instructions.Add(new Return(new Constant(0)));
-        return new Function(functionDefinition.Identifier, instructions);
+            instructions.Add(new Return(new Constant(0)));
+        }
+        return new Function(functionDefinition.Identifier, functionDefinition.Parameters, instructions);
     }
 
     private void EmitInstruction(BlockItem blockItem, List<Instruction> instructions)
@@ -124,6 +127,9 @@ public class TackyEmitter
                     instructions.Add(new Label(breakLabel));
                     break;
                 }
+            case FunctionDeclaration functionDeclaration:
+                EmitFunction(functionDeclaration);
+            break;
             default:
                 throw new NotImplementedException();
         }
@@ -194,6 +200,20 @@ public class TackyEmitter
                     var var2 = EmitInstruction(conditionalExpression.Else, instructions);
                     instructions.Add(new Copy(var2, dst));
                     instructions.Add(new Label(endLabel));
+                    return dst;
+                }
+            case FunctionCallExpression functionCallExpression:
+                {
+                    List<Val> arguments = [];
+                    foreach (var arg in functionCallExpression.Arguments)
+                    {
+                        var val = EmitInstruction(arg, instructions);
+                        arguments.Add(val);
+                    }
+                    
+                    var dstName = MakeTemporary();
+                    var dst = new Variable(dstName);
+                    instructions.Add(new FunctionCall(functionCallExpression.Identifier, arguments, dst));
                     return dst;
                 }
             default:
