@@ -99,7 +99,8 @@ main:
         AssemblyGenerator assemblyGenerator = new AssemblyGenerator();
         var assembly = assemblyGenerator.Generate(tacky);
 
-        CodeEmitter emitter = new CodeEmitter();
+        Dictionary<string, SemanticAnalyzer.SymbolEntry> symbolTable = [];
+        CodeEmitter emitter = new CodeEmitter(symbolTable);
         var code = emitter.Emit(assembly);
         Assert.AreEqual(code.ToString().Length, this.assembly.Length, "Should be same length");
         Assert.AreEqual(code.ToString(), this.assembly, "Should produce the same code");
