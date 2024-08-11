@@ -58,6 +58,12 @@ public class PseudoReplacer
                             setCC.Operand = ReplacePseudo(pseudo.Identifier);
                         break;
                     }
+                case Push push:
+                    {
+                        if (push.Operand is Pseudo pseudo)
+                            push.Operand = ReplacePseudo(pseudo.Identifier);
+                        break;
+                    }
             }
         }
 
