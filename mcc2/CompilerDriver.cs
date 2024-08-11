@@ -50,7 +50,8 @@ namespace mcc2
             if (stages < Stages.Validate)
                 return output;
 
-            new SemanticAnalyzer().Analyze(programAST);
+            Dictionary<string, SemanticAnalyzer.SymbolEntry> symbolTable = [];
+            new SemanticAnalyzer().Analyze(programAST, symbolTable);
 
             if (prettyPrint)
                 new PrettyPrinter().Print(programAST, source);
@@ -66,7 +67,7 @@ namespace mcc2
             AssemblyProgram assembly = new AssemblyGenerator().Generate(tacky);
 
             if (stages >= Stages.Emitter)
-                File.WriteAllText(output, new CodeEmitter().Emit(assembly).ToString());
+                File.WriteAllText(output, new CodeEmitter(symbolTable).Emit(assembly).ToString());
 
             return output;
         }

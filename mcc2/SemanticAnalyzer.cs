@@ -14,13 +14,13 @@ public class SemanticAnalyzer
         public bool FromCurrentScope, HasLinkage;
     }
 
-    private struct SymbolEntry
+    public struct SymbolEntry
     {
         public Types.Type Type;
         public bool Defined;
     }
 
-    public void Analyze(ASTProgram program)
+    public void Analyze(ASTProgram program, Dictionary<string, SymbolEntry> symbolTable)
     {
         Dictionary<string, MapEntry> identifierMap = [];
         foreach (var fun in program.FunctionDeclarations)
@@ -28,7 +28,6 @@ public class SemanticAnalyzer
             ResolveFunctionDeclaration(fun, identifierMap);
         }
 
-        Dictionary<string, SymbolEntry> symbolTable = [];
         foreach (var fun in program.FunctionDeclarations)
         {
             TypeCheckFunctionDeclaration(fun, symbolTable);

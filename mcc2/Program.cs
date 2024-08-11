@@ -88,7 +88,7 @@ namespace mcc2
                     CompilerDriver.AssembleOnly(assembly);
             }
 
-            if (assemble || link)
+            if (assemble)
                 File.Delete(assembly);
 
             return 0;

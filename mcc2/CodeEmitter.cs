@@ -5,6 +5,13 @@ namespace mcc2;
 
 public class CodeEmitter
 {
+    private Dictionary<string, SemanticAnalyzer.SymbolEntry> symbolTable;
+
+    public CodeEmitter(Dictionary<string, SemanticAnalyzer.SymbolEntry> symbolTable)
+    {
+        this.symbolTable = symbolTable;
+    }
+
     public StringBuilder Emit(AssemblyProgram program)
     {
         StringBuilder builder = new();
@@ -74,6 +81,15 @@ public class CodeEmitter
             case Label label:
                 builder.AppendLine($".L{label.Identifier}:");
                 break;
+            case DeallocateStack deallocateStack:
+                builder.AppendLine($"\taddq ${deallocateStack.Bytes}, %rsp");
+                break;
+            case Push push:
+                builder.AppendLine($"\tpushq {EmitOperand(push.Operand, 8)}");
+                break;
+            case Call call:
+                builder.AppendLine($"\tcall {call.Identifier}{(!symbolTable[call.Identifier].Defined && OperatingSystem.IsLinux() ? "@PLT" : "")}");
+                break;
             default:
                 throw new NotImplementedException();
         }
@@ -118,16 +134,25 @@ public class CodeEmitter
     {
         return operand switch
         {
-            Reg reg => reg.Register switch
-            {
-                Reg.RegisterName.AX => bytes == 4 ? "%eax" : "%al",
-                Reg.RegisterName.DX => bytes == 4 ? "%edx" : "%dl",
-                Reg.RegisterName.R10 => bytes == 4 ? "%r10d" : "%r10b",
-                Reg.RegisterName.R11 => bytes == 4 ? "%r11d" : "%r11b",
-                _ => throw new NotImplementedException()
-            },
+            Reg reg => EmitRegister(reg, bytes),
             Imm imm => $"${imm.Value}",
             Stack stack => $"{stack.Offset}(%rbp)",
+            _ => throw new NotImplementedException()
+        };
+    }
+
+    private string EmitRegister(Reg reg, int bytes = 4)
+    {
+        // note: need to keep this updated with Reg.RegisterName
+        string[] byteRegs = ["%al", "%cl", "%dl", "%dil", "%sil", "%r8b", "%r9b", "%r10b", "%r11b"];
+        string[] fourByteRegs = ["%eax", "%ecx", "%edx", "%edi", "%esi", "%r8d", "%r9d", "%r10d", "%r11d"];
+        string[] eightByteRegs = ["%rax", "%rcx", "%rdx", "%rdi", "%rsi", "%r8", "%r9", "%r10", "%r11"];
+
+        return bytes switch
+        {
+            1 => byteRegs[(int)reg.Register],
+            4 => fourByteRegs[(int)reg.Register],
+            8 => eightByteRegs[(int)reg.Register],
             _ => throw new NotImplementedException()
         };
     }
