@@ -29,7 +29,7 @@ The current goal is to output assembly for the following ISA's:
   - [X] 7: Compound Statements
   - [X] 8: Loops
     - [ ] Extra: switch Statements
-  - [ ] 9: Functions
+  - [X] 9: Functions
   - [ ] 10: File Scope Variable Declarations and Storage-Class Specifiers
 - [ ] Part II: Types beyond int
   - [ ] 11: Long Integers
