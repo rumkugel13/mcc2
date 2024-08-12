@@ -2,10 +2,10 @@ namespace mcc2.TAC;
 
 public class TACProgam
 {
-    public List<Function> FunctionDefinitions;
+    public List<TopLevel> Definitions;
 
-    public TACProgam(List<Function> functionDefinitions)
+    public TACProgam(List<TopLevel> definitions)
     {
-        this.FunctionDefinitions = functionDefinitions;
+        this.Definitions = definitions;
     }
 }

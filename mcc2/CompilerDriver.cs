@@ -59,7 +59,7 @@ namespace mcc2
             if (stages < Stages.Tacky)
                 return output;
 
-            TAC.TACProgam tacky = new TackyEmitter().Emit(programAST);
+            TAC.TACProgam tacky = new TackyEmitter(symbolTable).Emit(programAST);
 
             if (stages < Stages.Assembly)
                 return output;

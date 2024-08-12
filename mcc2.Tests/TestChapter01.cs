@@ -59,7 +59,8 @@ public class TestChapter01
         Parser parser = new Parser(source);
         var ast = parser.Parse(return2tokens);
 
-        TackyEmitter tackyEmitter = new TackyEmitter();
+        Dictionary<string, SemanticAnalyzer.SymbolEntry> symbolTable = [];
+        TackyEmitter tackyEmitter = new TackyEmitter(symbolTable);
         var tacky = tackyEmitter.Emit(ast);
 
         AssemblyGenerator assemblyGenerator = new AssemblyGenerator();
@@ -92,14 +93,14 @@ main:
         string source = File.ReadAllText("../../../Source/return_2.c");
         Parser parser = new Parser(source);
         var ast = parser.Parse(return2tokens);
-
-        TackyEmitter tackyEmitter = new TackyEmitter();
+        Dictionary<string, SemanticAnalyzer.SymbolEntry> symbolTable = [];
+        TackyEmitter tackyEmitter = new TackyEmitter(symbolTable);
         var tacky = tackyEmitter.Emit(ast);
 
         AssemblyGenerator assemblyGenerator = new AssemblyGenerator();
         var assembly = assemblyGenerator.Generate(tacky);
 
-        Dictionary<string, SemanticAnalyzer.SymbolEntry> symbolTable = [];
+        
         CodeEmitter emitter = new CodeEmitter(symbolTable);
         var code = emitter.Emit(assembly);
         Assert.AreEqual(code.ToString().Length, this.assembly.Length, "Should be same length");

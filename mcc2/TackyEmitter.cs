@@ -1,24 +1,61 @@
 namespace mcc2;
 
 using mcc2.AST;
+using mcc2.Attributes;
 using mcc2.TAC;
 
 public class TackyEmitter
 {
     private uint counter;
 
+    private Dictionary<string, SemanticAnalyzer.SymbolEntry> symbolTable;
+
+    public TackyEmitter(Dictionary<string, SemanticAnalyzer.SymbolEntry> symbolTable)
+    {
+        this.symbolTable = symbolTable;
+    }
+
     public TACProgam Emit(ASTProgram astProgram)
     {
-        return EmitProgram(astProgram);
+        var program = EmitProgram(astProgram);
+        program.Definitions.AddRange(ConvertSymbolsToTacky());
+        return program;
+    }
+
+    private List<TopLevel> ConvertSymbolsToTacky()
+    {
+        List<TopLevel> instructions = [];
+        foreach (var entry in symbolTable)
+        {
+            switch (entry.Value.IdentifierAttributes)
+            {
+                case StaticAttributes stat:
+                    switch (stat.InitialValue)
+                    {
+                        case Initial init:
+                            instructions.Add(new StaticVariable(entry.Key, stat.Global, init.Init));
+                            break;
+                        case Tentative:
+                            instructions.Add(new StaticVariable(entry.Key, stat.Global, 0));
+                            break;
+                        case NoInitializer:
+                            break;
+                    }
+                    break;
+                default:
+                    break;
+            }
+        }
+        return instructions;
     }
 
     private TACProgam EmitProgram(ASTProgram astProgram)
     {
-        List<Function> functionDefinitions = [];
+        List<TopLevel> definitions = [];
         foreach (var decl in astProgram.Declarations)
             if (decl is FunctionDeclaration fun && fun.Body != null)
-                functionDefinitions.Add(EmitFunction(fun));
-        return new TACProgam(functionDefinitions);
+                definitions.Add(EmitFunction(fun));
+        return new TACProgam(definitions);
     }
 
     private Function EmitFunction(FunctionDeclaration functionDefinition)
@@ -30,7 +67,9 @@ public class TackyEmitter
                 EmitInstruction(item, instructions);
             instructions.Add(new Return(new Constant(0)));
         }
-        return new Function(functionDefinition.Identifier, functionDefinition.Parameters, instructions);
+        return new Function(functionDefinition.Identifier,
+            ((FunctionAttributes)symbolTable[functionDefinition.Identifier].IdentifierAttributes).Global,
+            functionDefinition.Parameters, instructions);
     }
 
     private void EmitInstruction(BlockItem blockItem, List<Instruction> instructions)
@@ -44,7 +83,7 @@ public class TackyEmitter
                     break;
                 }
             case VariableDeclaration declaration:
-                if (declaration.Initializer != null)
+                if (declaration.Initializer != null && declaration.StorageClass == null)
                 {
                     var result = EmitInstruction(declaration.Initializer, instructions);
                     instructions.Add(new Copy(result, new Variable(declaration.Identifier)));
@@ -129,7 +168,7 @@ public class TackyEmitter
                 }
             case FunctionDeclaration functionDeclaration:
                 EmitFunction(functionDeclaration);
-            break;
+                break;
             default:
                 throw new NotImplementedException();
         }
@@ -210,7 +249,7 @@ public class TackyEmitter
                         var val = EmitInstruction(arg, instructions);
                         arguments.Add(val);
                     }
-                    
+
                     var dstName = MakeTemporary();
                     var dst = new Variable(dstName);
                     instructions.Add(new FunctionCall(functionCallExpression.Identifier, arguments, dst));
