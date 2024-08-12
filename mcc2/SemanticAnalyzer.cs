@@ -1,4 +1,5 @@
 using mcc2.AST;
+using mcc2.Attributes;
 using mcc2.Types;
 
 namespace mcc2;
@@ -17,7 +18,7 @@ public class SemanticAnalyzer
     public struct SymbolEntry
     {
         public Types.Type Type;
-        public bool Defined;
+        public IdentifierAttributes IdentifierAttributes;
     }
 
     public void Analyze(ASTProgram program, Dictionary<string, SymbolEntry> symbolTable)
@@ -27,12 +28,16 @@ public class SemanticAnalyzer
         {
             if (decl is FunctionDeclaration fun)
                 ResolveFunctionDeclaration(fun, identifierMap);
+            else if (decl is VariableDeclaration var)
+                ResolveFileScopeVariableDeclaration(var, identifierMap);
         }
 
         foreach (var decl in program.Declarations)
         {
             if (decl is FunctionDeclaration fun)
                 TypeCheckFunctionDeclaration(fun, symbolTable);
+            else if (decl is VariableDeclaration var)
+                TypeCheckFileScopeVariableDeclaration(var, symbolTable);
         }
 
         foreach (var decl in program.Declarations)
@@ -47,17 +52,26 @@ public class SemanticAnalyzer
         FunctionType funType = new FunctionType(functionDeclaration.Parameters.Count);
         bool hasBody = functionDeclaration.Body != null;
         bool alreadyDefined = false;
+        bool global = functionDeclaration.StorageClass != Declaration.StorageClasses.Static;
 
         if (symbolTable.TryGetValue(functionDeclaration.Identifier, out SymbolEntry prevEntry))
         {
+            var attributes = (FunctionAttributes)prevEntry.IdentifierAttributes;
+            // note: check correct type and number of parameters
             if (prevEntry.Type is not FunctionType funcA || funcA.ParameterCount != funType.ParameterCount)
                 throw new Exception("Type Error: Incompatible function declarations");
-            alreadyDefined = prevEntry.Defined;
+
+            alreadyDefined = attributes.Defined;
             if (alreadyDefined && hasBody)
                 throw new Exception("Type Error: Function is defined more than once");
+
+            if (attributes.Global && functionDeclaration.StorageClass == Declaration.StorageClasses.Static)
+                throw new Exception("Static function declaration follows non-static");
+
+            global = attributes.Global;
         }
 
-        symbolTable[functionDeclaration.Identifier] = new SymbolEntry() { Type = funType, Defined = alreadyDefined || hasBody };
+        symbolTable[functionDeclaration.Identifier] = new SymbolEntry() { Type = funType, IdentifierAttributes = new FunctionAttributes(alreadyDefined || hasBody, global) };
 
         if (functionDeclaration.Body != null)
         {
@@ -73,11 +87,14 @@ public class SemanticAnalyzer
         {
             if (item is VariableDeclaration declaration)
             {
-                TypeCheckVariableDeclaration(declaration, symbolTable);
+                TypeCheckLocalVariableDeclaration(declaration, symbolTable);
             }
             else if (item is FunctionDeclaration functionDeclaration)
             {
-                TypeCheckFunctionDeclaration(functionDeclaration, symbolTable);
+                if (functionDeclaration.StorageClass != Declaration.StorageClasses.Static)
+                    TypeCheckFunctionDeclaration(functionDeclaration, symbolTable);
+                else
+                    throw new Exception("Type Error: StorageClass static used in block function declaration");
             }
             else if (item is Statement statement)
             {
@@ -86,11 +103,76 @@ public class SemanticAnalyzer
         }
     }
 
-    private void TypeCheckVariableDeclaration(VariableDeclaration variableDeclaration, Dictionary<string, SymbolEntry> symbolTable)
+    private void TypeCheckFileScopeVariableDeclaration(VariableDeclaration variableDeclaration, Dictionary<string, SymbolEntry> symbolTable)
     {
-        symbolTable.Add(variableDeclaration.Identifier, new SymbolEntry() { Type = new Int() });
-        if (variableDeclaration.Initializer != null)
-            TypeCheckExpression(variableDeclaration.Initializer, symbolTable);
+        InitialValue initialValue;
+        if (variableDeclaration.Initializer is ConstantExpression constant)
+            initialValue = new Initial(constant.Value);
+        else if (variableDeclaration.Initializer == null)
+        {
+            if (variableDeclaration.StorageClass == Declaration.StorageClasses.Extern)
+                initialValue = new NoInitializer();
+            else
+                initialValue = new Tentative();
+        }
+        else
+            throw new Exception("Type Error: Non-Constant initializer");
+
+        var global = variableDeclaration.StorageClass != Declaration.StorageClasses.Static;
+
+        if (symbolTable.TryGetValue(variableDeclaration.Identifier, out SymbolEntry prevEntry))
+        {
+            var attributes = (StaticAttributes)prevEntry.IdentifierAttributes;
+            if (prevEntry.Type is not Int)
+                throw new Exception("Type Error: Function redeclared as variable");
+            if (variableDeclaration.StorageClass == Declaration.StorageClasses.Extern)
+                global = attributes.Global;
+            else if (attributes.Global != global)
+                throw new Exception("Type Error: Conflicting variable linkage");
+
+            if (attributes.InitialValue is Initial)
+                if (initialValue is Initial)
+                    throw new Exception("Type Error: Conflicting file scope variable definitions");
+                else
+                    initialValue = attributes.InitialValue;
+            else if (initialValue is not Initial && attributes.InitialValue is Tentative)
+                initialValue = new Tentative();
+        }
+
+        symbolTable[variableDeclaration.Identifier] = new SymbolEntry() { Type = new Int(), IdentifierAttributes = new StaticAttributes(initialValue, global) };
+    }
+
+    private void TypeCheckLocalVariableDeclaration(VariableDeclaration variableDeclaration, Dictionary<string, SymbolEntry> symbolTable)
+    {
+        if (variableDeclaration.StorageClass == Declaration.StorageClasses.Extern)
+        {
+            if (variableDeclaration.Initializer != null)
+                throw new Exception("Type Error: Initializer on local extern variable declaration");
+            if (symbolTable.TryGetValue(variableDeclaration.Identifier, out SymbolEntry prevEntry))
+            {
+                if (prevEntry.Type is not Int)
+                    throw new Exception("Type Error: Function redeclared as variable");
+            }
+            else
+                symbolTable.Add(variableDeclaration.Identifier, new SymbolEntry() { Type = new Int(), IdentifierAttributes = new StaticAttributes(new NoInitializer(), true) });
+        }
+        else if (variableDeclaration.StorageClass == Declaration.StorageClasses.Static)
+        {
+            InitialValue initialValue;
+            if (variableDeclaration.Initializer is ConstantExpression constant)
+                initialValue = new Initial(constant.Value);
+            else if (variableDeclaration.Initializer == null)
+                initialValue = new Initial(0);
+            else
+                throw new Exception("Type Error: Non-constant initializer on local static variable");
+            symbolTable[variableDeclaration.Identifier] = new SymbolEntry() { Type = new Int(), IdentifierAttributes = new StaticAttributes(initialValue, false) };
+        }
+        else
+        {
+            symbolTable[variableDeclaration.Identifier] = new SymbolEntry() { Type = new Int(), IdentifierAttributes = new LocalAttributes() };
+            if (variableDeclaration.Initializer != null)
+                TypeCheckExpression(variableDeclaration.Initializer, symbolTable);
+        }
     }
 
     private void TypeCheckExpression(Expression expression, Dictionary<string, SymbolEntry> symbolTable)
@@ -189,7 +271,10 @@ public class SemanticAnalyzer
                 TypeCheckOptionalExpression(initExpression.Expression, symbolTable);
                 break;
             case InitDeclaration initDeclaration:
-                TypeCheckVariableDeclaration(initDeclaration.Declaration, symbolTable);
+                if (initDeclaration.Declaration.StorageClass == null)
+                    TypeCheckLocalVariableDeclaration(initDeclaration.Declaration, symbolTable);
+                else
+                    throw new Exception("Type Error: StorageClass used in for loop init");
                 break;
         }
     }
@@ -308,6 +393,11 @@ public class SemanticAnalyzer
         var uniqueName = MakeTemporary(parameter);
         identifierMap[parameter] = new MapEntry() { NewName = uniqueName, FromCurrentScope = true };
         parameter = uniqueName;
+    }
+
+    private void ResolveFileScopeVariableDeclaration(VariableDeclaration var, Dictionary<string, MapEntry> identifierMap)
+    {
+        identifierMap[var.Identifier] = new MapEntry() { NewName = var.Identifier, FromCurrentScope = true, HasLinkage = true };
     }
 
     private void ResolveBlock(Block block, Dictionary<string, MapEntry> identifierMap)
@@ -459,8 +549,18 @@ public class SemanticAnalyzer
 
     private void ResolveVariableDeclaration(VariableDeclaration declaration, Dictionary<string, MapEntry> identifierMap)
     {
-        if (identifierMap.TryGetValue(declaration.Identifier, out MapEntry newVariable) && newVariable.FromCurrentScope)
-            throw new Exception("Semantic Error: Duplicate variable declaration");
+        if (identifierMap.TryGetValue(declaration.Identifier, out MapEntry prevEntry))
+        {
+            if (prevEntry.FromCurrentScope)
+                if (!(prevEntry.HasLinkage && declaration.StorageClass == Declaration.StorageClasses.Extern))
+                    throw new Exception("Semantic Error: Conflicting local declarations");
+        }
+
+        if (declaration.StorageClass == Declaration.StorageClasses.Extern)
+        {
+            identifierMap[declaration.Identifier] = new MapEntry() { NewName = declaration.Identifier, FromCurrentScope = true, HasLinkage = true };
+            return;
+        }
 
         var uniqueName = MakeTemporary(declaration.Identifier);
         identifierMap[declaration.Identifier] = new MapEntry() { NewName = uniqueName, FromCurrentScope = true, HasLinkage = false };

@@ -88,7 +88,7 @@ public class CodeEmitter
                 builder.AppendLine($"\tpushq {EmitOperand(push.Operand, 8)}");
                 break;
             case Call call:
-                builder.AppendLine($"\tcall {call.Identifier}{(!symbolTable[call.Identifier].Defined && OperatingSystem.IsLinux() ? "@PLT" : "")}");
+                builder.AppendLine($"\tcall {call.Identifier}{(!((Attributes.FunctionAttributes)symbolTable[call.Identifier].IdentifierAttributes).Defined && OperatingSystem.IsLinux() ? "@PLT" : "")}");
                 break;
             default:
                 throw new NotImplementedException();
