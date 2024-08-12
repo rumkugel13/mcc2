@@ -64,7 +64,7 @@ namespace mcc2
             if (stages < Stages.Assembly)
                 return output;
 
-            AssemblyProgram assembly = new AssemblyGenerator().Generate(tacky);
+            AssemblyProgram assembly = new AssemblyGenerator(symbolTable).Generate(tacky);
 
             if (stages >= Stages.Emitter)
                 File.WriteAllText(output, new CodeEmitter(symbolTable).Emit(assembly).ToString());

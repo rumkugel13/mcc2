@@ -23,8 +23,9 @@ public class CodeEmitter
 
     private void EmitProgram(AssemblyProgram program, StringBuilder builder)
     {
-        foreach (var fun in program.Functions)
-            EmitFunction(fun, builder);
+        foreach (var topLevel in program.TopLevel)
+            if (topLevel is Function fun)
+                EmitFunction(fun, builder);
     }
 
     private void EmitFunction(Function function, StringBuilder builder)

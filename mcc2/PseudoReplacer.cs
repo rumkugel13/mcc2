@@ -1,4 +1,5 @@
 using mcc2.Assembly;
+using mcc2.Attributes;
 
 namespace mcc2;
 
@@ -6,6 +7,12 @@ public class PseudoReplacer
 {
     public Dictionary<string, int> OffsetMap = [];
     private int currentOffset;
+    private Dictionary<string, SemanticAnalyzer.SymbolEntry> symbolTable;
+
+    public PseudoReplacer(Dictionary<string, SemanticAnalyzer.SymbolEntry> symbolTable)
+    {
+        this.symbolTable = symbolTable;
+    }
 
     public int Replace(List<Instruction> instructions)
     {
@@ -71,11 +78,17 @@ public class PseudoReplacer
         return -currentOffset;
     }
 
-    private Stack ReplacePseudo(string name)
+    private Operand ReplacePseudo(string name)
     {
         if (OffsetMap.TryGetValue(name, out int val))
         {
             return new Stack(val);
+        }
+
+        if (symbolTable.TryGetValue(name, out SemanticAnalyzer.SymbolEntry symbolEntry) &&
+            symbolEntry.IdentifierAttributes is StaticAttributes)
+        { 
+            return new Data(name); 
         }
 
         currentOffset -= 4;

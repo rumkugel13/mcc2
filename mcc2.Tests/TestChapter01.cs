@@ -63,20 +63,20 @@ public class TestChapter01
         TackyEmitter tackyEmitter = new TackyEmitter(symbolTable);
         var tacky = tackyEmitter.Emit(ast);
 
-        AssemblyGenerator assemblyGenerator = new AssemblyGenerator();
+        AssemblyGenerator assemblyGenerator = new AssemblyGenerator(symbolTable);
         var assembly = assemblyGenerator.Generate(tacky);
 
         Assert.IsNotNull(assembly, "Invalid Assembly node");
-        Assert.IsNotNull(assembly.Functions[0], "Invalid Function node");
-        Assert.AreEqual(assembly.Functions[0].Name, "main", "Invalid Identifier");
-        Assert.AreEqual(assembly.Functions[0].Instructions.Count, 2, "Invalid Instruction Count");
+        Assert.IsNotNull(assembly.TopLevel[0], "Invalid Function node");
+        Assert.AreEqual(((Function)assembly.TopLevel[0]).Name, "main", "Invalid Identifier");
+        Assert.AreEqual(((Function)assembly.TopLevel[0]).Instructions.Count, 2, "Invalid Instruction Count");
 
-        Assert.IsInstanceOfType(assembly.Functions[0].Instructions[0], typeof(Mov), "Expected Mov type");
-        Assert.IsInstanceOfType(assembly.Functions[0].Instructions[1], typeof(Ret), "Expected Mov type");
+        Assert.IsInstanceOfType(((Function)assembly.TopLevel[0]).Instructions[0], typeof(Mov), "Expected Mov type");
+        Assert.IsInstanceOfType(((Function)assembly.TopLevel[0]).Instructions[1], typeof(Ret), "Expected Mov type");
 
-        Assert.IsNotNull(((Mov)assembly.Functions[0].Instructions[0]).src, "Invalid src");
-        Assert.IsInstanceOfType(((Mov)assembly.Functions[0].Instructions[0]).src, typeof(Imm), "Expected Imm type");
-        Assert.AreEqual(((Imm)((Mov)assembly.Functions[0].Instructions[0]).src).Value, 2, "Invalid Imm value");
+        Assert.IsNotNull(((Mov)((Function)assembly.TopLevel[0]).Instructions[0]).src, "Invalid src");
+        Assert.IsInstanceOfType(((Mov)((Function)assembly.TopLevel[0]).Instructions[0]).src, typeof(Imm), "Expected Imm type");
+        Assert.AreEqual(((Imm)((Mov)((Function)assembly.TopLevel[0]).Instructions[0]).src).Value, 2, "Invalid Imm value");
     }
 
     private string assembly = 
@@ -93,13 +93,13 @@ main:
         string source = File.ReadAllText("../../../Source/return_2.c");
         Parser parser = new Parser(source);
         var ast = parser.Parse(return2tokens);
+
         Dictionary<string, SemanticAnalyzer.SymbolEntry> symbolTable = [];
         TackyEmitter tackyEmitter = new TackyEmitter(symbolTable);
         var tacky = tackyEmitter.Emit(ast);
 
-        AssemblyGenerator assemblyGenerator = new AssemblyGenerator();
+        AssemblyGenerator assemblyGenerator = new AssemblyGenerator(symbolTable);
         var assembly = assemblyGenerator.Generate(tacky);
-
         
         CodeEmitter emitter = new CodeEmitter(symbolTable);
         var code = emitter.Emit(assembly);

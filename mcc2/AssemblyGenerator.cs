@@ -4,6 +4,13 @@ using mcc2.Assembly;
 
 public class AssemblyGenerator
 {
+    private Dictionary<string, SemanticAnalyzer.SymbolEntry> symbolTable;
+
+    public AssemblyGenerator(Dictionary<string, SemanticAnalyzer.SymbolEntry> symbolTable)
+    {
+        this.symbolTable = symbolTable;
+    }
+
     public AssemblyProgram Generate(TAC.TACProgam program)
     {
         return GenerateProgram(program);
@@ -11,10 +18,12 @@ public class AssemblyGenerator
 
     private AssemblyProgram GenerateProgram(TAC.TACProgam program)
     {
-        List<Function> functionDefinitions = [];
+        List<TopLevel> functionDefinitions = [];
         foreach (var def in program.Definitions)
             if (def is TAC.Function fun)
                 functionDefinitions.Add(GenerateFunction(fun));
+            else if (def is TAC.StaticVariable staticVariable)
+                functionDefinitions.Add(new StaticVariable(staticVariable.Identifier, staticVariable.Global, staticVariable.Init));
         return new AssemblyProgram(functionDefinitions);
     }
 
@@ -43,9 +52,9 @@ public class AssemblyGenerator
             }
         }
         
-        Function fn = new Function(function.Name, GenerateInstructions(function.Instructions, instructions));
+        Function fn = new Function(function.Name, function.Global, GenerateInstructions(function.Instructions, instructions));
 
-        PseudoReplacer stackAllocator = new PseudoReplacer();
+        PseudoReplacer stackAllocator = new PseudoReplacer(this.symbolTable);
         var bytesToAllocate = stackAllocator.Replace(fn.Instructions);
 
         // note: chapter 9 says we should store this per function in symboltable or ast

@@ -2,10 +2,10 @@ namespace mcc2.Assembly;
 
 public class AssemblyProgram
 {
-    public List<Function> Functions;
+    public List<TopLevel> TopLevel;
 
-    public AssemblyProgram(List<Function> functions)
+    public AssemblyProgram(List<TopLevel> topLevel)
     {
-        this.Functions = functions;
+        this.TopLevel = topLevel;
     }
 }

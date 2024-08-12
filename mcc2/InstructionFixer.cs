@@ -11,7 +11,7 @@ public class InstructionFixer
             var inst = instructions[i];
             if (inst is Mov mov)
             {
-                if (mov.src is Stack && mov.dst is Stack)
+                if (mov.src is Stack or Data && mov.dst is Stack or Data)
                 {
                     Reg reg = new Reg(Reg.RegisterName.R10);
                     Mov moveBefore = new Mov(mov.src, reg);
@@ -21,7 +21,7 @@ public class InstructionFixer
             }
             else if (inst is Cmp cmp)
             {
-                if (cmp.OperandA is Stack && cmp.OperandB is Stack)
+                if (cmp.OperandA is Stack or Data && cmp.OperandB is Stack or Data)
                 {
                     Reg reg = new Reg(Reg.RegisterName.R10);
                     Mov moveBefore = new Mov(cmp.OperandA, reg);
@@ -48,21 +48,21 @@ public class InstructionFixer
             }
             else if (inst is Binary binary)
             {
-                if (binary.Operator == Binary.BinaryOperator.Add && binary.SrcOperand is Stack && binary.DstOperand is Stack)
+                if (binary.Operator == Binary.BinaryOperator.Add && binary.SrcOperand is Stack or Data && binary.DstOperand is Stack or Data)
                 {
                     Reg reg = new Reg(Reg.RegisterName.R10);
                     Mov moveBefore = new Mov(binary.SrcOperand, reg);
                     instructions.Insert(i, moveBefore);
                     binary.SrcOperand = reg;
                 }
-                else if (binary.Operator == Binary.BinaryOperator.Sub && binary.SrcOperand is Stack && binary.DstOperand is Stack)
+                else if (binary.Operator == Binary.BinaryOperator.Sub && binary.SrcOperand is Stack or Data && binary.DstOperand is Stack or Data)
                 {
                     Reg reg = new Reg(Reg.RegisterName.R10);
                     Mov moveBefore = new Mov(binary.SrcOperand, reg);
                     instructions.Insert(i, moveBefore);
                     binary.SrcOperand = reg;
                 }
-                else if (binary.Operator == Binary.BinaryOperator.Mult && binary.DstOperand is Stack)
+                else if (binary.Operator == Binary.BinaryOperator.Mult && binary.DstOperand is Stack or Data)
                 {
                     Reg reg = new Reg(Reg.RegisterName.R11);
                     Mov moveBefore = new Mov(binary.DstOperand, reg);
