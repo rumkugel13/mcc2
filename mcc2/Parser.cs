@@ -26,18 +26,20 @@ public class Parser
 
     private ASTProgram ParseProgram(List<Token> tokens)
     {
-        List<FunctionDeclaration> functionDeclarations = [];
-        while (tokenPos < tokens.Count && Peek(tokens).Type == Lexer.TokenType.IntKeyword)
+        List<Declaration> declarations = [];
+        while (tokenPos < tokens.Count && 
+            (Peek(tokens).Type == Lexer.TokenType.IntKeyword ||
+            Peek(tokens).Type == Lexer.TokenType.StaticKeyword ||
+            Peek(tokens).Type == Lexer.TokenType.ExternKeyword))
         {
-            var fun = ParseFunctionDeclaration(tokens);
-            functionDeclarations.Add(fun);
+            var fun = ParseDeclaration(tokens);
+            declarations.Add(fun);
         }
-        return new ASTProgram(functionDeclarations);
+        return new ASTProgram(declarations);
     }
 
-    private FunctionDeclaration ParseFunctionDeclaration(List<Token> tokens)
+    private FunctionDeclaration ParseFunctionDeclaration(List<Token> tokens, Declaration.StorageClasses? storageClass)
     {
-        Expect(Lexer.TokenType.IntKeyword, tokens);
         var id = Expect(Lexer.TokenType.Identifier, tokens);
         Expect(Lexer.TokenType.OpenParenthesis, tokens);
 
@@ -66,19 +68,76 @@ public class Parser
             body = ParseBlock(tokens);
         else
             Expect(Lexer.TokenType.Semicolon, tokens);
-        return new FunctionDeclaration(GetIdentifier(id, this.source), parameters, body);
+        return new FunctionDeclaration(GetIdentifier(id, this.source), parameters, body, storageClass);
+    }
+
+    private List<Token> ParseSpecifiers(List<Token> tokens)
+    {
+        List<Token> specifiers = [];
+        var nextToken = Peek(tokens);
+        while (nextToken.Type == Lexer.TokenType.IntKeyword ||
+            nextToken.Type == Lexer.TokenType.StaticKeyword ||
+            nextToken.Type == Lexer.TokenType.ExternKeyword)
+        {
+            specifiers.Add(TakeToken(tokens));
+            nextToken = Peek(tokens);
+        }
+
+        return specifiers;
+    }
+
+    private void ParseTypeAndStorageClass(List<Token> specifiers, out Token type, out Declaration.StorageClasses? storageClass)
+    {
+        List<Token> types = [];
+        List<Token> storageClasses = [];
+        foreach (var specifier in specifiers)
+        {
+            if (specifier.Type == Lexer.TokenType.IntKeyword)
+                types.Add(specifier);
+            else
+                storageClasses.Add(specifier);
+        }
+
+        if (types.Count != 1)
+            throw new Exception($"Parsing Error: Invalid type specifier");
+        
+        if (storageClasses.Count > 1)
+            throw new Exception($"Parsing Error: Invalid storage class count");
+
+        type = types[0];    // int for now
+
+        if (storageClasses.Count == 1)
+            storageClass = ParseStorageClass(storageClasses[0]);
+        else
+            storageClass = null;
+
+        return;
+    }
+
+    private Declaration.StorageClasses ParseStorageClass(Token storageClass)
+    {
+        return storageClass.Type switch
+        {
+            Lexer.TokenType.ExternKeyword => Declaration.StorageClasses.Extern,
+            Lexer.TokenType.StaticKeyword => Declaration.StorageClasses.Static,
+            _ => throw new Exception($"Parsing Error: Invalid storage class")
+        };
     }
 
     private Declaration ParseDeclaration(List<Token> tokens)
     {
-        // 0 ahead = int, 1 ahead = id, 2 ahead is openParen or not
-        if (PeekAhead(tokens, 2).Type == Lexer.TokenType.OpenParenthesis)
+        var specifiers = ParseSpecifiers(tokens);
+        // note: we dont use the type parameter yet
+        ParseTypeAndStorageClass(specifiers, out Token _, out Declaration.StorageClasses? storageClass);
+
+        // 0 ahead = last specifier, 1 ahead is openParen or not
+        if (PeekAhead(tokens, 1).Type == Lexer.TokenType.OpenParenthesis)
         {
-            return ParseFunctionDeclaration(tokens);
+            return ParseFunctionDeclaration(tokens, storageClass);
         }
         else
         {
-            return ParseVariableDeclaration(tokens);
+            return ParseVariableDeclaration(tokens, storageClass);
         }
     }
 
@@ -97,7 +156,9 @@ public class Parser
     private BlockItem ParseBlockItem(List<Token> tokens)
     {
         var nextToken = Peek(tokens);
-        if (nextToken.Type == Lexer.TokenType.IntKeyword)
+        if (nextToken.Type == Lexer.TokenType.IntKeyword ||
+            nextToken.Type == Lexer.TokenType.StaticKeyword ||
+            nextToken.Type == Lexer.TokenType.ExternKeyword)
         {
             return ParseDeclaration(tokens);
         }
@@ -107,9 +168,8 @@ public class Parser
         }
     }
 
-    private VariableDeclaration ParseVariableDeclaration(List<Token> tokens)
+    private VariableDeclaration ParseVariableDeclaration(List<Token> tokens, Declaration.StorageClasses? storageClass)
     {
-        Expect(Lexer.TokenType.IntKeyword, tokens);
         var id = Expect(Lexer.TokenType.Identifier, tokens);
         Expression? expression = null;
         var nextToken = Peek(tokens);
@@ -121,7 +181,7 @@ public class Parser
         }
 
         Expect(Lexer.TokenType.Semicolon, tokens);
-        return new VariableDeclaration(GetIdentifier(id, this.source), expression);
+        return new VariableDeclaration(GetIdentifier(id, this.source), expression, storageClass);
     }
 
     private Statement ParseStatement(List<Token> tokens)
@@ -217,9 +277,11 @@ public class Parser
     {
         var nextToken = Peek(tokens);
 
-        if (nextToken.Type == Lexer.TokenType.IntKeyword)
+        if (nextToken.Type == Lexer.TokenType.IntKeyword ||
+            nextToken.Type == Lexer.TokenType.StaticKeyword ||
+            nextToken.Type == Lexer.TokenType.ExternKeyword)
         {
-            var decl = ParseVariableDeclaration(tokens);
+            var decl = (VariableDeclaration)ParseDeclaration(tokens);
             return new InitDeclaration(decl);
         }
         else

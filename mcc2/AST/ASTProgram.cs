@@ -2,10 +2,10 @@ namespace mcc2.AST;
 
 public class ASTProgram
 {
-    public List<FunctionDeclaration> FunctionDeclarations;
+    public List<Declaration> Declarations;
 
-    public ASTProgram(List<FunctionDeclaration> functionDeclarations)
+    public ASTProgram(List<Declaration> declarations)
     {
-        this.FunctionDeclarations = functionDeclarations;
+        this.Declarations = declarations;
     }
 }

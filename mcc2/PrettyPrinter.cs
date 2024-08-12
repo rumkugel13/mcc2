@@ -9,12 +9,26 @@ public class PrettyPrinter
         PrintProgram(program, source, 0);
     }
 
+    // todo: actually update for once, to support new ast nodes
     private void PrintProgram(ASTProgram program, string source, int indent)
     {
         PrintLine("Program(", indent);
-        foreach (var fun in program.FunctionDeclarations)
-            PrintFunctionDefinition(fun, source, indent + 1);
+        foreach (var fun in program.Declarations)
+            PrintDeclaration(fun, source, indent + 1);
         PrintLine(")", indent);
+    }
+
+    private void PrintDeclaration(Declaration declaration, string source, int indent)
+    {
+        switch (declaration)
+        {
+            case FunctionDeclaration functionDeclaration:
+                PrintFunctionDefinition(functionDeclaration, source, indent);
+                break;
+            case VariableDeclaration variableDeclaration:
+                PrintBlockItem(variableDeclaration, source, indent);
+                break;
+        }
     }
 
     private void PrintFunctionDefinition(FunctionDeclaration functionDefinition, string source, int indent)

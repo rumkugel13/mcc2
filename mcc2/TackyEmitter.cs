@@ -15,8 +15,8 @@ public class TackyEmitter
     private TACProgam EmitProgram(ASTProgram astProgram)
     {
         List<Function> functionDefinitions = [];
-        foreach (var fun in astProgram.FunctionDeclarations)
-            if (fun.Body != null)
+        foreach (var decl in astProgram.Declarations)
+            if (decl is FunctionDeclaration fun && fun.Body != null)
                 functionDefinitions.Add(EmitFunction(fun));
         return new TACProgam(functionDefinitions);
     }

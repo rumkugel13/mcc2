@@ -23,19 +23,22 @@ public class SemanticAnalyzer
     public void Analyze(ASTProgram program, Dictionary<string, SymbolEntry> symbolTable)
     {
         Dictionary<string, MapEntry> identifierMap = [];
-        foreach (var fun in program.FunctionDeclarations)
+        foreach (var decl in program.Declarations)
         {
-            ResolveFunctionDeclaration(fun, identifierMap);
+            if (decl is FunctionDeclaration fun)
+                ResolveFunctionDeclaration(fun, identifierMap);
         }
 
-        foreach (var fun in program.FunctionDeclarations)
+        foreach (var decl in program.Declarations)
         {
-            TypeCheckFunctionDeclaration(fun, symbolTable);
+            if (decl is FunctionDeclaration fun)
+                TypeCheckFunctionDeclaration(fun, symbolTable);
         }
 
-        foreach (var fun in program.FunctionDeclarations)
+        foreach (var decl in program.Declarations)
         {
-            LabelFunction(fun, null);
+            if (decl is FunctionDeclaration fun)
+                LabelFunction(fun, null);
         }
     }
 
