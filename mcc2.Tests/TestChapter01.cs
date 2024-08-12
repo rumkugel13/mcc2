@@ -43,13 +43,13 @@ public class TestChapter01
         var ast = parser.Parse(return2tokens);
 
         Assert.IsNotNull(ast, "Invalid Program node");
-        Assert.IsNotNull(ast.FunctionDeclarations, "Invalid Function node");
-        Assert.AreEqual(ast.FunctionDeclarations[0].Identifier, "main", "Invalid Identifier");
-        Assert.IsNotNull(ast.FunctionDeclarations[0].Body, "Invalid Statement");
-        Assert.IsInstanceOfType(ast.FunctionDeclarations[0].Body, typeof(ReturnStatement), "Expected ReturnStatement type");
-        Assert.IsNotNull(((ReturnStatement)ast.FunctionDeclarations[0].Body.BlockItems[0]).Expression, "Invalid Expression");
-        Assert.IsInstanceOfType(((ReturnStatement)ast.FunctionDeclarations[0].Body.BlockItems[0]).Expression, typeof(ConstantExpression), "Expected ConstantExpression type");
-        Assert.AreEqual(((ConstantExpression)((ReturnStatement)ast.FunctionDeclarations[0].Body.BlockItems[0]).Expression).Value, 2, "Invalid Constant");
+        Assert.IsNotNull(ast.Declarations, "Invalid Function node");
+        Assert.AreEqual(((FunctionDeclaration)ast.Declarations[0]).Identifier, "main", "Invalid Identifier");
+        Assert.IsNotNull(((FunctionDeclaration)ast.Declarations[0]).Body, "Invalid Statement");
+        Assert.IsInstanceOfType(((FunctionDeclaration)ast.Declarations[0]).Body, typeof(ReturnStatement), "Expected ReturnStatement type");
+        Assert.IsNotNull(((ReturnStatement)((FunctionDeclaration)ast.Declarations[0]).Body.BlockItems[0]).Expression, "Invalid Expression");
+        Assert.IsInstanceOfType(((ReturnStatement)((FunctionDeclaration)ast.Declarations[0]).Body.BlockItems[0]).Expression, typeof(ConstantExpression), "Expected ConstantExpression type");
+        Assert.AreEqual(((ConstantExpression)((ReturnStatement)((FunctionDeclaration)ast.Declarations[0]).Body.BlockItems[0]).Expression).Value, 2, "Invalid Constant");
     }
 
     [TestMethod]
