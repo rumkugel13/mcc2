@@ -26,17 +26,49 @@ public class CodeEmitter
         foreach (var topLevel in program.TopLevel)
             if (topLevel is Function fun)
                 EmitFunction(fun, builder);
+            else if (topLevel is StaticVariable stat)
+                EmitStaticVariable(stat, builder);
     }
 
     private void EmitFunction(Function function, StringBuilder builder)
     {
-        builder.AppendLine($"\t.globl {function.Name}");
+        if (function.Global)
+            builder.AppendLine($"\t.globl {function.Name}");
+            
+        builder.AppendLine($"\t.text");
         builder.AppendLine($"{function.Name}:");
         builder.AppendLine($"\tpushq %rbp");
         builder.AppendLine($"\tmovq %rsp, %rbp");
         foreach (var inst in function.Instructions)
         {
             EmitInstruction(inst, builder);
+        }
+    }
+
+    private void EmitStaticVariable(StaticVariable staticVariable, StringBuilder builder)
+    {
+        if (staticVariable.Global)
+            builder.AppendLine($"\t.globl {staticVariable.Identifier}");
+
+        if (staticVariable.Init == 0)
+        {
+            builder.AppendLine($"\t.bss");
+            if (OperatingSystem.IsLinux())
+                builder.AppendLine($"\t.align 4");
+            else
+                builder.AppendLine($"\t.balign 4");
+            builder.AppendLine($"{staticVariable.Identifier}:");
+            builder.AppendLine($"\t.zero 4");
+        }
+        else
+        {
+            builder.AppendLine($"\t.data");
+            if (OperatingSystem.IsLinux())
+                builder.AppendLine($"\t.align 4");
+            else
+                builder.AppendLine($"\t.balign 4");
+            builder.AppendLine($"{staticVariable.Identifier}:");
+            builder.AppendLine($"\t.long {staticVariable.Init}");
         }
     }
 
@@ -138,6 +170,7 @@ public class CodeEmitter
             Reg reg => EmitRegister(reg, bytes),
             Imm imm => $"${imm.Value}",
             Stack stack => $"{stack.Offset}(%rbp)",
+            Data data => $"{data.Identifier}(%rip)",
             _ => throw new NotImplementedException()
         };
     }
