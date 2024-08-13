@@ -57,6 +57,9 @@ public class PrettyPrinter
                     PrintExpression(declaration.Initializer, source, indent + 1);
                 PrintLine(")", indent);
                 break;
+            case FunctionDeclaration fun:
+                PrintFunctionDefinition(fun, source, indent);
+                break;
         }
     }
 
@@ -86,6 +89,58 @@ public class PrettyPrinter
             case CompoundStatement compoundStatement:
                 foreach (var item in compoundStatement.Block.BlockItems)
                     PrintBlockItem(item, source, indent + 1);
+                break;
+            case ExpressionStatement expressionStatement:
+                PrintExpression(expressionStatement.Expression, source, indent);
+                break;
+            case WhileStatement whileStatement:
+                PrintLine($"While(", indent);
+                PrintLine("condition=", indent + 1);
+                PrintExpression(whileStatement.Condition, source, indent + 2);
+                PrintLine(")", indent + 1);
+                PrintLine("body=", indent + 1);
+                PrintStatement(whileStatement.Body, source, indent + 2);
+                PrintLine(")", indent + 1);
+                PrintLine(")", indent);
+                break;
+            case DoWhileStatement doWhileStatement:
+                PrintLine($"DoWhile(", indent);
+                PrintLine("body=", indent + 1);
+                PrintStatement(doWhileStatement.Body, source, indent + 2);
+                PrintLine(")", indent + 1);
+                PrintLine("condition=", indent + 1);
+                PrintExpression(doWhileStatement.Condition, source, indent + 2);
+                PrintLine(")", indent + 1);
+                PrintLine(")", indent);
+                break;
+            case ForStatement forStatement:
+                PrintLine($"For(", indent);
+                PrintLine("init=", indent + 1);
+                if (forStatement.Init is InitDeclaration initDeclaration)
+                    PrintDeclaration(initDeclaration.Declaration, source, indent + 2);
+                else if (forStatement.Init is InitExpression initExpression && initExpression.Expression != null)
+                    PrintExpression(initExpression.Expression, source, indent + 2);
+                PrintLine(")", indent + 1);
+                PrintLine("condition=", indent + 1);
+                if (forStatement.Condition != null)
+                    PrintExpression(forStatement.Condition, source, indent + 2);
+                else
+                    PrintLine("true", indent + 2);
+                PrintLine(")", indent + 1);
+                PrintLine("post=", indent + 1);
+                if (forStatement.Post != null)
+                    PrintExpression(forStatement.Post, source, indent + 2);
+                PrintLine(")", indent + 1);
+                PrintLine("body=", indent + 1);
+                PrintStatement(forStatement.Body, source, indent + 2);
+                PrintLine(")", indent + 1);
+                PrintLine(")", indent);
+                break;
+            case ContinueStatement continueStatement:
+                PrintLine($"Continue()", indent);
+                break;
+            case BreakStatement breakStatement:
+                PrintLine($"Break()", indent);
                 break;
         }
     }
@@ -136,6 +191,17 @@ public class PrettyPrinter
                     PrintExpression(conditionalExpression.Else, source, indent + 2);
                     PrintLine(")", indent + 1);
                 }
+                PrintLine(")", indent);
+                break;
+            case FunctionCallExpression functionCallExpression:
+                PrintLine($"Call(", indent);
+                PrintLine($"name=\"{functionCallExpression.Identifier}\",", indent + 1);
+                PrintLine($"args=(", indent + 1);
+                foreach (var arg in functionCallExpression.Arguments)
+                {
+                    PrintExpression(arg, source, indent + 2);
+                }
+                PrintLine(")", indent + 1);
                 PrintLine(")", indent);
                 break;
         }
