@@ -32,10 +32,14 @@ public class TackyEmitter
                     switch (stat.InitialValue)
                     {
                         case InitialValue.Initial init:
-                            instructions.Add(new TopLevel.StaticVariable(entry.Key, stat.Global, ((StaticInit.IntInit)init.Init).Value));
+                            instructions.Add(new TopLevel.StaticVariable(entry.Key, stat.Global, entry.Value.Type, init.Init));
                             break;
                         case InitialValue.Tentative:
-                            instructions.Add(new TopLevel.StaticVariable(entry.Key, stat.Global, 0));
+                            instructions.Add(new TopLevel.StaticVariable(entry.Key, stat.Global, entry.Value.Type, entry.Value.Type switch {
+                                Type.Int => new StaticInit.IntInit(0),
+                                Type.Long => new StaticInit.LongInit(0),
+                                _ => throw new NotImplementedException()
+                            }));
                             break;
                         case InitialValue.NoInitializer:
                             break;
@@ -64,7 +68,7 @@ public class TackyEmitter
         {
             foreach (var item in functionDefinition.Body.BlockItems)
                 EmitInstruction(item, instructions);
-            instructions.Add(new Instruction.Return(new Val.Constant(0)));
+            instructions.Add(new Instruction.Return(new Val.Constant(new Const.ConstInt(0))));
         }
         return new TopLevel.Function(functionDefinition.Identifier,
             ((IdentifierAttributes.Function)symbolTable[functionDefinition.Identifier].IdentifierAttributes).Global,
@@ -190,12 +194,11 @@ public class TackyEmitter
         switch (expression)
         {
             case Expression.ConstantExpression constant:
-                return new Val.Constant(((Const.ConstInt)constant.Value).Value);
+                return new Val.Constant(constant.Value);
             case Expression.UnaryExpression unary:
                 {
                     var src = EmitInstruction(unary.Expression, instructions);
-                    var dstName = MakeTemporary();
-                    var dst = new Val.Variable(dstName);
+                    var dst = MakeTackyVariable(unary.Type);
                     instructions.Add(new Instruction.Unary(unary.Operator, src, dst));
                     return dst;
                 }
@@ -209,8 +212,7 @@ public class TackyEmitter
 
                     var v1 = EmitInstruction(binary.ExpressionLeft, instructions);
                     var v2 = EmitInstruction(binary.ExpressionRight, instructions);
-                    var dstName = MakeTemporary();
-                    var dst = new Val.Variable(dstName);
+                    var dst = MakeTackyVariable(binary.Type);
                     instructions.Add(new Instruction.Binary(binary.Operator, v1, v2, dst));
                     return dst;
                 }
@@ -229,8 +231,7 @@ public class TackyEmitter
                     var exp2Label = MakeLabel();
                     instructions.Add(new Instruction.JumpIfZero(cond, exp2Label));
                     var var1 = EmitInstruction(conditionalExpression.Then, instructions);
-                    var dstName = MakeTemporary();
-                    var dst = new Val.Variable(dstName);
+                    var dst = MakeTackyVariable(conditionalExpression.Type);
                     instructions.Add(new Instruction.Copy(var1, dst));
                     var endLabel = MakeLabel();
                     instructions.Add(new Instruction.Jump(endLabel));
@@ -249,14 +250,32 @@ public class TackyEmitter
                         arguments.Add(val);
                     }
 
-                    var dstName = MakeTemporary();
-                    var dst = new Val.Variable(dstName);
+                    var dst = MakeTackyVariable(functionCallExpression.Type);
                     instructions.Add(new Instruction.FunctionCall(functionCallExpression.Identifier, arguments, dst));
+                    return dst;
+                }
+            case Expression.CastExpression castExpression:
+                {
+                    var result = EmitInstruction(castExpression.Expression, instructions);
+                    if (castExpression.TargetType == TypeChecker.GetType(castExpression.Expression))
+                        return result;
+                    var dst = MakeTackyVariable(castExpression.TargetType);
+                    if (castExpression.TargetType is Type.Long)
+                        instructions.Add(new Instruction.SignExtend(result, dst));
+                    else
+                        instructions.Add(new Instruction.Truncate(result, dst));
                     return dst;
                 }
             default:
                 throw new NotImplementedException();
         }
+    }
+
+    private Val.Variable MakeTackyVariable(Type varType)
+    {
+        var varName = MakeTemporary();
+        symbolTable.Add(varName, new SemanticAnalyzer.SymbolEntry() {Type = varType, IdentifierAttributes = new IdentifierAttributes.Local() });
+        return new Val.Variable(varName);
     }
 
     private Val EmitShortCurcuit(Expression.BinaryExpression binary, List<Instruction> instructions)
@@ -271,11 +290,11 @@ public class TackyEmitter
             instructions.Add(new Instruction.JumpIfZero(v1, falseLabel));
             var v2 = EmitInstruction(binary.ExpressionRight, instructions);
             instructions.Add(new Instruction.JumpIfZero(v2, falseLabel));
-            instructions.Add(new Instruction.Copy(new Val.Constant(1), dst));
+            instructions.Add(new Instruction.Copy(new Val.Constant(new Const.ConstInt(1)), dst));
             var endLabel = MakeLabel();
             instructions.Add(new Instruction.Jump(endLabel));
             instructions.Add(new Instruction.Label(falseLabel));
-            instructions.Add(new Instruction.Copy(new Val.Constant(0), dst));
+            instructions.Add(new Instruction.Copy(new Val.Constant(new Const.ConstInt(0)), dst));
             instructions.Add(new Instruction.Label(endLabel));
         }
         else
@@ -285,11 +304,11 @@ public class TackyEmitter
             instructions.Add(new Instruction.JumpIfNotZero(v1, trueLabel));
             var v2 = EmitInstruction(binary.ExpressionRight, instructions);
             instructions.Add(new Instruction.JumpIfNotZero(v2, trueLabel));
-            instructions.Add(new Instruction.Copy(new Val.Constant(0), dst));
+            instructions.Add(new Instruction.Copy(new Val.Constant(new Const.ConstInt(0)), dst));
             var endLabel = MakeLabel();
             instructions.Add(new Instruction.Jump(endLabel));
             instructions.Add(new Instruction.Label(trueLabel));
-            instructions.Add(new Instruction.Copy(new Val.Constant(1), dst));
+            instructions.Add(new Instruction.Copy(new Val.Constant(new Const.ConstInt(1)), dst));
             instructions.Add(new Instruction.Label(endLabel));
         }
         return dst;

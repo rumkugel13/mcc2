@@ -350,7 +350,7 @@ public class TypeChecker
             return new Type.Long();
     }
 
-    private Type? GetType(Expression expression)
+    public static Type? GetType(Expression expression)
     {
         return expression switch {
             Expression.ConstantExpression exp => exp.Type,

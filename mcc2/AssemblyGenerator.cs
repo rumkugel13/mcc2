@@ -23,7 +23,7 @@ public class AssemblyGenerator
             if (def is TAC.TopLevel.Function fun)
                 functionDefinitions.Add(GenerateFunction(fun));
             else if (def is TAC.TopLevel.StaticVariable staticVariable)
-                functionDefinitions.Add(new TopLevel.StaticVariable(staticVariable.Identifier, staticVariable.Global, staticVariable.Init));
+                functionDefinitions.Add(new TopLevel.StaticVariable(staticVariable.Identifier, staticVariable.Global, ((StaticInit.IntInit)staticVariable.Init).Value));
         return new AssemblyProgram(functionDefinitions);
     }
 
@@ -197,7 +197,7 @@ public class AssemblyGenerator
     {
         return val switch
         {
-            TAC.Val.Constant c => new Operand.Imm(c.Value),
+            TAC.Val.Constant c => new Operand.Imm(((AST.Const.ConstInt)c.Value).Value),
             TAC.Val.Variable v => new Operand.Pseudo(v.Name),
             _ => throw new NotImplementedException(),
         };

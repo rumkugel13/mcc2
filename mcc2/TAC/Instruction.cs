@@ -11,6 +11,8 @@ public abstract record Instruction
     public record Copy(Val Src, Val.Variable Dst) : Instruction;
     public record Label(string Identifier) : Instruction;
     public record FunctionCall(string Identifier, List<Val> Arguments, Val Dst) : Instruction;
+    public record SignExtend(Val Src, Val Dst) : Instruction;
+    public record Truncate(Val Src, Val Dst) : Instruction;
 
     private Instruction() { }
 }
