@@ -189,9 +189,9 @@ public class TackyEmitter
     {
         switch (expression)
         {
-            case ConstantExpression constant:
+            case Expression.ConstantExpression constant:
                 return new Val.Constant(constant.Value);
-            case UnaryExpression unary:
+            case Expression.UnaryExpression unary:
                 {
                     var src = EmitInstruction(unary.Expression, instructions);
                     var dstName = MakeTemporary();
@@ -199,10 +199,10 @@ public class TackyEmitter
                     instructions.Add(new Instruction.Unary(unary.Operator, src, dst));
                     return dst;
                 }
-            case BinaryExpression binary:
+            case Expression.BinaryExpression binary:
                 {
-                    if (binary.Operator == BinaryExpression.BinaryOperator.And ||
-                        binary.Operator == BinaryExpression.BinaryOperator.Or)
+                    if (binary.Operator == Expression.BinaryOperator.And ||
+                        binary.Operator == Expression.BinaryOperator.Or)
                     {
                         return EmitShortCurcuit(binary, instructions);
                     }
@@ -214,16 +214,16 @@ public class TackyEmitter
                     instructions.Add(new Instruction.Binary(binary.Operator, v1, v2, dst));
                     return dst;
                 }
-            case VariableExpression variableExpression:
+            case Expression.VariableExpression variableExpression:
                 return new Val.Variable(variableExpression.Identifier);
-            case AssignmentExpression assignmentExpression:
+            case Expression.AssignmentExpression assignmentExpression:
                 {
                     var result = EmitInstruction(assignmentExpression.ExpressionRight, instructions);
-                    var dst = new Val.Variable(((VariableExpression)assignmentExpression.ExpressionLeft).Identifier);
+                    var dst = new Val.Variable(((Expression.VariableExpression)assignmentExpression.ExpressionLeft).Identifier);
                     instructions.Add(new Instruction.Copy(result, dst));
                     return dst;
                 }
-            case ConditionalExpression conditionalExpression:
+            case Expression.ConditionalExpression conditionalExpression:
                 {
                     var cond = EmitInstruction(conditionalExpression.Condition, instructions);
                     var exp2Label = MakeLabel();
@@ -240,7 +240,7 @@ public class TackyEmitter
                     instructions.Add(new Instruction.Label(endLabel));
                     return dst;
                 }
-            case FunctionCallExpression functionCallExpression:
+            case Expression.FunctionCallExpression functionCallExpression:
                 {
                     List<Val> arguments = [];
                     foreach (var arg in functionCallExpression.Arguments)
@@ -259,12 +259,12 @@ public class TackyEmitter
         }
     }
 
-    private Val EmitShortCurcuit(BinaryExpression binary, List<Instruction> instructions)
+    private Val EmitShortCurcuit(Expression.BinaryExpression binary, List<Instruction> instructions)
     {
         var dstName = MakeTemporary();
         var dst = new Val.Variable(dstName);
 
-        if (binary.Operator == BinaryExpression.BinaryOperator.And)
+        if (binary.Operator == Expression.BinaryOperator.And)
         {
             var v1 = EmitInstruction(binary.ExpressionLeft, instructions);
             var falseLabel = MakeLabel();

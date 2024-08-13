@@ -149,16 +149,16 @@ public class PrettyPrinter
     {
         switch (expression)
         {
-            case ConstantExpression c:
+            case Expression.ConstantExpression c:
                 PrintLine($"Constant({c.Value})", indent);
                 break;
-            case UnaryExpression unaryExpression:
+            case Expression.UnaryExpression unaryExpression:
                 PrintLine($"Unary(", indent);
                 PrintLine($"{unaryExpression.Operator}(", indent + 1);
                 PrintExpression(unaryExpression.Expression, source, indent + 2);
                 PrintLine($")", indent + 1);
                 break;
-            case BinaryExpression binaryExpression:
+            case Expression.BinaryExpression binaryExpression:
                 PrintLine($"Unary(", indent);
                 PrintExpression(binaryExpression.ExpressionLeft, source, indent + 2);
                 PrintLine($"{binaryExpression.Operator}(", indent + 1);
@@ -166,12 +166,12 @@ public class PrettyPrinter
                 PrintLine($")", indent + 1);
                 PrintLine(")", indent);
                 break;
-            case VariableExpression variableExpression:
+            case Expression.VariableExpression variableExpression:
                 PrintLine($"Var(", indent);
                 PrintLine($"name=\"{variableExpression.Identifier}\",", indent + 1);
                 PrintLine(")", indent);
                 break;
-            case AssignmentExpression assignmentExpression:
+            case Expression.AssignmentExpression assignmentExpression:
                 PrintLine($"Assign(", indent);
                 PrintExpression(assignmentExpression.ExpressionLeft, source, indent + 1);
                 PrintLine($"Equals(", indent + 1);
@@ -179,7 +179,7 @@ public class PrettyPrinter
                 PrintLine(")", indent + 1);
                 PrintLine(")", indent);
                 break;
-            case ConditionalExpression conditionalExpression:
+            case Expression.ConditionalExpression conditionalExpression:
                 PrintLine($"Conditional(", indent);
                 PrintExpression(conditionalExpression.Condition, source, indent + 1);
                 PrintLine($"Then(", indent + 1);
@@ -193,7 +193,7 @@ public class PrettyPrinter
                 }
                 PrintLine(")", indent);
                 break;
-            case FunctionCallExpression functionCallExpression:
+            case Expression.FunctionCallExpression functionCallExpression:
                 PrintLine($"Call(", indent);
                 PrintLine($"name=\"{functionCallExpression.Identifier}\",", indent + 1);
                 PrintLine($"args=(", indent + 1);

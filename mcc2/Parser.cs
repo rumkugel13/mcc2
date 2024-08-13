@@ -334,19 +334,19 @@ public class Parser
             {
                 TakeToken(tokens);
                 var right = ParseExpression(tokens, precedence);
-                left = new AssignmentExpression(left, right);
+                left = new Expression.AssignmentExpression(left, right);
             }
             else if (nextToken.Type == Lexer.TokenType.Question)
             {
                 var middle = ParseConditionalMiddle(tokens);
                 var right = ParseExpression(tokens, precedence);
-                left = new ConditionalExpression(left, middle, right);
+                left = new Expression.ConditionalExpression(left, middle, right);
             }
             else
             {
                 var op = ParseBinaryOperator(nextToken, tokens);
                 var right = ParseExpression(tokens, precedence + 1);
-                left = new BinaryExpression(op, left, right);
+                left = new Expression.BinaryExpression(op, left, right);
             }
             nextToken = Peek(tokens);
         }
@@ -368,13 +368,13 @@ public class Parser
         if (nextToken.Type == Lexer.TokenType.Constant)
         {
             var constant = TakeToken(tokens);
-            return new ConstantExpression(GetConstant(constant, this.source));
+            return new Expression.ConstantExpression(GetConstant(constant, this.source));
         }
         else if (nextToken.Type == Lexer.TokenType.Hyphen || nextToken.Type == Lexer.TokenType.Tilde || nextToken.Type == Lexer.TokenType.Exclamation)
         {
             var op = ParseUnaryOperator(nextToken, tokens);
             var innerExpression = ParseFactor(tokens);
-            return new UnaryExpression(op, innerExpression);
+            return new Expression.UnaryExpression(op, innerExpression);
         }
         else if (nextToken.Type == Lexer.TokenType.OpenParenthesis)
         {
@@ -403,10 +403,10 @@ public class Parser
                 }
                 
                 Expect(Lexer.TokenType.CloseParenthesis, tokens);
-                return new FunctionCallExpression(GetIdentifier(id, this.source), arguments);
+                return new Expression.FunctionCallExpression(GetIdentifier(id, this.source), arguments);
             }
 
-            return new VariableExpression(GetIdentifier(id, this.source));
+            return new Expression.VariableExpression(GetIdentifier(id, this.source));
         }
         else
         {
@@ -414,36 +414,36 @@ public class Parser
         }
     }
 
-    private BinaryExpression.BinaryOperator ParseBinaryOperator(Token current, List<Token> tokens)
+    private Expression.BinaryOperator ParseBinaryOperator(Token current, List<Token> tokens)
     {
         TakeToken(tokens);
         return current.Type switch
         {
-            Lexer.TokenType.Hyphen => BinaryExpression.BinaryOperator.Subtract,
-            Lexer.TokenType.Plus => BinaryExpression.BinaryOperator.Add,
-            Lexer.TokenType.Asterisk => BinaryExpression.BinaryOperator.Multiply,
-            Lexer.TokenType.ForwardSlash => BinaryExpression.BinaryOperator.Divide,
-            Lexer.TokenType.Percent => BinaryExpression.BinaryOperator.Remainder,
-            Lexer.TokenType.DoubleAmpersand => BinaryExpression.BinaryOperator.And,
-            Lexer.TokenType.DoubleVertical => BinaryExpression.BinaryOperator.Or,
-            Lexer.TokenType.DoubleEquals => BinaryExpression.BinaryOperator.Equal,
-            Lexer.TokenType.ExclamationEquals => BinaryExpression.BinaryOperator.NotEqual,
-            Lexer.TokenType.LessThan => BinaryExpression.BinaryOperator.LessThan,
-            Lexer.TokenType.LessThanEquals => BinaryExpression.BinaryOperator.LessOrEqual,
-            Lexer.TokenType.GreaterThan => BinaryExpression.BinaryOperator.GreaterThan,
-            Lexer.TokenType.GreaterThanEquals => BinaryExpression.BinaryOperator.GreaterOrEqual,
+            Lexer.TokenType.Hyphen => Expression.BinaryOperator.Subtract,
+            Lexer.TokenType.Plus => Expression.BinaryOperator.Add,
+            Lexer.TokenType.Asterisk => Expression.BinaryOperator.Multiply,
+            Lexer.TokenType.ForwardSlash => Expression.BinaryOperator.Divide,
+            Lexer.TokenType.Percent => Expression.BinaryOperator.Remainder,
+            Lexer.TokenType.DoubleAmpersand => Expression.BinaryOperator.And,
+            Lexer.TokenType.DoubleVertical => Expression.BinaryOperator.Or,
+            Lexer.TokenType.DoubleEquals => Expression.BinaryOperator.Equal,
+            Lexer.TokenType.ExclamationEquals => Expression.BinaryOperator.NotEqual,
+            Lexer.TokenType.LessThan => Expression.BinaryOperator.LessThan,
+            Lexer.TokenType.LessThanEquals => Expression.BinaryOperator.LessOrEqual,
+            Lexer.TokenType.GreaterThan => Expression.BinaryOperator.GreaterThan,
+            Lexer.TokenType.GreaterThanEquals => Expression.BinaryOperator.GreaterOrEqual,
             _ => throw new Exception($"Parsing Error: Unknown Binary Operator: {current.Type}")
         };
     }
 
-    private UnaryExpression.UnaryOperator ParseUnaryOperator(Token current, List<Token> tokens)
+    private Expression.UnaryOperator ParseUnaryOperator(Token current, List<Token> tokens)
     {
         TakeToken(tokens);
         return current.Type switch
         {
-            Lexer.TokenType.Hyphen => UnaryExpression.UnaryOperator.Negate,
-            Lexer.TokenType.Tilde => UnaryExpression.UnaryOperator.Complement,
-            Lexer.TokenType.Exclamation => UnaryExpression.UnaryOperator.Not,
+            Lexer.TokenType.Hyphen => Expression.UnaryOperator.Negate,
+            Lexer.TokenType.Tilde => Expression.UnaryOperator.Complement,
+            Lexer.TokenType.Exclamation => Expression.UnaryOperator.Not,
             _ => throw new Exception($"Parsing Error: Unknown Unary Operator: {current.Type}")
         };
     }

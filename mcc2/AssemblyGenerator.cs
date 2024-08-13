@@ -84,7 +84,7 @@ public class AssemblyGenerator
                     instructions.Add(new Instruction.Ret());
                     break;
                 case TAC.Instruction.Unary unary:
-                    if (unary.UnaryOperator == AST.UnaryExpression.UnaryOperator.Not)
+                    if (unary.UnaryOperator == AST.Expression.UnaryOperator.Not)
                     {
                         instructions.Add(new Instruction.Cmp(new Operand.Imm(0), GenerateOperand(unary.src)));
                         instructions.Add(new Instruction.Mov(new Operand.Imm(0), GenerateOperand(unary.dst)));
@@ -97,23 +97,23 @@ public class AssemblyGenerator
                     }
                     break;
                 case TAC.Instruction.Binary binary:
-                    if (binary.Operator == AST.BinaryExpression.BinaryOperator.Divide ||
-                        binary.Operator == AST.BinaryExpression.BinaryOperator.Remainder)
+                    if (binary.Operator == AST.Expression.BinaryOperator.Divide ||
+                        binary.Operator == AST.Expression.BinaryOperator.Remainder)
                     {
                         instructions.Add(new Instruction.Mov(GenerateOperand(binary.Src1), new Operand.Reg(Operand.RegisterName.AX)));
                         instructions.Add(new Instruction.Cdq());
                         instructions.Add(new Instruction.Idiv(GenerateOperand(binary.Src2)));
-                        var reg = new Operand.Reg(binary.Operator == AST.BinaryExpression.BinaryOperator.Divide ?
+                        var reg = new Operand.Reg(binary.Operator == AST.Expression.BinaryOperator.Divide ?
                             Operand.RegisterName.AX :
                             Operand.RegisterName.DX);
                         instructions.Add(new Instruction.Mov(reg, GenerateOperand(binary.Dst)));
                     }
-                    else if(binary.Operator == AST.BinaryExpression.BinaryOperator.Equal ||
-                        binary.Operator == AST.BinaryExpression.BinaryOperator.NotEqual ||
-                        binary.Operator == AST.BinaryExpression.BinaryOperator.GreaterThan ||
-                        binary.Operator == AST.BinaryExpression.BinaryOperator.GreaterOrEqual ||
-                        binary.Operator == AST.BinaryExpression.BinaryOperator.LessThan ||
-                        binary.Operator == AST.BinaryExpression.BinaryOperator.LessOrEqual)
+                    else if(binary.Operator == AST.Expression.BinaryOperator.Equal ||
+                        binary.Operator == AST.Expression.BinaryOperator.NotEqual ||
+                        binary.Operator == AST.Expression.BinaryOperator.GreaterThan ||
+                        binary.Operator == AST.Expression.BinaryOperator.GreaterOrEqual ||
+                        binary.Operator == AST.Expression.BinaryOperator.LessThan ||
+                        binary.Operator == AST.Expression.BinaryOperator.LessOrEqual)
                     {
                         instructions.Add(new Instruction.Cmp(GenerateOperand(binary.Src2), GenerateOperand(binary.Src1)));
                         instructions.Add(new Instruction.Mov(new Operand.Imm(0), GenerateOperand(binary.Dst)));
@@ -203,37 +203,37 @@ public class AssemblyGenerator
         };
     }
 
-    private Instruction.BinaryOperator ConvertBinary(AST.BinaryExpression.BinaryOperator binaryOperator)
+    private Instruction.BinaryOperator ConvertBinary(AST.Expression.BinaryOperator binaryOperator)
     {
         return binaryOperator switch
         {
-            AST.BinaryExpression.BinaryOperator.Add => Instruction.BinaryOperator.Add,
-            AST.BinaryExpression.BinaryOperator.Subtract => Instruction.BinaryOperator.Sub,
-            AST.BinaryExpression.BinaryOperator.Multiply => Instruction.BinaryOperator.Mult,
+            AST.Expression.BinaryOperator.Add => Instruction.BinaryOperator.Add,
+            AST.Expression.BinaryOperator.Subtract => Instruction.BinaryOperator.Sub,
+            AST.Expression.BinaryOperator.Multiply => Instruction.BinaryOperator.Mult,
             _ => throw new NotImplementedException()
         };
     }
 
-    private Instruction.ConditionCode ConvertConditionCode(AST.BinaryExpression.BinaryOperator binaryOperator)
+    private Instruction.ConditionCode ConvertConditionCode(AST.Expression.BinaryOperator binaryOperator)
     {
         return binaryOperator switch
         {
-            AST.BinaryExpression.BinaryOperator.Equal => Instruction.ConditionCode.E,
-            AST.BinaryExpression.BinaryOperator.NotEqual => Instruction.ConditionCode.NE,
-            AST.BinaryExpression.BinaryOperator.GreaterThan => Instruction.ConditionCode.G,
-            AST.BinaryExpression.BinaryOperator.GreaterOrEqual => Instruction.ConditionCode.GE,
-            AST.BinaryExpression.BinaryOperator.LessThan => Instruction.ConditionCode.L,
-            AST.BinaryExpression.BinaryOperator.LessOrEqual => Instruction.ConditionCode.LE,
+            AST.Expression.BinaryOperator.Equal => Instruction.ConditionCode.E,
+            AST.Expression.BinaryOperator.NotEqual => Instruction.ConditionCode.NE,
+            AST.Expression.BinaryOperator.GreaterThan => Instruction.ConditionCode.G,
+            AST.Expression.BinaryOperator.GreaterOrEqual => Instruction.ConditionCode.GE,
+            AST.Expression.BinaryOperator.LessThan => Instruction.ConditionCode.L,
+            AST.Expression.BinaryOperator.LessOrEqual => Instruction.ConditionCode.LE,
              _ => throw new NotImplementedException()
         };
     }
 
-    private Instruction.UnaryOperator ConvertUnary(AST.UnaryExpression.UnaryOperator unaryOperator)
+    private Instruction.UnaryOperator ConvertUnary(AST.Expression.UnaryOperator unaryOperator)
     {
         return unaryOperator switch
         {
-            AST.UnaryExpression.UnaryOperator.Complement => Instruction.UnaryOperator.Not,
-            AST.UnaryExpression.UnaryOperator.Negate => Instruction.UnaryOperator.Neg,
+            AST.Expression.UnaryOperator.Complement => Instruction.UnaryOperator.Not,
+            AST.Expression.UnaryOperator.Negate => Instruction.UnaryOperator.Neg,
             _ => throw new NotImplementedException()
         };
     }
