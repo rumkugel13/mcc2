@@ -23,20 +23,20 @@ public class AssemblyGenerator
             if (def is TAC.TopLevel.Function fun)
                 functionDefinitions.Add(GenerateFunction(fun));
             else if (def is TAC.TopLevel.StaticVariable staticVariable)
-                functionDefinitions.Add(new StaticVariable(staticVariable.Identifier, staticVariable.Global, staticVariable.Init));
+                functionDefinitions.Add(new TopLevel.StaticVariable(staticVariable.Identifier, staticVariable.Global, staticVariable.Init));
         return new AssemblyProgram(functionDefinitions);
     }
 
-    private readonly Reg.RegisterName[] ABIRegisters = [
-        Reg.RegisterName.DI,
-        Reg.RegisterName.SI,
-        Reg.RegisterName.DX,
-        Reg.RegisterName.CX,
-        Reg.RegisterName.R8,
-        Reg.RegisterName.R9,
+    private readonly Operand.RegisterName[] ABIRegisters = [
+        Operand.RegisterName.DI,
+        Operand.RegisterName.SI,
+        Operand.RegisterName.DX,
+        Operand.RegisterName.CX,
+        Operand.RegisterName.R8,
+        Operand.RegisterName.R9,
     ];
 
-    private Function GenerateFunction(TAC.TopLevel.Function function)
+    private TopLevel.Function GenerateFunction(TAC.TopLevel.Function function)
     {
         List<Instruction> instructions = [];
 
@@ -44,15 +44,15 @@ public class AssemblyGenerator
         {
             if (i < ABIRegisters.Length)
             {
-                instructions.Add(new Mov(new Reg(ABIRegisters[i]), new Pseudo(function.Parameters[i])));
+                instructions.Add(new Instruction.Mov(new Operand.Reg(ABIRegisters[i]), new Operand.Pseudo(function.Parameters[i])));
             }
             else
             {
-                instructions.Add(new Mov(new Stack(16 + (i - ABIRegisters.Length) * 8), new Pseudo(function.Parameters[i])));
+                instructions.Add(new Instruction.Mov(new Operand.Stack(16 + (i - ABIRegisters.Length) * 8), new Operand.Pseudo(function.Parameters[i])));
             }
         }
         
-        Function fn = new Function(function.Name, function.Global, GenerateInstructions(function.Instructions, instructions));
+        TopLevel.Function fn = new TopLevel.Function(function.Name, function.Global, GenerateInstructions(function.Instructions, instructions));
 
         PseudoReplacer stackAllocator = new PseudoReplacer(this.symbolTable);
         var bytesToAllocate = stackAllocator.Replace(fn.Instructions);
@@ -60,7 +60,7 @@ public class AssemblyGenerator
         // note: chapter 9 says we should store this per function in symboltable or ast
         // in order to round it up but we can do that here as well
         bytesToAllocate = AlignTo(bytesToAllocate, 16);
-        fn.Instructions.Insert(0, new AllocateStack(bytesToAllocate));
+        fn.Instructions.Insert(0, new Instruction.AllocateStack(bytesToAllocate));
 
         InstructionFixer instructionFixer = new InstructionFixer();
         instructionFixer.Fix(fn.Instructions);
@@ -80,33 +80,33 @@ public class AssemblyGenerator
             switch (inst)
             {
                 case TAC.Instruction.Return ret:
-                    instructions.Add(new Mov(GenerateOperand(ret.Value), new Reg(Reg.RegisterName.AX)));
-                    instructions.Add(new Ret());
+                    instructions.Add(new Instruction.Mov(GenerateOperand(ret.Value), new Operand.Reg(Operand.RegisterName.AX)));
+                    instructions.Add(new Instruction.Ret());
                     break;
                 case TAC.Instruction.Unary unary:
                     if (unary.UnaryOperator == AST.UnaryExpression.UnaryOperator.Not)
                     {
-                        instructions.Add(new Cmp(new Imm(0), GenerateOperand(unary.src)));
-                        instructions.Add(new Mov(new Imm(0), GenerateOperand(unary.dst)));
-                        instructions.Add(new SetCC(JmpCC.ConditionCode.E, GenerateOperand(unary.dst)));
+                        instructions.Add(new Instruction.Cmp(new Operand.Imm(0), GenerateOperand(unary.src)));
+                        instructions.Add(new Instruction.Mov(new Operand.Imm(0), GenerateOperand(unary.dst)));
+                        instructions.Add(new Instruction.SetCC(Instruction.ConditionCode.E, GenerateOperand(unary.dst)));
                     }
                     else
                     {
-                        instructions.Add(new Mov(GenerateOperand(unary.src), GenerateOperand(unary.dst)));
-                        instructions.Add(new Unary(ConvertUnary(unary.UnaryOperator), GenerateOperand(unary.dst)));
+                        instructions.Add(new Instruction.Mov(GenerateOperand(unary.src), GenerateOperand(unary.dst)));
+                        instructions.Add(new Instruction.Unary(ConvertUnary(unary.UnaryOperator), GenerateOperand(unary.dst)));
                     }
                     break;
                 case TAC.Instruction.Binary binary:
                     if (binary.Operator == AST.BinaryExpression.BinaryOperator.Divide ||
                         binary.Operator == AST.BinaryExpression.BinaryOperator.Remainder)
                     {
-                        instructions.Add(new Mov(GenerateOperand(binary.Src1), new Reg(Reg.RegisterName.AX)));
-                        instructions.Add(new Cdq());
-                        instructions.Add(new Idiv(GenerateOperand(binary.Src2)));
-                        var reg = new Reg(binary.Operator == AST.BinaryExpression.BinaryOperator.Divide ?
-                            Reg.RegisterName.AX :
-                            Reg.RegisterName.DX);
-                        instructions.Add(new Mov(reg, GenerateOperand(binary.Dst)));
+                        instructions.Add(new Instruction.Mov(GenerateOperand(binary.Src1), new Operand.Reg(Operand.RegisterName.AX)));
+                        instructions.Add(new Instruction.Cdq());
+                        instructions.Add(new Instruction.Idiv(GenerateOperand(binary.Src2)));
+                        var reg = new Operand.Reg(binary.Operator == AST.BinaryExpression.BinaryOperator.Divide ?
+                            Operand.RegisterName.AX :
+                            Operand.RegisterName.DX);
+                        instructions.Add(new Instruction.Mov(reg, GenerateOperand(binary.Dst)));
                     }
                     else if(binary.Operator == AST.BinaryExpression.BinaryOperator.Equal ||
                         binary.Operator == AST.BinaryExpression.BinaryOperator.NotEqual ||
@@ -115,32 +115,32 @@ public class AssemblyGenerator
                         binary.Operator == AST.BinaryExpression.BinaryOperator.LessThan ||
                         binary.Operator == AST.BinaryExpression.BinaryOperator.LessOrEqual)
                     {
-                        instructions.Add(new Cmp(GenerateOperand(binary.Src2), GenerateOperand(binary.Src1)));
-                        instructions.Add(new Mov(new Imm(0), GenerateOperand(binary.Dst)));
-                        instructions.Add(new SetCC(ConvertConditionCode(binary.Operator), GenerateOperand(binary.Dst)));
+                        instructions.Add(new Instruction.Cmp(GenerateOperand(binary.Src2), GenerateOperand(binary.Src1)));
+                        instructions.Add(new Instruction.Mov(new Operand.Imm(0), GenerateOperand(binary.Dst)));
+                        instructions.Add(new Instruction.SetCC(ConvertConditionCode(binary.Operator), GenerateOperand(binary.Dst)));
                     }
                     else
                     {
-                        instructions.Add(new Mov(GenerateOperand(binary.Src1), GenerateOperand(binary.Dst)));
-                        instructions.Add(new Binary(ConvertBinary(binary.Operator), GenerateOperand(binary.Src2), GenerateOperand(binary.Dst)));
+                        instructions.Add(new Instruction.Mov(GenerateOperand(binary.Src1), GenerateOperand(binary.Dst)));
+                        instructions.Add(new Instruction.Binary(ConvertBinary(binary.Operator), GenerateOperand(binary.Src2), GenerateOperand(binary.Dst)));
                     }
                     break;
                 case TAC.Instruction.Jump jump:
-                    instructions.Add(new Jmp(jump.Target));
+                    instructions.Add(new Instruction.Jmp(jump.Target));
                     break;
                 case TAC.Instruction.JumpIfZero jumpZ:
-                    instructions.Add(new Cmp(new Imm(0), GenerateOperand(jumpZ.Condition)));
-                    instructions.Add(new JmpCC(JmpCC.ConditionCode.E, jumpZ.Target));
+                    instructions.Add(new Instruction.Cmp(new Operand.Imm(0), GenerateOperand(jumpZ.Condition)));
+                    instructions.Add(new Instruction.JmpCC(Instruction.ConditionCode.E, jumpZ.Target));
                     break;
                 case TAC.Instruction.JumpIfNotZero jumpZ:
-                    instructions.Add(new Cmp(new Imm(0), GenerateOperand(jumpZ.Condition)));
-                    instructions.Add(new JmpCC(JmpCC.ConditionCode.NE, jumpZ.Target));
+                    instructions.Add(new Instruction.Cmp(new Operand.Imm(0), GenerateOperand(jumpZ.Condition)));
+                    instructions.Add(new Instruction.JmpCC(Instruction.ConditionCode.NE, jumpZ.Target));
                     break;
                 case TAC.Instruction.Copy copy:
-                    instructions.Add(new Mov(GenerateOperand(copy.Src), GenerateOperand(copy.Dst)));
+                    instructions.Add(new Instruction.Mov(GenerateOperand(copy.Src), GenerateOperand(copy.Dst)));
                     break;
                 case TAC.Instruction.Label label:
-                    instructions.Add(new Label(label.Identifier));
+                    instructions.Add(new Instruction.Label(label.Identifier));
                     break;
                 case TAC.Instruction.FunctionCall functionCall:
                     {
@@ -149,7 +149,7 @@ public class AssemblyGenerator
                         var stackPadding = stackArgs.Count % 2 != 0 ? 8 : 0;
 
                         if (stackPadding != 0)
-                            instructions.Add(new AllocateStack(stackPadding));
+                            instructions.Add(new Instruction.AllocateStack(stackPadding));
 
                         // pass args on registers
                         int regIndex = 0;
@@ -157,7 +157,7 @@ public class AssemblyGenerator
                         {
                             var reg = ABIRegisters[regIndex];
                             var assemblyArg = GenerateOperand(tackyArg);
-                            instructions.Add(new Mov(assemblyArg, new Reg(reg)));
+                            instructions.Add(new Instruction.Mov(assemblyArg, new Operand.Reg(reg)));
                             regIndex++;
                         }
 
@@ -166,23 +166,23 @@ public class AssemblyGenerator
                         {
                             TAC.Val? tackyArg = stackArgs[i];
                             var assemblyArg = GenerateOperand(tackyArg);
-                            if (assemblyArg is Reg or Imm)
-                                instructions.Add(new Push(assemblyArg));
+                            if (assemblyArg is Operand.Reg or Operand.Imm)
+                                instructions.Add(new Instruction.Push(assemblyArg));
                             else
                             {
-                                instructions.Add(new Mov(assemblyArg, new Reg(Reg.RegisterName.AX)));
-                                instructions.Add(new Push(new Reg(Reg.RegisterName.AX)));
+                                instructions.Add(new Instruction.Mov(assemblyArg, new Operand.Reg(Operand.RegisterName.AX)));
+                                instructions.Add(new Instruction.Push(new Operand.Reg(Operand.RegisterName.AX)));
                             }
                         }
 
-                        instructions.Add(new Call(functionCall.Identifier));
+                        instructions.Add(new Instruction.Call(functionCall.Identifier));
 
                         var bytesToRemove = 8 * stackArgs.Count + stackPadding;
                         if (bytesToRemove != 0)
-                            instructions.Add(new DeallocateStack(bytesToRemove));
+                            instructions.Add(new Instruction.DeallocateStack(bytesToRemove));
 
                         var assemblyDst = GenerateOperand(functionCall.Dst);
-                        instructions.Add(new Mov(new Reg(Reg.RegisterName.AX), assemblyDst));
+                        instructions.Add(new Instruction.Mov(new Operand.Reg(Operand.RegisterName.AX), assemblyDst));
                     }
                     break;
                 default:
@@ -197,43 +197,43 @@ public class AssemblyGenerator
     {
         return val switch
         {
-            TAC.Val.Constant c => new Imm(c.Value),
-            TAC.Val.Variable v => new Pseudo(v.Name),
+            TAC.Val.Constant c => new Operand.Imm(c.Value),
+            TAC.Val.Variable v => new Operand.Pseudo(v.Name),
             _ => throw new NotImplementedException(),
         };
     }
 
-    private Binary.BinaryOperator ConvertBinary(AST.BinaryExpression.BinaryOperator binaryOperator)
+    private Instruction.BinaryOperator ConvertBinary(AST.BinaryExpression.BinaryOperator binaryOperator)
     {
         return binaryOperator switch
         {
-            AST.BinaryExpression.BinaryOperator.Add => Binary.BinaryOperator.Add,
-            AST.BinaryExpression.BinaryOperator.Subtract => Binary.BinaryOperator.Sub,
-            AST.BinaryExpression.BinaryOperator.Multiply => Binary.BinaryOperator.Mult,
+            AST.BinaryExpression.BinaryOperator.Add => Instruction.BinaryOperator.Add,
+            AST.BinaryExpression.BinaryOperator.Subtract => Instruction.BinaryOperator.Sub,
+            AST.BinaryExpression.BinaryOperator.Multiply => Instruction.BinaryOperator.Mult,
             _ => throw new NotImplementedException()
         };
     }
 
-    private JmpCC.ConditionCode ConvertConditionCode(AST.BinaryExpression.BinaryOperator binaryOperator)
+    private Instruction.ConditionCode ConvertConditionCode(AST.BinaryExpression.BinaryOperator binaryOperator)
     {
         return binaryOperator switch
         {
-            AST.BinaryExpression.BinaryOperator.Equal => JmpCC.ConditionCode.E,
-            AST.BinaryExpression.BinaryOperator.NotEqual => JmpCC.ConditionCode.NE,
-            AST.BinaryExpression.BinaryOperator.GreaterThan => JmpCC.ConditionCode.G,
-            AST.BinaryExpression.BinaryOperator.GreaterOrEqual => JmpCC.ConditionCode.GE,
-            AST.BinaryExpression.BinaryOperator.LessThan => JmpCC.ConditionCode.L,
-            AST.BinaryExpression.BinaryOperator.LessOrEqual => JmpCC.ConditionCode.LE,
+            AST.BinaryExpression.BinaryOperator.Equal => Instruction.ConditionCode.E,
+            AST.BinaryExpression.BinaryOperator.NotEqual => Instruction.ConditionCode.NE,
+            AST.BinaryExpression.BinaryOperator.GreaterThan => Instruction.ConditionCode.G,
+            AST.BinaryExpression.BinaryOperator.GreaterOrEqual => Instruction.ConditionCode.GE,
+            AST.BinaryExpression.BinaryOperator.LessThan => Instruction.ConditionCode.L,
+            AST.BinaryExpression.BinaryOperator.LessOrEqual => Instruction.ConditionCode.LE,
              _ => throw new NotImplementedException()
         };
     }
 
-    private Unary.UnaryOperator ConvertUnary(AST.UnaryExpression.UnaryOperator unaryOperator)
+    private Instruction.UnaryOperator ConvertUnary(AST.UnaryExpression.UnaryOperator unaryOperator)
     {
         return unaryOperator switch
         {
-            AST.UnaryExpression.UnaryOperator.Complement => Unary.UnaryOperator.Not,
-            AST.UnaryExpression.UnaryOperator.Negate => Unary.UnaryOperator.Neg,
+            AST.UnaryExpression.UnaryOperator.Complement => Instruction.UnaryOperator.Not,
+            AST.UnaryExpression.UnaryOperator.Negate => Instruction.UnaryOperator.Neg,
             _ => throw new NotImplementedException()
         };
     }

@@ -68,15 +68,15 @@ public class TestChapter01
 
         Assert.IsNotNull(assembly, "Invalid Assembly node");
         Assert.IsNotNull(assembly.TopLevel[0], "Invalid Function node");
-        Assert.AreEqual(((Function)assembly.TopLevel[0]).Name, "main", "Invalid Identifier");
-        Assert.AreEqual(((Function)assembly.TopLevel[0]).Instructions.Count, 2, "Invalid Instruction Count");
+        Assert.AreEqual(((TopLevel.Function)assembly.TopLevel[0]).Name, "main", "Invalid Identifier");
+        Assert.AreEqual(((TopLevel.Function)assembly.TopLevel[0]).Instructions.Count, 2, "Invalid Instruction Count");
 
-        Assert.IsInstanceOfType(((Function)assembly.TopLevel[0]).Instructions[0], typeof(Mov), "Expected Mov type");
-        Assert.IsInstanceOfType(((Function)assembly.TopLevel[0]).Instructions[1], typeof(Ret), "Expected Mov type");
+        Assert.IsInstanceOfType(((TopLevel.Function)assembly.TopLevel[0]).Instructions[0], typeof(Instruction.Mov), "Expected Mov type");
+        Assert.IsInstanceOfType(((TopLevel.Function)assembly.TopLevel[0]).Instructions[1], typeof(Instruction.Ret), "Expected Mov type");
 
-        Assert.IsNotNull(((Mov)((Function)assembly.TopLevel[0]).Instructions[0]).src, "Invalid src");
-        Assert.IsInstanceOfType(((Mov)((Function)assembly.TopLevel[0]).Instructions[0]).src, typeof(Imm), "Expected Imm type");
-        Assert.AreEqual(((Imm)((Mov)((Function)assembly.TopLevel[0]).Instructions[0]).src).Value, 2, "Invalid Imm value");
+        Assert.IsNotNull(((Instruction.Mov)((TopLevel.Function)assembly.TopLevel[0]).Instructions[0]).Src, "Invalid src");
+        Assert.IsInstanceOfType(((Instruction.Mov)((TopLevel.Function)assembly.TopLevel[0]).Instructions[0]).Src, typeof(Operand.Imm), "Expected Imm type");
+        Assert.AreEqual(((Operand.Imm)((Instruction.Mov)((TopLevel.Function)assembly.TopLevel[0]).Instructions[0]).Src).Value, 2, "Invalid Imm value");
     }
 
     private string assembly = 

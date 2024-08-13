@@ -9,65 +9,72 @@ public class InstructionFixer
         for (int i = 0; i < instructions.Count; i++)
         {
             var inst = instructions[i];
-            if (inst is Mov mov)
+            if (inst is Instruction.Mov mov)
             {
-                if (mov.src is Stack or Data && mov.dst is Stack or Data)
+                if (mov.Src is Operand.Stack or Operand.Data && mov.Dst is Operand.Stack or Operand.Data)
                 {
-                    Reg reg = new Reg(Reg.RegisterName.R10);
-                    Mov moveBefore = new Mov(mov.src, reg);
+                    Operand.Reg reg = new Operand.Reg(Operand.RegisterName.R10);
+                    Instruction.Mov moveBefore = new Instruction.Mov(mov.Src, reg);
+                    // mov.Src = reg;
+                    instructions[i] = new Instruction.Mov(reg, mov.Dst);
                     instructions.Insert(i, moveBefore);
-                    mov.src = reg;
                 }
             }
-            else if (inst is Cmp cmp)
+            else if (inst is Instruction.Cmp cmp)
             {
-                if (cmp.OperandA is Stack or Data && cmp.OperandB is Stack or Data)
+                if (cmp.OperandA is Operand.Stack or Operand.Data && cmp.OperandB is Operand.Stack or Operand.Data)
                 {
-                    Reg reg = new Reg(Reg.RegisterName.R10);
-                    Mov moveBefore = new Mov(cmp.OperandA, reg);
+                    Operand.Reg reg = new Operand.Reg(Operand.RegisterName.R10);
+                    Instruction.Mov moveBefore = new Instruction.Mov(cmp.OperandA, reg);
+                    // cmp.OperandA = reg;
+                    instructions[i] = new Instruction.Cmp(reg, cmp.OperandB);
                     instructions.Insert(i, moveBefore);
-                    cmp.OperandA = reg;
                 }
-                else if (cmp.OperandB is Imm imm)
+                else if (cmp.OperandB is Operand.Imm imm)
                 {
-                    Reg reg = new Reg(Reg.RegisterName.R11);
-                    Mov moveBefore = new Mov(cmp.OperandB, reg);
+                    Operand.Reg reg = new Operand.Reg(Operand.RegisterName.R11);
+                    Instruction.Mov moveBefore = new Instruction.Mov(cmp.OperandB, reg);
+                    // cmp.OperandB = reg;
+                    instructions[i] = new Instruction.Cmp(cmp.OperandA, reg);
                     instructions.Insert(i, moveBefore);
-                    cmp.OperandB = reg;
                 }
             }
-            else if (inst is Idiv idiv)
+            else if (inst is Instruction.Idiv idiv)
             {
-                if (idiv.Operand is Imm imm)
+                if (idiv.Operand is Operand.Imm imm)
                 {
-                    Reg reg = new Reg(Reg.RegisterName.R10);
-                    Mov moveBefore = new Mov(imm, reg);
+                    Operand.Reg reg = new Operand.Reg(Operand.RegisterName.R10);
+                    Instruction.Mov moveBefore = new Instruction.Mov(imm, reg);
+                    // idiv.Operand = reg;
+                    instructions[i] = new Instruction.Idiv(reg);
                     instructions.Insert(i, moveBefore);
-                    idiv.Operand = reg;
                 }
             }
-            else if (inst is Binary binary)
+            else if (inst is Instruction.Binary binary)
             {
-                if (binary.Operator == Binary.BinaryOperator.Add && binary.SrcOperand is Stack or Data && binary.DstOperand is Stack or Data)
+                if (binary.Operator == Instruction.BinaryOperator.Add && binary.SrcOperand is Operand.Stack or Operand.Data && binary.DstOperand is Operand.Stack or Operand.Data)
                 {
-                    Reg reg = new Reg(Reg.RegisterName.R10);
-                    Mov moveBefore = new Mov(binary.SrcOperand, reg);
+                    Operand.Reg reg = new Operand.Reg(Operand.RegisterName.R10);
+                    Instruction.Mov moveBefore = new Instruction.Mov(binary.SrcOperand, reg);
+                    // binary.SrcOperand = reg;
+                    instructions[i] = new Instruction.Binary(binary.Operator, reg, binary.DstOperand);
                     instructions.Insert(i, moveBefore);
-                    binary.SrcOperand = reg;
                 }
-                else if (binary.Operator == Binary.BinaryOperator.Sub && binary.SrcOperand is Stack or Data && binary.DstOperand is Stack or Data)
+                else if (binary.Operator == Instruction.BinaryOperator.Sub && binary.SrcOperand is Operand.Stack or Operand.Data && binary.DstOperand is Operand.Stack or Operand.Data)
                 {
-                    Reg reg = new Reg(Reg.RegisterName.R10);
-                    Mov moveBefore = new Mov(binary.SrcOperand, reg);
+                    Operand.Reg reg = new Operand.Reg(Operand.RegisterName.R10);
+                    Instruction.Mov moveBefore = new Instruction.Mov(binary.SrcOperand, reg);
+                    // binary.SrcOperand = reg;
+                    instructions[i] = new Instruction.Binary(binary.Operator, reg, binary.DstOperand);
                     instructions.Insert(i, moveBefore);
-                    binary.SrcOperand = reg;
                 }
-                else if (binary.Operator == Binary.BinaryOperator.Mult && binary.DstOperand is Stack or Data)
+                else if (binary.Operator == Instruction.BinaryOperator.Mult && binary.DstOperand is Operand.Stack or Operand.Data)
                 {
-                    Reg reg = new Reg(Reg.RegisterName.R11);
-                    Mov moveBefore = new Mov(binary.DstOperand, reg);
-                    Mov moveAfter = new Mov(reg, binary.DstOperand);
-                    binary.DstOperand = reg;
+                    Operand.Reg reg = new Operand.Reg(Operand.RegisterName.R11);
+                    Instruction.Mov moveBefore = new Instruction.Mov(binary.DstOperand, reg);
+                    Instruction.Mov moveAfter = new Instruction.Mov(reg, binary.DstOperand);
+                    // binary.DstOperand = reg;
+                    instructions[i] = new Instruction.Binary(binary.Operator, binary.SrcOperand, reg);
                     instructions.Insert(i + 1, moveAfter);
                     instructions.Insert(i, moveBefore);
                 }

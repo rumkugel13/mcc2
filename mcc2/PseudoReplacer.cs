@@ -15,59 +15,84 @@ public class PseudoReplacer
 
     public int Replace(List<Instruction> instructions)
     {
-        foreach (var inst in instructions)
+        for (int i = 0; i < instructions.Count; i++)
         {
+            Instruction? inst = instructions[i];
             switch (inst)
             {
-                case Mov mov:
+                case Instruction.Mov mov:
                     {
-                        if (mov.src is Pseudo pseudoSrc)
-                            mov.src = ReplacePseudo(pseudoSrc.Identifier);
+                        var src = mov.Src;
+                        var dst = mov.Dst;
+                        if (src is Operand.Pseudo pseudoSrc)
+                            src = ReplacePseudo(pseudoSrc.Identifier);
 
-                        if (mov.dst is Pseudo pseudoDst)
-                            mov.dst = ReplacePseudo(pseudoDst.Identifier);
-                        break;
-                    }
-                case Unary unary:
-                    {
-                        if (unary.Operand is Pseudo pseudoOp)
-                            unary.Operand = ReplacePseudo(pseudoOp.Identifier);
-                        break;
-                    }
-                case Binary binary:
-                    {
-                        if (binary.SrcOperand is Pseudo pseudoSrc)
-                            binary.SrcOperand = ReplacePseudo(pseudoSrc.Identifier);
+                        if (dst is Operand.Pseudo pseudoDst)
+                            dst = ReplacePseudo(pseudoDst.Identifier);
 
-                        if (binary.DstOperand is Pseudo pseudoDst)
-                            binary.DstOperand = ReplacePseudo(pseudoDst.Identifier);
+                        instructions[i] = new Instruction.Mov(src, dst);
                         break;
                     }
-                case Idiv idiv:
+                case Instruction.Unary unary:
                     {
-                        if (idiv.Operand is Pseudo pseudo)
-                            idiv.Operand = ReplacePseudo(pseudo.Identifier);
-                        break;
-                    }
-                case Cmp cmp:
-                    {
-                        if (cmp.OperandA is Pseudo pseudoA)
-                            cmp.OperandA = ReplacePseudo(pseudoA.Identifier);
+                        var op = unary.Operand;
+                        if (op is Operand.Pseudo pseudoOp)
+                            op = ReplacePseudo(pseudoOp.Identifier);
 
-                        if (cmp.OperandB is Pseudo pseudoB)
-                            cmp.OperandB = ReplacePseudo(pseudoB.Identifier);
+                        instructions[i] = new Instruction.Unary(unary.Operator, op);
                         break;
                     }
-                case SetCC setCC:
+                case Instruction.Binary binary:
                     {
-                        if (setCC.Operand is Pseudo pseudo)
-                            setCC.Operand = ReplacePseudo(pseudo.Identifier);
+                        var src = binary.SrcOperand;
+                        var dst = binary.DstOperand;
+                        if (src is Operand.Pseudo pseudoSrc)
+                            src = ReplacePseudo(pseudoSrc.Identifier);
+
+                        if (dst is Operand.Pseudo pseudoDst)
+                            dst = ReplacePseudo(pseudoDst.Identifier);
+
+                        instructions[i] = new Instruction.Binary(binary.Operator, src, dst);
                         break;
                     }
-                case Push push:
+                case Instruction.Idiv idiv:
                     {
-                        if (push.Operand is Pseudo pseudo)
-                            push.Operand = ReplacePseudo(pseudo.Identifier);
+                        var op = idiv.Operand;
+                        if (op is Operand.Pseudo pseudo)
+                            op = ReplacePseudo(pseudo.Identifier);
+
+                        instructions[i] = new Instruction.Idiv(op);
+                        break;
+                    }
+                case Instruction.Cmp cmp:
+                    {
+                        var opA = cmp.OperandA;
+                        var opB = cmp.OperandB;
+                        if (opA is Operand.Pseudo pseudoA)
+                            opA = ReplacePseudo(pseudoA.Identifier);
+
+                        if (opB is Operand.Pseudo pseudoB)
+                            opB = ReplacePseudo(pseudoB.Identifier);
+
+                        instructions[i] = new Instruction.Cmp(opA, opB);
+                        break;
+                    }
+                case Instruction.SetCC setCC:
+                    {
+                        var op = setCC.Operand;
+                        if (op is Operand.Pseudo pseudo)
+                            op = ReplacePseudo(pseudo.Identifier);
+                        
+                        instructions[i] = new Instruction.SetCC(setCC.Condition, op);
+                        break;
+                    }
+                case Instruction.Push push:
+                    {
+                        var op = push.Operand;
+                        if (op is Operand.Pseudo pseudo)
+                            op = ReplacePseudo(pseudo.Identifier);
+
+                        instructions[i] = new Instruction.Push(op);
                         break;
                     }
             }
@@ -81,17 +106,17 @@ public class PseudoReplacer
     {
         if (OffsetMap.TryGetValue(name, out int val))
         {
-            return new Stack(val);
+            return new Operand.Stack(val);
         }
 
         if (symbolTable.TryGetValue(name, out SemanticAnalyzer.SymbolEntry symbolEntry) &&
             symbolEntry.IdentifierAttributes is IdentifierAttributes.Static)
         { 
-            return new Data(name); 
+            return new Operand.Data(name); 
         }
 
         currentOffset -= 4;
         OffsetMap[name] = currentOffset;
-        return new Stack(currentOffset);
+        return new Operand.Stack(currentOffset);
     }
 }

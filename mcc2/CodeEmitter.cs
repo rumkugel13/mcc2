@@ -24,13 +24,13 @@ public class CodeEmitter
     private void EmitProgram(AssemblyProgram program, StringBuilder builder)
     {
         foreach (var topLevel in program.TopLevel)
-            if (topLevel is Function fun)
+            if (topLevel is TopLevel.Function fun)
                 EmitFunction(fun, builder);
-            else if (topLevel is StaticVariable stat)
+            else if (topLevel is TopLevel.StaticVariable stat)
                 EmitStaticVariable(stat, builder);
     }
 
-    private void EmitFunction(Function function, StringBuilder builder)
+    private void EmitFunction(TopLevel.Function function, StringBuilder builder)
     {
         if (function.Global)
             builder.AppendLine($"\t.globl {function.Name}");
@@ -45,7 +45,7 @@ public class CodeEmitter
         }
     }
 
-    private void EmitStaticVariable(StaticVariable staticVariable, StringBuilder builder)
+    private void EmitStaticVariable(TopLevel.StaticVariable staticVariable, StringBuilder builder)
     {
         if (staticVariable.Global)
             builder.AppendLine($"\t.globl {staticVariable.Identifier}");
@@ -76,51 +76,51 @@ public class CodeEmitter
     {
         switch (instruction)
         {
-            case Mov mov:
-                builder.AppendLine($"\tmovl {EmitOperand(mov.src)}, {EmitOperand(mov.dst)}");
+            case Instruction.Mov mov:
+                builder.AppendLine($"\tmovl {EmitOperand(mov.Src)}, {EmitOperand(mov.Dst)}");
                 break;
-            case Ret:
+            case Instruction.Ret:
                 builder.AppendLine($"\tmovq %rbp, %rsp");
                 builder.AppendLine($"\tpopq %rbp");
                 builder.AppendLine("\tret");
                 break;
-            case Unary unary:
+            case Instruction.Unary unary:
                 builder.AppendLine($"\t{EmitUnaryOperator(unary.Operator)} {EmitOperand(unary.Operand)}");
                 break;
-            case Binary binary:
+            case Instruction.Binary binary:
                 builder.AppendLine($"\t{EmitBinaryOperator(binary.Operator)} {EmitOperand(binary.SrcOperand)}, {EmitOperand(binary.DstOperand)}");
                 break;
-            case Idiv idiv:
+            case Instruction.Idiv idiv:
                 builder.AppendLine($"\tidivl {EmitOperand(idiv.Operand)}");
                 break;
-            case Cdq:
+            case Instruction.Cdq:
                 builder.AppendLine("\tcdq");
                 break;
-            case AllocateStack allocateStack:
+            case Instruction.AllocateStack allocateStack:
                 builder.AppendLine($"\tsubq ${allocateStack.Bytes}, %rsp");
                 break;
-            case Cmp cmp:
+            case Instruction.Cmp cmp:
                 builder.AppendLine($"\tcmpl {EmitOperand(cmp.OperandA)}, {EmitOperand(cmp.OperandB)}");
                 break;
-            case Jmp jmp:
+            case Instruction.Jmp jmp:
                 builder.AppendLine($"\tjmp .L{jmp.Identifier}");
                 break;
-            case JmpCC jmpCC:
+            case Instruction.JmpCC jmpCC:
                 builder.AppendLine($"\tj{EmitConditionCode(jmpCC.Condition)} .L{jmpCC.Identifier}");
                 break;
-            case SetCC setCC:
+            case Instruction.SetCC setCC:
                 builder.AppendLine($"\tset{EmitConditionCode(setCC.Condition)} {EmitOperand(setCC.Operand, 1)}");
                 break;
-            case Label label:
+            case Instruction.Label label:
                 builder.AppendLine($".L{label.Identifier}:");
                 break;
-            case DeallocateStack deallocateStack:
+            case Instruction.DeallocateStack deallocateStack:
                 builder.AppendLine($"\taddq ${deallocateStack.Bytes}, %rsp");
                 break;
-            case Push push:
+            case Instruction.Push push:
                 builder.AppendLine($"\tpushq {EmitOperand(push.Operand, 8)}");
                 break;
-            case Call call:
+            case Instruction.Call call:
                 builder.AppendLine($"\tcall {call.Identifier}{(!((IdentifierAttributes.Function)symbolTable[call.Identifier].IdentifierAttributes).Defined && OperatingSystem.IsLinux() ? "@PLT" : "")}");
                 break;
             default:
@@ -128,37 +128,37 @@ public class CodeEmitter
         }
     }
 
-    private string EmitConditionCode(JmpCC.ConditionCode condition)
+    private string EmitConditionCode(Instruction.ConditionCode condition)
     {
         return condition switch
         {
-            JmpCC.ConditionCode.E => "e",
-            JmpCC.ConditionCode.NE => "ne",
-            JmpCC.ConditionCode.G => "g",
-            JmpCC.ConditionCode.GE => "ge",
-            JmpCC.ConditionCode.L => "l",
-            JmpCC.ConditionCode.LE => "le",
+            Instruction.ConditionCode.E => "e",
+            Instruction.ConditionCode.NE => "ne",
+            Instruction.ConditionCode.G => "g",
+            Instruction.ConditionCode.GE => "ge",
+            Instruction.ConditionCode.L => "l",
+            Instruction.ConditionCode.LE => "le",
             _ => throw new NotImplementedException()
         };
     }
 
-    private string EmitBinaryOperator(Binary.BinaryOperator binaryOperator)
+    private string EmitBinaryOperator(Instruction.BinaryOperator binaryOperator)
     {
         return binaryOperator switch
         {
-            Binary.BinaryOperator.Add => "addl",
-            Binary.BinaryOperator.Sub => "subl",
-            Binary.BinaryOperator.Mult => "imull",
+            Instruction.BinaryOperator.Add => "addl",
+            Instruction.BinaryOperator.Sub => "subl",
+            Instruction.BinaryOperator.Mult => "imull",
             _ => throw new NotImplementedException()
         };
     }
 
-    private string EmitUnaryOperator(Unary.UnaryOperator unaryOperator)
+    private string EmitUnaryOperator(Instruction.UnaryOperator unaryOperator)
     {
         return unaryOperator switch
         {
-            Unary.UnaryOperator.Neg => "negl",
-            Unary.UnaryOperator.Not => "notl",
+            Instruction.UnaryOperator.Neg => "negl",
+            Instruction.UnaryOperator.Not => "notl",
             _ => throw new NotImplementedException()
         };
     }
@@ -167,15 +167,15 @@ public class CodeEmitter
     {
         return operand switch
         {
-            Reg reg => EmitRegister(reg, bytes),
-            Imm imm => $"${imm.Value}",
-            Stack stack => $"{stack.Offset}(%rbp)",
-            Data data => $"{data.Identifier}(%rip)",
+            Operand.Reg reg => EmitRegister(reg, bytes),
+            Operand.Imm imm => $"${imm.Value}",
+            Operand.Stack stack => $"{stack.Offset}(%rbp)",
+            Operand.Data data => $"{data.Identifier}(%rip)",
             _ => throw new NotImplementedException()
         };
     }
 
-    private string EmitRegister(Reg reg, int bytes = 4)
+    private string EmitRegister(Operand.Reg reg, int bytes = 4)
     {
         // note: need to keep this updated with Reg.RegisterName
         string[] byteRegs = ["%al", "%cl", "%dl", "%dil", "%sil", "%r8b", "%r9b", "%r10b", "%r11b"];
