@@ -26,14 +26,14 @@ public abstract record Expression
         GreaterOrEqual
     }
 
-    public record ConstantExpression(Const Value) : Expression;
-    public record VariableExpression(string Identifier) : Expression;
-    public record UnaryExpression(UnaryOperator Operator, Expression Expression) : Expression;
-    public record BinaryExpression(BinaryOperator Operator, Expression ExpressionLeft, Expression ExpressionRight) : Expression;
-    public record AssignmentExpression(Expression ExpressionLeft, Expression ExpressionRight) : Expression;
-    public record ConditionalExpression(Expression Condition, Expression Then, Expression Else) : Expression;
-    public record FunctionCallExpression(string Identifier, List<Expression> Arguments) : Expression;
-    public record CastExpression(Type TargetType, Expression Expression) : Expression;
+    public record ConstantExpression(Const Value, Type? Type) : Expression;
+    public record VariableExpression(string Identifier, Type? Type) : Expression;
+    public record UnaryExpression(UnaryOperator Operator, Expression Expression, Type? Type) : Expression;
+    public record BinaryExpression(BinaryOperator Operator, Expression ExpressionLeft, Expression ExpressionRight, Type? Type) : Expression;
+    public record AssignmentExpression(Expression ExpressionLeft, Expression ExpressionRight, Type? Type) : Expression;
+    public record ConditionalExpression(Expression Condition, Expression Then, Expression Else, Type? Type) : Expression;
+    public record FunctionCallExpression(string Identifier, List<Expression> Arguments, Type? Type) : Expression;
+    public record CastExpression(Type TargetType, Expression Expression, Type? Type) : Expression;
 
     private Expression() { }
 }

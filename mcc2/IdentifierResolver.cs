@@ -170,23 +170,23 @@ public class IdentifierResolver
                 {
                     var left = ResolveExpression(assignmentExpression.ExpressionLeft, identifierMap);
                     var right = ResolveExpression(assignmentExpression.ExpressionRight, identifierMap);
-                    return new Expression.AssignmentExpression(left, right);
+                    return new Expression.AssignmentExpression(left, right, assignmentExpression.Type);
                 }
             case Expression.VariableExpression variableExpression:
                 if (identifierMap.TryGetValue(variableExpression.Identifier, out MapEntry newVariable))
-                    return new Expression.VariableExpression(newVariable.NewName);
+                    return new Expression.VariableExpression(newVariable.NewName, variableExpression.Type);
                 else
                     throw new Exception("Semantic Error: Undeclared variable");
             case Expression.UnaryExpression unaryExpression:
                 {
                     var exp = ResolveExpression(unaryExpression.Expression, identifierMap);
-                    return new Expression.UnaryExpression(unaryExpression.Operator, exp);
+                    return new Expression.UnaryExpression(unaryExpression.Operator, exp, unaryExpression.Type);
                 }
             case Expression.BinaryExpression binaryExpression:
                 {
                     var left = ResolveExpression(binaryExpression.ExpressionLeft, identifierMap);
                     var right = ResolveExpression(binaryExpression.ExpressionRight, identifierMap);
-                    return new Expression.BinaryExpression(binaryExpression.Operator, left, right);
+                    return new Expression.BinaryExpression(binaryExpression.Operator, left, right, binaryExpression.Type);
                 }
             case Expression.ConstantExpression constantExpression:
                 return constantExpression;
@@ -195,7 +195,7 @@ public class IdentifierResolver
                     var cond = ResolveExpression(conditionalExpression.Condition, identifierMap);
                     var then = ResolveExpression(conditionalExpression.Then, identifierMap);
                     var el = ResolveExpression(conditionalExpression.Else, identifierMap);
-                    return new Expression.ConditionalExpression(cond, then, el);
+                    return new Expression.ConditionalExpression(cond, then, el, conditionalExpression.Type);
                 }
             case Expression.FunctionCallExpression functionCallExpression:
                 if (identifierMap.TryGetValue(functionCallExpression.Identifier, out MapEntry entry))
@@ -204,10 +204,14 @@ public class IdentifierResolver
                     List<Expression> newArgs = [];
                     foreach (var arg in functionCallExpression.Arguments)
                         newArgs.Add(ResolveExpression(arg, identifierMap));
-                    return new Expression.FunctionCallExpression(newFunName, newArgs);
+                    return new Expression.FunctionCallExpression(newFunName, newArgs, functionCallExpression.Type);
                 }
                 else
                     throw new Exception("Semantic Error: Undeclared function");
+            case Expression.CastExpression castExpression:
+                {
+                    return new Expression.CastExpression(castExpression.TargetType, ResolveExpression(castExpression.Expression, identifierMap), castExpression.Type);
+                }
             default:
                 throw new NotImplementedException();
         }

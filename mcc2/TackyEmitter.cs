@@ -32,7 +32,7 @@ public class TackyEmitter
                     switch (stat.InitialValue)
                     {
                         case InitialValue.Initial init:
-                            instructions.Add(new TopLevel.StaticVariable(entry.Key, stat.Global, init.Init));
+                            instructions.Add(new TopLevel.StaticVariable(entry.Key, stat.Global, ((StaticInit.IntInit)init.Init).Value));
                             break;
                         case InitialValue.Tentative:
                             instructions.Add(new TopLevel.StaticVariable(entry.Key, stat.Global, 0));
