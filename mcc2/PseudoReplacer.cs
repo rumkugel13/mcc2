@@ -86,7 +86,7 @@ public class PseudoReplacer
         }
 
         if (symbolTable.TryGetValue(name, out SemanticAnalyzer.SymbolEntry symbolEntry) &&
-            symbolEntry.IdentifierAttributes is StaticAttributes)
+            symbolEntry.IdentifierAttributes is IdentifierAttributes.StaticAttributes)
         { 
             return new Data(name); 
         }

@@ -29,7 +29,7 @@ public class TackyEmitter
         {
             switch (entry.Value.IdentifierAttributes)
             {
-                case StaticAttributes stat:
+                case IdentifierAttributes.StaticAttributes stat:
                     switch (stat.InitialValue)
                     {
                         case InitialValue.Initial init:
@@ -68,7 +68,7 @@ public class TackyEmitter
             instructions.Add(new Return(new Constant(0)));
         }
         return new Function(functionDefinition.Identifier,
-            ((FunctionAttributes)symbolTable[functionDefinition.Identifier].IdentifierAttributes).Global,
+            ((IdentifierAttributes.FunctionAttributes)symbolTable[functionDefinition.Identifier].IdentifierAttributes).Global,
             functionDefinition.Parameters, instructions);
     }
 

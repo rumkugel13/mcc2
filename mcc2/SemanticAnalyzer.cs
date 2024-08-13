@@ -56,7 +56,7 @@ public class SemanticAnalyzer
 
         if (symbolTable.TryGetValue(functionDeclaration.Identifier, out SymbolEntry prevEntry))
         {
-            var attributes = (FunctionAttributes)prevEntry.IdentifierAttributes;
+            var attributes = (IdentifierAttributes.FunctionAttributes)prevEntry.IdentifierAttributes;
             // note: check correct type and number of parameters
             if (prevEntry.Type is not FunctionType funcA || funcA.ParameterCount != funType.ParameterCount)
                 throw new Exception("Type Error: Incompatible function declarations");
@@ -71,7 +71,7 @@ public class SemanticAnalyzer
             global = attributes.Global;
         }
 
-        symbolTable[functionDeclaration.Identifier] = new SymbolEntry() { Type = funType, IdentifierAttributes = new FunctionAttributes(alreadyDefined || hasBody, global) };
+        symbolTable[functionDeclaration.Identifier] = new SymbolEntry() { Type = funType, IdentifierAttributes = new IdentifierAttributes.FunctionAttributes(alreadyDefined || hasBody, global) };
 
         if (functionDeclaration.Body != null)
         {
@@ -122,7 +122,7 @@ public class SemanticAnalyzer
 
         if (symbolTable.TryGetValue(variableDeclaration.Identifier, out SymbolEntry prevEntry))
         {
-            var attributes = (StaticAttributes)prevEntry.IdentifierAttributes;
+            var attributes = (IdentifierAttributes.StaticAttributes)prevEntry.IdentifierAttributes;
             if (prevEntry.Type is not Int)
                 throw new Exception("Type Error: Function redeclared as variable");
             if (variableDeclaration.StorageClass == Declaration.StorageClasses.Extern)
@@ -139,7 +139,7 @@ public class SemanticAnalyzer
                 initialValue = new InitialValue.Tentative();
         }
 
-        symbolTable[variableDeclaration.Identifier] = new SymbolEntry() { Type = new Int(), IdentifierAttributes = new StaticAttributes(initialValue, global) };
+        symbolTable[variableDeclaration.Identifier] = new SymbolEntry() { Type = new Int(), IdentifierAttributes = new IdentifierAttributes.StaticAttributes(initialValue, global) };
     }
 
     private void TypeCheckLocalVariableDeclaration(VariableDeclaration variableDeclaration, Dictionary<string, SymbolEntry> symbolTable)
@@ -154,7 +154,7 @@ public class SemanticAnalyzer
                     throw new Exception("Type Error: Function redeclared as variable");
             }
             else
-                symbolTable.Add(variableDeclaration.Identifier, new SymbolEntry() { Type = new Int(), IdentifierAttributes = new StaticAttributes(new InitialValue.NoInitializer(), true) });
+                symbolTable.Add(variableDeclaration.Identifier, new SymbolEntry() { Type = new Int(), IdentifierAttributes = new IdentifierAttributes.StaticAttributes(new InitialValue.NoInitializer(), true) });
         }
         else if (variableDeclaration.StorageClass == Declaration.StorageClasses.Static)
         {
@@ -165,11 +165,11 @@ public class SemanticAnalyzer
                 initialValue = new InitialValue.Initial(0);
             else
                 throw new Exception("Type Error: Non-constant initializer on local static variable");
-            symbolTable[variableDeclaration.Identifier] = new SymbolEntry() { Type = new Int(), IdentifierAttributes = new StaticAttributes(initialValue, false) };
+            symbolTable[variableDeclaration.Identifier] = new SymbolEntry() { Type = new Int(), IdentifierAttributes = new IdentifierAttributes.StaticAttributes(initialValue, false) };
         }
         else
         {
-            symbolTable[variableDeclaration.Identifier] = new SymbolEntry() { Type = new Int(), IdentifierAttributes = new LocalAttributes() };
+            symbolTable[variableDeclaration.Identifier] = new SymbolEntry() { Type = new Int(), IdentifierAttributes = new IdentifierAttributes.LocalAttributes() };
             if (variableDeclaration.Initializer != null)
                 TypeCheckExpression(variableDeclaration.Initializer, symbolTable);
         }
