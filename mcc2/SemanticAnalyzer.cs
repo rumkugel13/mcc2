@@ -107,13 +107,13 @@ public class SemanticAnalyzer
     {
         InitialValue initialValue;
         if (variableDeclaration.Initializer is ConstantExpression constant)
-            initialValue = new Initial(constant.Value);
+            initialValue = new InitialValue.Initial(constant.Value);
         else if (variableDeclaration.Initializer == null)
         {
             if (variableDeclaration.StorageClass == Declaration.StorageClasses.Extern)
-                initialValue = new NoInitializer();
+                initialValue = new InitialValue.NoInitializer();
             else
-                initialValue = new Tentative();
+                initialValue = new InitialValue.Tentative();
         }
         else
             throw new Exception("Type Error: Non-Constant initializer");
@@ -130,13 +130,13 @@ public class SemanticAnalyzer
             else if (attributes.Global != global)
                 throw new Exception("Type Error: Conflicting variable linkage");
 
-            if (attributes.InitialValue is Initial)
-                if (initialValue is Initial)
+            if (attributes.InitialValue is InitialValue.Initial)
+                if (initialValue is InitialValue.Initial)
                     throw new Exception("Type Error: Conflicting file scope variable definitions");
                 else
                     initialValue = attributes.InitialValue;
-            else if (initialValue is not Initial && attributes.InitialValue is Tentative)
-                initialValue = new Tentative();
+            else if (initialValue is not InitialValue.Initial && attributes.InitialValue is InitialValue.Tentative)
+                initialValue = new InitialValue.Tentative();
         }
 
         symbolTable[variableDeclaration.Identifier] = new SymbolEntry() { Type = new Int(), IdentifierAttributes = new StaticAttributes(initialValue, global) };
@@ -154,15 +154,15 @@ public class SemanticAnalyzer
                     throw new Exception("Type Error: Function redeclared as variable");
             }
             else
-                symbolTable.Add(variableDeclaration.Identifier, new SymbolEntry() { Type = new Int(), IdentifierAttributes = new StaticAttributes(new NoInitializer(), true) });
+                symbolTable.Add(variableDeclaration.Identifier, new SymbolEntry() { Type = new Int(), IdentifierAttributes = new StaticAttributes(new InitialValue.NoInitializer(), true) });
         }
         else if (variableDeclaration.StorageClass == Declaration.StorageClasses.Static)
         {
             InitialValue initialValue;
             if (variableDeclaration.Initializer is ConstantExpression constant)
-                initialValue = new Initial(constant.Value);
+                initialValue = new InitialValue.Initial(constant.Value);
             else if (variableDeclaration.Initializer == null)
-                initialValue = new Initial(0);
+                initialValue = new InitialValue.Initial(0);
             else
                 throw new Exception("Type Error: Non-constant initializer on local static variable");
             symbolTable[variableDeclaration.Identifier] = new SymbolEntry() { Type = new Int(), IdentifierAttributes = new StaticAttributes(initialValue, false) };

@@ -32,13 +32,13 @@ public class TackyEmitter
                 case StaticAttributes stat:
                     switch (stat.InitialValue)
                     {
-                        case Initial init:
+                        case InitialValue.Initial init:
                             instructions.Add(new StaticVariable(entry.Key, stat.Global, init.Init));
                             break;
-                        case Tentative:
+                        case InitialValue.Tentative:
                             instructions.Add(new StaticVariable(entry.Key, stat.Global, 0));
                             break;
-                        case NoInitializer:
+                        case InitialValue.NoInitializer:
                             break;
                     }
                     break;
