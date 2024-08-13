@@ -14,6 +14,7 @@ namespace mcc2
         {
             Identifier,
             Constant,
+            LongConstant,
             IntKeyword,
             VoidKeyword,
             ReturnKeyword,
@@ -26,6 +27,7 @@ namespace mcc2
             ContinueKeyword,
             StaticKeyword,
             ExternKeyword,
+            LongKeyword,
             DoubleHyphen,
             DoubleAmpersand,
             DoubleVertical,
@@ -57,6 +59,7 @@ namespace mcc2
         private readonly string[] patterns = [
             "[a-zA-Z_]\\w*\\b",
             "[0-9]+\\b",
+            "[0-9]+[lL]\\b",
             "int\\b",
             "void\\b",
             "return\\b",
@@ -69,6 +72,7 @@ namespace mcc2
             "continue\\b",
             "static\\b",
             "extern\\b",
+            "long\\b",
             "--",
             "&&",
             "\\|\\|",
