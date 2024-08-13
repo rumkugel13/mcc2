@@ -1,6 +1,6 @@
 namespace mcc2.AST;
 
-public class Block : Statement
+public class Block
 {
     public List<BlockItem> BlockItems;
 

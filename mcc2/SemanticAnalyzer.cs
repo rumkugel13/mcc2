@@ -25,28 +25,29 @@ public class SemanticAnalyzer
         for (int i = 0; i < program.Declarations.Count; i++)
         {
             Declaration? decl = program.Declarations[i];
-            if (decl is FunctionDeclaration fun)
+            if (decl is Declaration.FunctionDeclaration fun)
                 program.Declarations[i] = ResolveFunctionDeclaration(fun, identifierMap);
-            else if (decl is VariableDeclaration var)
+            else if (decl is Declaration.VariableDeclaration var)
                 ResolveFileScopeVariableDeclaration(var, identifierMap);
         }
 
         foreach (var decl in program.Declarations)
         {
-            if (decl is FunctionDeclaration fun)
+            if (decl is Declaration.FunctionDeclaration fun)
                 TypeCheckFunctionDeclaration(fun, symbolTable);
-            else if (decl is VariableDeclaration var)
+            else if (decl is Declaration.VariableDeclaration var)
                 TypeCheckFileScopeVariableDeclaration(var, symbolTable);
         }
 
-        foreach (var decl in program.Declarations)
+        for (int i = 0; i < program.Declarations.Count; i++)
         {
-            if (decl is FunctionDeclaration fun)
-                LabelFunction(fun, null);
+            Declaration? decl = program.Declarations[i];
+            if (decl is Declaration.FunctionDeclaration fun)
+                program.Declarations[i] = LabelFunction(fun, null);
         }
     }
 
-    private void TypeCheckFunctionDeclaration(FunctionDeclaration functionDeclaration, Dictionary<string, SymbolEntry> symbolTable)
+    private void TypeCheckFunctionDeclaration(Declaration.FunctionDeclaration functionDeclaration, Dictionary<string, SymbolEntry> symbolTable)
     {
         Type.FunctionType funType = new Type.FunctionType(functionDeclaration.Parameters.Count);
         bool hasBody = functionDeclaration.Body != null;
@@ -84,11 +85,11 @@ public class SemanticAnalyzer
     {
         foreach (var item in block.BlockItems)
         {
-            if (item is VariableDeclaration declaration)
+            if (item is Declaration.VariableDeclaration declaration)
             {
                 TypeCheckLocalVariableDeclaration(declaration, symbolTable);
             }
-            else if (item is FunctionDeclaration functionDeclaration)
+            else if (item is Declaration.FunctionDeclaration functionDeclaration)
             {
                 if (functionDeclaration.StorageClass != Declaration.StorageClasses.Static)
                     TypeCheckFunctionDeclaration(functionDeclaration, symbolTable);
@@ -102,7 +103,7 @@ public class SemanticAnalyzer
         }
     }
 
-    private void TypeCheckFileScopeVariableDeclaration(VariableDeclaration variableDeclaration, Dictionary<string, SymbolEntry> symbolTable)
+    private void TypeCheckFileScopeVariableDeclaration(Declaration.VariableDeclaration variableDeclaration, Dictionary<string, SymbolEntry> symbolTable)
     {
         InitialValue initialValue;
         if (variableDeclaration.Initializer is Expression.ConstantExpression constant)
@@ -141,7 +142,7 @@ public class SemanticAnalyzer
         symbolTable[variableDeclaration.Identifier] = new SymbolEntry() { Type = new Type.Int(), IdentifierAttributes = new IdentifierAttributes.Static(initialValue, global) };
     }
 
-    private void TypeCheckLocalVariableDeclaration(VariableDeclaration variableDeclaration, Dictionary<string, SymbolEntry> symbolTable)
+    private void TypeCheckLocalVariableDeclaration(Declaration.VariableDeclaration variableDeclaration, Dictionary<string, SymbolEntry> symbolTable)
     {
         if (variableDeclaration.StorageClass == Declaration.StorageClasses.Extern)
         {
@@ -220,36 +221,36 @@ public class SemanticAnalyzer
     {
         switch (statement)
         {
-            case ReturnStatement ret:
+            case Statement.ReturnStatement ret:
                 TypeCheckExpression(ret.Expression, symbolTable);
                 break;
-            case ExpressionStatement expressionStatement:
+            case Statement.ExpressionStatement expressionStatement:
                 TypeCheckExpression(expressionStatement.Expression, symbolTable);
                 break;
-            case NullStatement:
+            case Statement.NullStatement:
                 break;
-            case IfStatement ifStatement:
+            case Statement.IfStatement ifStatement:
                 TypeCheckExpression(ifStatement.Condition, symbolTable);
                 TypeCheckStatement(ifStatement.Then, symbolTable);
                 if (ifStatement.Else != null)
                     TypeCheckStatement(ifStatement.Else, symbolTable);
                 break;
-            case CompoundStatement compoundStatement:
+            case Statement.CompoundStatement compoundStatement:
                 TypeCheckBlock(compoundStatement.Block, symbolTable);
                 break;
-            case BreakStatement:
+            case Statement.BreakStatement:
                 break;
-            case ContinueStatement:
+            case Statement.ContinueStatement:
                 break;
-            case WhileStatement whileStatement:
+            case Statement.WhileStatement whileStatement:
                 TypeCheckExpression(whileStatement.Condition, symbolTable);
                 TypeCheckStatement(whileStatement.Body, symbolTable);
                 break;
-            case DoWhileStatement doWhileStatement:
+            case Statement.DoWhileStatement doWhileStatement:
                 TypeCheckStatement(doWhileStatement.Body, symbolTable);
                 TypeCheckExpression(doWhileStatement.Condition, symbolTable);
                 break;
-            case ForStatement forStatement:
+            case Statement.ForStatement forStatement:
                 {
                     TypeCheckForInit(forStatement.Init, symbolTable);
                     TypeCheckOptionalExpression(forStatement.Condition, symbolTable);
@@ -266,10 +267,10 @@ public class SemanticAnalyzer
     {
         switch (init)
         {
-            case InitExpression initExpression:
+            case ForInit.InitExpression initExpression:
                 TypeCheckOptionalExpression(initExpression.Expression, symbolTable);
                 break;
-            case InitDeclaration initDeclaration:
+            case ForInit.InitDeclaration initDeclaration:
                 if (initDeclaration.Declaration.StorageClass == null)
                     TypeCheckLocalVariableDeclaration(initDeclaration.Declaration, symbolTable);
                 else
@@ -284,71 +285,77 @@ public class SemanticAnalyzer
             TypeCheckExpression(expression, symbolTable);
     }
 
-    private void LabelFunction(FunctionDeclaration functionDeclaration, string? currentLabel)
+    private Declaration.FunctionDeclaration LabelFunction(Declaration.FunctionDeclaration functionDeclaration, string? currentLabel)
     {
         if (functionDeclaration.Body != null)
         {
-            LabelBlock(functionDeclaration.Body, null);
+            return new Declaration.FunctionDeclaration(functionDeclaration.Identifier,
+                functionDeclaration.Parameters,
+                LabelBlock(functionDeclaration.Body, null),
+                functionDeclaration.StorageClass);
         }
+
+        return functionDeclaration;
     }
 
-    private void LabelBlock(Block block, string? currentLabel)
+    private Block LabelBlock(Block block, string? currentLabel)
     {
+        List<BlockItem> newItems = [];
         foreach (var item in block.BlockItems)
         {
-            if (item is Statement statement)
-                LabelStatement(statement, currentLabel);
+            var newItem = item;
+            if (newItem is Statement statement)
+                newItem = LabelStatement(statement, currentLabel);
+            newItems.Add(newItem);
         }
+        return new Block(newItems);
     }
 
-    private void LabelStatement(Statement statement, string? currentLabel)
+    private Statement LabelStatement(Statement statement, string? currentLabel)
     {
         switch (statement)
         {
-            case ReturnStatement:
-                break;
-            case ExpressionStatement:
-                break;
-            case NullStatement:
-                break;
-            case IfStatement ifStatement:
-                LabelStatement(ifStatement.Then, currentLabel);
-                if (ifStatement.Else != null)
-                    LabelStatement(ifStatement.Else, currentLabel);
-                break;
-            case CompoundStatement compoundStatement:
-                LabelBlock(compoundStatement.Block, currentLabel);
-                break;
-            case BreakStatement breakStatement:
+            case Statement.ReturnStatement returnStatement:
+                return returnStatement;
+            case Statement.ExpressionStatement expressionStatement:
+                return expressionStatement;
+            case Statement.NullStatement nullStatement:
+                return nullStatement;
+            case Statement.IfStatement ifStatement:
+                {
+                    var then = LabelStatement(ifStatement.Then, currentLabel);
+                    var el = ifStatement.Else;
+                    if (el != null)
+                        el = LabelStatement(el, currentLabel);
+                    return new Statement.IfStatement(ifStatement.Condition, then, el);
+                }
+            case Statement.CompoundStatement compoundStatement:
+                return new Statement.CompoundStatement(LabelBlock(compoundStatement.Block, currentLabel));
+            case Statement.BreakStatement breakStatement:
                 if (currentLabel == null)
                     throw new Exception("Semantic Error: Break statement outside of loop");
-                breakStatement.Label = currentLabel;
-                break;
-            case ContinueStatement continueStatement:
+                return new Statement.BreakStatement(currentLabel);
+            case Statement.ContinueStatement continueStatement:
                 if (currentLabel == null)
                     throw new Exception("Semantic Error: Continue statement outside of loop");
-                continueStatement.Label = currentLabel;
-                break;
-            case WhileStatement whileStatement:
+                return new Statement.ContinueStatement(currentLabel);
+            case Statement.WhileStatement whileStatement:
                 {
                     var newLabel = MakeLabel();
-                    LabelStatement(whileStatement.Body, newLabel);
-                    whileStatement.Label = newLabel;
-                    break;
+                    var body = LabelStatement(whileStatement.Body, newLabel);
+                    return new Statement.WhileStatement(whileStatement.Condition, body, newLabel);
                 }
-            case DoWhileStatement doWhileStatement:
+            case Statement.DoWhileStatement doWhileStatement:
                 {
                     var newLabel = MakeLabel();
-                    LabelStatement(doWhileStatement.Body, newLabel);
-                    doWhileStatement.Label = newLabel;
-                    break;
+                    var body = LabelStatement(doWhileStatement.Body, newLabel);
+                    return new Statement.DoWhileStatement(body, doWhileStatement.Condition, newLabel);
                 }
-            case ForStatement forStatement:
+            case Statement.ForStatement forStatement:
                 {
                     var newLabel = MakeLabel();
-                    LabelStatement(forStatement.Body, newLabel);
-                    forStatement.Label = newLabel;
-                    break;
+                    var body = LabelStatement(forStatement.Body, newLabel);
+                    return new Statement.ForStatement(forStatement.Init, forStatement.Condition, forStatement.Post, body, newLabel);
                 }
             default:
                 throw new NotImplementedException();
@@ -360,7 +367,7 @@ public class SemanticAnalyzer
         return $"loop.{loopCounter++}";
     }
 
-    private FunctionDeclaration ResolveFunctionDeclaration(FunctionDeclaration functionDeclaration, Dictionary<string, MapEntry> identifierMap)
+    private Declaration.FunctionDeclaration ResolveFunctionDeclaration(Declaration.FunctionDeclaration functionDeclaration, Dictionary<string, MapEntry> identifierMap)
     {
         if (identifierMap.TryGetValue(functionDeclaration.Identifier, out MapEntry prevEntry))
         {
@@ -382,7 +389,7 @@ public class SemanticAnalyzer
         {
             newBody = ResolveBlock(functionDeclaration.Body, innerMap);
         }
-        return new FunctionDeclaration(functionDeclaration.Identifier, newParams, newBody, functionDeclaration.StorageClass);
+        return new Declaration.FunctionDeclaration(functionDeclaration.Identifier, newParams, newBody, functionDeclaration.StorageClass);
     }
 
     private string ResolveParameter(string parameter, Dictionary<string, MapEntry> identifierMap)
@@ -395,7 +402,7 @@ public class SemanticAnalyzer
         return uniqueName;
     }
 
-    private void ResolveFileScopeVariableDeclaration(VariableDeclaration var, Dictionary<string, MapEntry> identifierMap)
+    private void ResolveFileScopeVariableDeclaration(Declaration.VariableDeclaration var, Dictionary<string, MapEntry> identifierMap)
     {
         identifierMap[var.Identifier] = new MapEntry() { NewName = var.Identifier, FromCurrentScope = true, HasLinkage = true };
     }
@@ -405,11 +412,11 @@ public class SemanticAnalyzer
         List<BlockItem> newItems = [];
         foreach (var item in block.BlockItems)
         {
-            if (item is VariableDeclaration declaration)
+            if (item is Declaration.VariableDeclaration declaration)
             {
                 newItems.Add(ResolveVariableDeclaration(declaration, identifierMap));
             }
-            else if (item is FunctionDeclaration functionDeclaration)
+            else if (item is Declaration.FunctionDeclaration functionDeclaration)
             {
                 if (functionDeclaration.Body != null)
                     throw new Exception("Semantic Error: Local function definition");
@@ -428,50 +435,50 @@ public class SemanticAnalyzer
     {
         switch (statement)
         {
-            case ReturnStatement ret:
-                return new ReturnStatement(ResolveExpression(ret.Expression, identifierMap));
-            case ExpressionStatement expressionStatement:
-                return new ExpressionStatement(ResolveExpression(expressionStatement.Expression, identifierMap));
-            case NullStatement nullStatement:
+            case Statement.ReturnStatement ret:
+                return new Statement.ReturnStatement(ResolveExpression(ret.Expression, identifierMap));
+            case Statement.ExpressionStatement expressionStatement:
+                return new Statement.ExpressionStatement(ResolveExpression(expressionStatement.Expression, identifierMap));
+            case Statement.NullStatement nullStatement:
                 return nullStatement;
-            case IfStatement ifStatement:
+            case Statement.IfStatement ifStatement:
                 {
                     var cond = ResolveExpression(ifStatement.Condition, identifierMap);
                     var then = ResolveStatement(ifStatement.Then, identifierMap);
                     Statement? el = ifStatement.Else;
                     if (el != null)
                         el = ResolveStatement(el, identifierMap);
-                    return new IfStatement(cond, then, el);
+                    return new Statement.IfStatement(cond, then, el);
                 }
-            case CompoundStatement compoundStatement:
+            case Statement.CompoundStatement compoundStatement:
                 {
                     var newIdentifierMap = CopyIdentifierMap(identifierMap);
-                    return new CompoundStatement(ResolveBlock(compoundStatement.Block, newIdentifierMap));
+                    return new Statement.CompoundStatement(ResolveBlock(compoundStatement.Block, newIdentifierMap));
                 }
-            case BreakStatement breakStatement:
+            case Statement.BreakStatement breakStatement:
                 return breakStatement;
-            case ContinueStatement continueStatement:
+            case Statement.ContinueStatement continueStatement:
                 return continueStatement;
-            case WhileStatement whileStatement:
+            case Statement.WhileStatement whileStatement:
                 {
                     var cond = ResolveExpression(whileStatement.Condition, identifierMap);
                     var body = ResolveStatement(whileStatement.Body, identifierMap);
-                    return new WhileStatement(cond, body);
+                    return new Statement.WhileStatement(cond, body, whileStatement.Label);
                 }
-            case DoWhileStatement doWhileStatement:
+            case Statement.DoWhileStatement doWhileStatement:
                 {
                     var body = ResolveStatement(doWhileStatement.Body, identifierMap);
                     var cond = ResolveExpression(doWhileStatement.Condition, identifierMap);
-                    return new DoWhileStatement(body, cond);
+                    return new Statement.DoWhileStatement(body, cond, doWhileStatement.Label);
                 }
-            case ForStatement forStatement:
+            case Statement.ForStatement forStatement:
                 {
                     var newVarMap = CopyIdentifierMap(identifierMap);
                     var init = ResolveForInit(forStatement.Init, newVarMap);
                     var cond = ResolveOptionalExpression(forStatement.Condition, newVarMap);
                     var post = ResolveOptionalExpression(forStatement.Post, newVarMap);
                     var body = ResolveStatement(forStatement.Body, newVarMap);
-                    return new ForStatement(init, cond, post, body);
+                    return new Statement.ForStatement(init, cond, post, body, forStatement.Label);
                 }
             default:
                 throw new NotImplementedException();
@@ -490,10 +497,10 @@ public class SemanticAnalyzer
     {
         switch (init)
         {
-            case InitExpression initExpression:
-                return new InitExpression(ResolveOptionalExpression(initExpression.Expression, identifierMap));
-            case InitDeclaration initDeclaration:
-                return new InitDeclaration(ResolveVariableDeclaration(initDeclaration.Declaration, identifierMap));
+            case ForInit.InitExpression initExpression:
+                return new ForInit.InitExpression(ResolveOptionalExpression(initExpression.Expression, identifierMap));
+            case ForInit.InitDeclaration initDeclaration:
+                return new ForInit.InitDeclaration(ResolveVariableDeclaration(initDeclaration.Declaration, identifierMap));
             default:
                 throw new NotImplementedException();
         }
@@ -563,7 +570,7 @@ public class SemanticAnalyzer
         }
     }
 
-    private VariableDeclaration ResolveVariableDeclaration(VariableDeclaration declaration, Dictionary<string, MapEntry> identifierMap)
+    private Declaration.VariableDeclaration ResolveVariableDeclaration(Declaration.VariableDeclaration declaration, Dictionary<string, MapEntry> identifierMap)
     {
         if (identifierMap.TryGetValue(declaration.Identifier, out MapEntry prevEntry))
         {
@@ -583,8 +590,7 @@ public class SemanticAnalyzer
         var init = declaration.Initializer;
         if (init != null)
             init = ResolveExpression(init, identifierMap);
-        declaration.Identifier = uniqueName;
-        return new VariableDeclaration(uniqueName, init, declaration.StorageClass);
+        return new Declaration.VariableDeclaration(uniqueName, init, declaration.StorageClass);
     }
 
     private string MakeTemporary(string varName)

@@ -52,12 +52,12 @@ public class TackyEmitter
     {
         List<TopLevel> definitions = [];
         foreach (var decl in astProgram.Declarations)
-            if (decl is FunctionDeclaration fun && fun.Body != null)
+            if (decl is Declaration.FunctionDeclaration fun && fun.Body != null)
                 definitions.Add(EmitFunction(fun));
         return new TACProgam(definitions);
     }
 
-    private TopLevel.Function EmitFunction(FunctionDeclaration functionDefinition)
+    private TopLevel.Function EmitFunction(Declaration.FunctionDeclaration functionDefinition)
     {
         List<Instruction> instructions = [];
         if (functionDefinition.Body != null)
@@ -75,25 +75,25 @@ public class TackyEmitter
     {
         switch (blockItem)
         {
-            case ReturnStatement returnStatement:
+            case Statement.ReturnStatement returnStatement:
                 {
                     var val = EmitInstruction(returnStatement.Expression, instructions);
                     instructions.Add(new Instruction.Return(val));
                     break;
                 }
-            case VariableDeclaration declaration:
+            case Declaration.VariableDeclaration declaration:
                 if (declaration.Initializer != null && declaration.StorageClass == null)
                 {
                     var result = EmitInstruction(declaration.Initializer, instructions);
                     instructions.Add(new Instruction.Copy(result, new Val.Variable(declaration.Identifier)));
                 }
                 break;
-            case ExpressionStatement expressionStatement:
+            case Statement.ExpressionStatement expressionStatement:
                 EmitInstruction(expressionStatement.Expression, instructions);
                 break;
-            case NullStatement:
+            case Statement.NullStatement:
                 break;
-            case IfStatement ifStatement:
+            case Statement.IfStatement ifStatement:
                 {
                     var cond = EmitInstruction(ifStatement.Condition, instructions);
                     var endLabel = MakeLabel();
@@ -112,17 +112,17 @@ public class TackyEmitter
                     instructions.Add(new Instruction.Label(endLabel));
                     break;
                 }
-            case CompoundStatement compoundStatement:
+            case Statement.CompoundStatement compoundStatement:
                 foreach (var item in compoundStatement.Block.BlockItems)
                     EmitInstruction(item, instructions);
                 break;
-            case BreakStatement breakStatement:
+            case Statement.BreakStatement breakStatement:
                 instructions.Add(new Instruction.Jump(MakeBreakLabel(breakStatement.Label)));
                 break;
-            case ContinueStatement continueStatement:
+            case Statement.ContinueStatement continueStatement:
                 instructions.Add(new Instruction.Jump(MakeContinueLabel(continueStatement.Label)));
                 break;
-            case DoWhileStatement doWhileStatement:
+            case Statement.DoWhileStatement doWhileStatement:
                 {
                     var start = MakeStartLabel(doWhileStatement.Label);
                     instructions.Add(new Instruction.Label(start));
@@ -133,7 +133,7 @@ public class TackyEmitter
                     instructions.Add(new Instruction.Label(MakeBreakLabel(doWhileStatement.Label)));
                     break;
                 }
-            case WhileStatement whileStatement:
+            case Statement.WhileStatement whileStatement:
                 {
                     var continueLabel = MakeContinueLabel(whileStatement.Label);
                     instructions.Add(new Instruction.Label(continueLabel));
@@ -145,7 +145,7 @@ public class TackyEmitter
                     instructions.Add(new Instruction.Label(breakLabel));
                     break;
                 }
-            case ForStatement forStatement:
+            case Statement.ForStatement forStatement:
                 {
                     EmitInstruction(forStatement.Init, instructions);
                     var start = MakeStartLabel(forStatement.Label);
@@ -165,7 +165,7 @@ public class TackyEmitter
                     instructions.Add(new Instruction.Label(breakLabel));
                     break;
                 }
-            case FunctionDeclaration functionDeclaration:
+            case Declaration.FunctionDeclaration functionDeclaration:
                 EmitFunction(functionDeclaration);
                 break;
             default:
@@ -175,11 +175,11 @@ public class TackyEmitter
 
     private void EmitInstruction(ForInit init, List<Instruction> instructions)
     {
-        if (init is InitDeclaration initDeclaration)
+        if (init is ForInit.InitDeclaration initDeclaration)
         {
             EmitInstruction(initDeclaration.Declaration, instructions);
         }
-        else if (init is InitExpression initExpression && initExpression.Expression != null)
+        else if (init is ForInit.InitExpression initExpression && initExpression.Expression != null)
         {
             EmitInstruction(initExpression.Expression, instructions);
         }

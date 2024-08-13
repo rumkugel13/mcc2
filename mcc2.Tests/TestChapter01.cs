@@ -44,12 +44,12 @@ public class TestChapter01
 
         Assert.IsNotNull(ast, "Invalid Program node");
         Assert.IsNotNull(ast.Declarations, "Invalid Function node");
-        Assert.AreEqual(((FunctionDeclaration)ast.Declarations[0]).Identifier, "main", "Invalid Identifier");
-        Assert.IsNotNull(((FunctionDeclaration)ast.Declarations[0]).Body, "Invalid Statement");
-        Assert.IsInstanceOfType(((FunctionDeclaration)ast.Declarations[0]).Body, typeof(ReturnStatement), "Expected ReturnStatement type");
-        Assert.IsNotNull(((ReturnStatement)((FunctionDeclaration)ast.Declarations[0]).Body.BlockItems[0]).Expression, "Invalid Expression");
-        Assert.IsInstanceOfType(((ReturnStatement)((FunctionDeclaration)ast.Declarations[0]).Body.BlockItems[0]).Expression, typeof(Expression.ConstantExpression), "Expected ConstantExpression type");
-        Assert.AreEqual(((Expression.ConstantExpression)((ReturnStatement)((FunctionDeclaration)ast.Declarations[0]).Body.BlockItems[0]).Expression).Value, 2, "Invalid Constant");
+        Assert.AreEqual(((Declaration.FunctionDeclaration)ast.Declarations[0]).Identifier, "main", "Invalid Identifier");
+        Assert.IsNotNull(((Declaration.FunctionDeclaration)ast.Declarations[0]).Body, "Invalid Statement");
+        Assert.IsInstanceOfType(((Declaration.FunctionDeclaration)ast.Declarations[0]).Body, typeof(Statement.ReturnStatement), "Expected ReturnStatement type");
+        Assert.IsNotNull(((Statement.ReturnStatement)((Declaration.FunctionDeclaration)ast.Declarations[0]).Body.BlockItems[0]).Expression, "Invalid Expression");
+        Assert.IsInstanceOfType(((Statement.ReturnStatement)((Declaration.FunctionDeclaration)ast.Declarations[0]).Body.BlockItems[0]).Expression, typeof(Expression.ConstantExpression), "Expected ConstantExpression type");
+        Assert.AreEqual(((Expression.ConstantExpression)((Statement.ReturnStatement)((Declaration.FunctionDeclaration)ast.Declarations[0]).Body.BlockItems[0]).Expression).Value, 2, "Invalid Constant");
     }
 
     [TestMethod]

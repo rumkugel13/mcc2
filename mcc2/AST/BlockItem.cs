@@ -1,6 +1,6 @@
 namespace mcc2.AST;
 
-public abstract class BlockItem
+public abstract record BlockItem
 {
-    
+    protected BlockItem() { }
 }

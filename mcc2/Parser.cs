@@ -27,7 +27,7 @@ public class Parser
     private ASTProgram ParseProgram(List<Token> tokens)
     {
         List<Declaration> declarations = [];
-        while (tokenPos < tokens.Count && 
+        while (tokenPos < tokens.Count &&
             (Peek(tokens).Type == Lexer.TokenType.IntKeyword ||
             Peek(tokens).Type == Lexer.TokenType.StaticKeyword ||
             Peek(tokens).Type == Lexer.TokenType.ExternKeyword))
@@ -38,7 +38,7 @@ public class Parser
         return new ASTProgram(declarations);
     }
 
-    private FunctionDeclaration ParseFunctionDeclaration(List<Token> tokens, Declaration.StorageClasses? storageClass)
+    private Declaration.FunctionDeclaration ParseFunctionDeclaration(List<Token> tokens, Declaration.StorageClasses? storageClass)
     {
         var id = Expect(Lexer.TokenType.Identifier, tokens);
         Expect(Lexer.TokenType.OpenParenthesis, tokens);
@@ -68,7 +68,7 @@ public class Parser
             body = ParseBlock(tokens);
         else
             Expect(Lexer.TokenType.Semicolon, tokens);
-        return new FunctionDeclaration(GetIdentifier(id, this.source), parameters, body, storageClass);
+        return new Declaration.FunctionDeclaration(GetIdentifier(id, this.source), parameters, body, storageClass);
     }
 
     private List<Token> ParseSpecifiers(List<Token> tokens)
@@ -100,7 +100,7 @@ public class Parser
 
         if (types.Count != 1)
             throw new Exception($"Parsing Error: Invalid type specifier");
-        
+
         if (storageClasses.Count > 1)
             throw new Exception($"Parsing Error: Invalid storage class count");
 
@@ -168,7 +168,7 @@ public class Parser
         }
     }
 
-    private VariableDeclaration ParseVariableDeclaration(List<Token> tokens, Declaration.StorageClasses? storageClass)
+    private Declaration.VariableDeclaration ParseVariableDeclaration(List<Token> tokens, Declaration.StorageClasses? storageClass)
     {
         var id = Expect(Lexer.TokenType.Identifier, tokens);
         Expression? expression = null;
@@ -181,7 +181,7 @@ public class Parser
         }
 
         Expect(Lexer.TokenType.Semicolon, tokens);
-        return new VariableDeclaration(GetIdentifier(id, this.source), expression, storageClass);
+        return new Declaration.VariableDeclaration(GetIdentifier(id, this.source), expression, storageClass);
     }
 
     private Statement ParseStatement(List<Token> tokens)
@@ -195,12 +195,12 @@ public class Parser
                     TakeToken(tokens);
                     var exp = ParseExpression(tokens);
                     Expect(Lexer.TokenType.Semicolon, tokens);
-                    return new ReturnStatement(exp);
+                    return new Statement.ReturnStatement(exp);
                 }
 
             case Lexer.TokenType.Semicolon:
                 TakeToken(tokens);
-                return new NullStatement();
+                return new Statement.NullStatement();
             case Lexer.TokenType.IfKeyword:
                 {
                     TakeToken(tokens);
@@ -216,23 +216,23 @@ public class Parser
                         TakeToken(tokens);
                         elseStatement = ParseStatement(tokens);
                     }
-                    return new IfStatement(cond, thenStatement, elseStatement);
+                    return new Statement.IfStatement(cond, thenStatement, elseStatement);
                 }
 
             case Lexer.TokenType.OpenBrace:
                 {
                     var block = ParseBlock(tokens);
-                    return new CompoundStatement(block);
+                    return new Statement.CompoundStatement(block);
                 }
 
             case Lexer.TokenType.BreakKeyword:
                 TakeToken(tokens);
                 Expect(Lexer.TokenType.Semicolon, tokens);
-                return new BreakStatement();
+                return new Statement.BreakStatement(null);
             case Lexer.TokenType.ContinueKeyword:
                 TakeToken(tokens);
                 Expect(Lexer.TokenType.Semicolon, tokens);
-                return new ContinueStatement();
+                return new Statement.ContinueStatement(null);
             case Lexer.TokenType.WhileKeyword:
                 {
                     TakeToken(tokens);
@@ -240,7 +240,7 @@ public class Parser
                     var cond = ParseExpression(tokens);
                     Expect(Lexer.TokenType.CloseParenthesis, tokens);
                     var body = ParseStatement(tokens);
-                    return new WhileStatement(cond, body);
+                    return new Statement.WhileStatement(cond, body, null);
                 }
             case Lexer.TokenType.DoKeyword:
                 {
@@ -251,7 +251,7 @@ public class Parser
                     var cond = ParseExpression(tokens);
                     Expect(Lexer.TokenType.CloseParenthesis, tokens);
                     Expect(Lexer.TokenType.Semicolon, tokens);
-                    return new DoWhileStatement(body, cond);
+                    return new Statement.DoWhileStatement(body, cond, null);
                 }
             case Lexer.TokenType.ForKeyword:
                 {
@@ -261,14 +261,14 @@ public class Parser
                     var cond = ParseOptionalExpression(tokens, Lexer.TokenType.Semicolon);
                     var post = ParseOptionalExpression(tokens, Lexer.TokenType.CloseParenthesis);
                     var body = ParseStatement(tokens);
-                    return new ForStatement(init, cond, post, body);
+                    return new Statement.ForStatement(init, cond, post, body, null);
                 }
 
             default:
                 {
                     var exp = ParseExpression(tokens);
                     Expect(Lexer.TokenType.Semicolon, tokens);
-                    return new ExpressionStatement(exp);
+                    return new Statement.ExpressionStatement(exp);
                 }
         }
     }
@@ -281,13 +281,13 @@ public class Parser
             nextToken.Type == Lexer.TokenType.StaticKeyword ||
             nextToken.Type == Lexer.TokenType.ExternKeyword)
         {
-            var decl = (VariableDeclaration)ParseDeclaration(tokens);
-            return new InitDeclaration(decl);
+            var decl = (Declaration.VariableDeclaration)ParseDeclaration(tokens);
+            return new ForInit.InitDeclaration(decl);
         }
         else
         {
             var exp = ParseOptionalExpression(tokens, Lexer.TokenType.Semicolon);
-            return new InitExpression(exp);
+            return new ForInit.InitExpression(exp);
         }
     }
 
@@ -401,7 +401,7 @@ public class Parser
                         arguments.Add(ParseExpression(tokens));
                     }
                 }
-                
+
                 Expect(Lexer.TokenType.CloseParenthesis, tokens);
                 return new Expression.FunctionCallExpression(GetIdentifier(id, this.source), arguments);
             }

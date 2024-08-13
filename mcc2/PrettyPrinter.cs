@@ -22,16 +22,16 @@ public class PrettyPrinter
     {
         switch (declaration)
         {
-            case FunctionDeclaration functionDeclaration:
+            case Declaration.FunctionDeclaration functionDeclaration:
                 PrintFunctionDefinition(functionDeclaration, source, indent);
                 break;
-            case VariableDeclaration variableDeclaration:
+            case Declaration.VariableDeclaration variableDeclaration:
                 PrintBlockItem(variableDeclaration, source, indent);
                 break;
         }
     }
 
-    private void PrintFunctionDefinition(FunctionDeclaration functionDefinition, string source, int indent)
+    private void PrintFunctionDefinition(Declaration.FunctionDeclaration functionDefinition, string source, int indent)
     {
         PrintLine("Function(", indent++);
         PrintLine($"name=\"{functionDefinition.Identifier}\",", indent);
@@ -50,14 +50,14 @@ public class PrettyPrinter
             case Statement statement:
                 PrintStatement(statement, source, indent);
                 break;
-            case VariableDeclaration declaration:
+            case Declaration.VariableDeclaration declaration:
                 PrintLine($"Declare(", indent);
                 PrintLine($"name=\"{declaration.Identifier}\",", indent + 1);
                 if (declaration.Initializer != null)
                     PrintExpression(declaration.Initializer, source, indent + 1);
                 PrintLine(")", indent);
                 break;
-            case FunctionDeclaration fun:
+            case Declaration.FunctionDeclaration fun:
                 PrintFunctionDefinition(fun, source, indent);
                 break;
         }
@@ -67,12 +67,12 @@ public class PrettyPrinter
     {
         switch (statement)
         {
-            case ReturnStatement ret:
+            case Statement.ReturnStatement ret:
                 PrintLine($"Return(", indent);
                 PrintExpression(ret.Expression, source, indent + 1);
                 PrintLine(")", indent);
                 break;
-            case IfStatement ifStatement:
+            case Statement.IfStatement ifStatement:
                 PrintLine($"If(", indent);
                 PrintExpression(ifStatement.Condition, source, indent + 1);
                 PrintLine($"Then(", indent + 1);
@@ -86,14 +86,14 @@ public class PrettyPrinter
                 }
                 PrintLine(")", indent);
                 break;
-            case CompoundStatement compoundStatement:
+            case Statement.CompoundStatement compoundStatement:
                 foreach (var item in compoundStatement.Block.BlockItems)
                     PrintBlockItem(item, source, indent + 1);
                 break;
-            case ExpressionStatement expressionStatement:
+            case Statement.ExpressionStatement expressionStatement:
                 PrintExpression(expressionStatement.Expression, source, indent);
                 break;
-            case WhileStatement whileStatement:
+            case Statement.WhileStatement whileStatement:
                 PrintLine($"While(", indent);
                 PrintLine("condition=", indent + 1);
                 PrintExpression(whileStatement.Condition, source, indent + 2);
@@ -103,7 +103,7 @@ public class PrettyPrinter
                 PrintLine(")", indent + 1);
                 PrintLine(")", indent);
                 break;
-            case DoWhileStatement doWhileStatement:
+            case Statement.DoWhileStatement doWhileStatement:
                 PrintLine($"DoWhile(", indent);
                 PrintLine("body=", indent + 1);
                 PrintStatement(doWhileStatement.Body, source, indent + 2);
@@ -113,12 +113,12 @@ public class PrettyPrinter
                 PrintLine(")", indent + 1);
                 PrintLine(")", indent);
                 break;
-            case ForStatement forStatement:
+            case Statement.ForStatement forStatement:
                 PrintLine($"For(", indent);
                 PrintLine("init=", indent + 1);
-                if (forStatement.Init is InitDeclaration initDeclaration)
+                if (forStatement.Init is ForInit.InitDeclaration initDeclaration)
                     PrintDeclaration(initDeclaration.Declaration, source, indent + 2);
-                else if (forStatement.Init is InitExpression initExpression && initExpression.Expression != null)
+                else if (forStatement.Init is ForInit.InitExpression initExpression && initExpression.Expression != null)
                     PrintExpression(initExpression.Expression, source, indent + 2);
                 PrintLine(")", indent + 1);
                 PrintLine("condition=", indent + 1);
@@ -136,10 +136,10 @@ public class PrettyPrinter
                 PrintLine(")", indent + 1);
                 PrintLine(")", indent);
                 break;
-            case ContinueStatement continueStatement:
+            case Statement.ContinueStatement continueStatement:
                 PrintLine($"Continue()", indent);
                 break;
-            case BreakStatement breakStatement:
+            case Statement.BreakStatement breakStatement:
                 PrintLine($"Break()", indent);
                 break;
         }
