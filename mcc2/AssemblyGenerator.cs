@@ -20,9 +20,9 @@ public class AssemblyGenerator
     {
         List<TopLevel> functionDefinitions = [];
         foreach (var def in program.Definitions)
-            if (def is TAC.Function fun)
+            if (def is TAC.TopLevel.Function fun)
                 functionDefinitions.Add(GenerateFunction(fun));
-            else if (def is TAC.StaticVariable staticVariable)
+            else if (def is TAC.TopLevel.StaticVariable staticVariable)
                 functionDefinitions.Add(new StaticVariable(staticVariable.Identifier, staticVariable.Global, staticVariable.Init));
         return new AssemblyProgram(functionDefinitions);
     }
@@ -36,7 +36,7 @@ public class AssemblyGenerator
         Reg.RegisterName.R9,
     ];
 
-    private Function GenerateFunction(TAC.Function function)
+    private Function GenerateFunction(TAC.TopLevel.Function function)
     {
         List<Instruction> instructions = [];
 
@@ -79,11 +79,11 @@ public class AssemblyGenerator
         {
             switch (inst)
             {
-                case TAC.Return ret:
+                case TAC.Instruction.Return ret:
                     instructions.Add(new Mov(GenerateOperand(ret.Value), new Reg(Reg.RegisterName.AX)));
                     instructions.Add(new Ret());
                     break;
-                case TAC.Unary unary:
+                case TAC.Instruction.Unary unary:
                     if (unary.UnaryOperator == AST.UnaryExpression.UnaryOperator.Not)
                     {
                         instructions.Add(new Cmp(new Imm(0), GenerateOperand(unary.src)));
@@ -96,7 +96,7 @@ public class AssemblyGenerator
                         instructions.Add(new Unary(ConvertUnary(unary.UnaryOperator), GenerateOperand(unary.dst)));
                     }
                     break;
-                case TAC.Binary binary:
+                case TAC.Instruction.Binary binary:
                     if (binary.Operator == AST.BinaryExpression.BinaryOperator.Divide ||
                         binary.Operator == AST.BinaryExpression.BinaryOperator.Remainder)
                     {
@@ -125,24 +125,24 @@ public class AssemblyGenerator
                         instructions.Add(new Binary(ConvertBinary(binary.Operator), GenerateOperand(binary.Src2), GenerateOperand(binary.Dst)));
                     }
                     break;
-                case TAC.Jump jump:
-                    instructions.Add(new Jmp(jump.Identifier));
+                case TAC.Instruction.Jump jump:
+                    instructions.Add(new Jmp(jump.Target));
                     break;
-                case TAC.JumpIfZero jumpZ:
+                case TAC.Instruction.JumpIfZero jumpZ:
                     instructions.Add(new Cmp(new Imm(0), GenerateOperand(jumpZ.Condition)));
                     instructions.Add(new JmpCC(JmpCC.ConditionCode.E, jumpZ.Target));
                     break;
-                case TAC.JumpIfNotZero jumpZ:
+                case TAC.Instruction.JumpIfNotZero jumpZ:
                     instructions.Add(new Cmp(new Imm(0), GenerateOperand(jumpZ.Condition)));
                     instructions.Add(new JmpCC(JmpCC.ConditionCode.NE, jumpZ.Target));
                     break;
-                case TAC.Copy copy:
+                case TAC.Instruction.Copy copy:
                     instructions.Add(new Mov(GenerateOperand(copy.Src), GenerateOperand(copy.Dst)));
                     break;
-                case TAC.Label label:
+                case TAC.Instruction.Label label:
                     instructions.Add(new Label(label.Identifier));
                     break;
-                case TAC.FunctionCall functionCall:
+                case TAC.Instruction.FunctionCall functionCall:
                     {
                         var registerArgs = functionCall.Arguments[0..Math.Min(functionCall.Arguments.Count, ABIRegisters.Length)];
                         var stackArgs = functionCall.Arguments[registerArgs.Count..];
@@ -197,8 +197,8 @@ public class AssemblyGenerator
     {
         return val switch
         {
-            TAC.Constant c => new Imm(c.Value),
-            TAC.Variable v => new Pseudo(v.Name),
+            TAC.Val.Constant c => new Imm(c.Value),
+            TAC.Val.Variable v => new Pseudo(v.Name),
             _ => throw new NotImplementedException(),
         };
     }
