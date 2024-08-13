@@ -1,4 +1,4 @@
-namespace mcc2.Attributes;
+namespace mcc2;
 
 public abstract record InitialValue
 {

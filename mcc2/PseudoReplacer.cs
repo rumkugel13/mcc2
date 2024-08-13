@@ -1,5 +1,4 @@
 using mcc2.Assembly;
-using mcc2.Attributes;
 
 namespace mcc2;
 
@@ -86,7 +85,7 @@ public class PseudoReplacer
         }
 
         if (symbolTable.TryGetValue(name, out SemanticAnalyzer.SymbolEntry symbolEntry) &&
-            symbolEntry.IdentifierAttributes is IdentifierAttributes.StaticAttributes)
+            symbolEntry.IdentifierAttributes is IdentifierAttributes.Static)
         { 
             return new Data(name); 
         }

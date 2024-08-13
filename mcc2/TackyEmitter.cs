@@ -1,7 +1,6 @@
 namespace mcc2;
 
 using mcc2.AST;
-using mcc2.Attributes;
 using mcc2.TAC;
 
 public class TackyEmitter
@@ -29,7 +28,7 @@ public class TackyEmitter
         {
             switch (entry.Value.IdentifierAttributes)
             {
-                case IdentifierAttributes.StaticAttributes stat:
+                case IdentifierAttributes.Static stat:
                     switch (stat.InitialValue)
                     {
                         case InitialValue.Initial init:
@@ -68,7 +67,7 @@ public class TackyEmitter
             instructions.Add(new Return(new Constant(0)));
         }
         return new Function(functionDefinition.Identifier,
-            ((IdentifierAttributes.FunctionAttributes)symbolTable[functionDefinition.Identifier].IdentifierAttributes).Global,
+            ((IdentifierAttributes.Function)symbolTable[functionDefinition.Identifier].IdentifierAttributes).Global,
             functionDefinition.Parameters, instructions);
     }
 
