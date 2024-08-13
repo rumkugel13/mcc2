@@ -8,8 +8,8 @@ public abstract record Declaration : BlockItem
         Extern,
     }
 
-    public record FunctionDeclaration(string Identifier, List<string> Parameters, Block? Body, StorageClasses? StorageClass) : Declaration;
-    public record VariableDeclaration(string Identifier, Expression? Initializer, StorageClasses? StorageClass) : Declaration;
+    public record FunctionDeclaration(string Identifier, List<string> Parameters, Block? Body, Type FunctionType, StorageClasses? StorageClass) : Declaration;
+    public record VariableDeclaration(string Identifier, Expression? Initializer, Type VariableType, StorageClasses? StorageClass) : Declaration;
 
     private Declaration() { }
 }

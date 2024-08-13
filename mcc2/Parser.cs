@@ -29,6 +29,7 @@ public class Parser
         List<Declaration> declarations = [];
         while (tokenPos < tokens.Count &&
             (Peek(tokens).Type == Lexer.TokenType.IntKeyword ||
+            Peek(tokens).Type == Lexer.TokenType.LongKeyword ||
             Peek(tokens).Type == Lexer.TokenType.StaticKeyword ||
             Peek(tokens).Type == Lexer.TokenType.ExternKeyword))
         {
@@ -38,28 +39,24 @@ public class Parser
         return new ASTProgram(declarations);
     }
 
-    private Declaration.FunctionDeclaration ParseFunctionDeclaration(List<Token> tokens, Declaration.StorageClasses? storageClass)
+    private Declaration.FunctionDeclaration ParseFunctionDeclaration(List<Token> tokens, Type type, Declaration.StorageClasses? storageClass)
     {
         var id = Expect(Lexer.TokenType.Identifier, tokens);
         Expect(Lexer.TokenType.OpenParenthesis, tokens);
 
+        var returnType = type;
         List<string> parameters = [];
+        List<Type> parameterTypes = [];
+
         var nextToken = Peek(tokens);
-        if (nextToken.Type == Lexer.TokenType.IntKeyword)
+        if (nextToken.Type == Lexer.TokenType.VoidKeyword)
         {
             TakeToken(tokens);
-            var paramId = Expect(Lexer.TokenType.Identifier, tokens);
-            parameters.Add(GetIdentifier(paramId, source));
-            while (Peek(tokens).Type == Lexer.TokenType.Comma)
-            {
-                TakeToken(tokens);
-                Expect(Lexer.TokenType.IntKeyword, tokens);
-                paramId = Expect(Lexer.TokenType.Identifier, tokens);
-                parameters.Add(GetIdentifier(paramId, source));
-            }
         }
         else
-            Expect(Lexer.TokenType.VoidKeyword, tokens);
+        {
+            ParseParameterList(tokens, parameters, parameterTypes);
+        }
 
         Expect(Lexer.TokenType.CloseParenthesis, tokens);
 
@@ -68,7 +65,24 @@ public class Parser
             body = ParseBlock(tokens);
         else
             Expect(Lexer.TokenType.Semicolon, tokens);
-        return new Declaration.FunctionDeclaration(GetIdentifier(id, this.source), parameters, body, storageClass);
+        return new Declaration.FunctionDeclaration(GetIdentifier(id, this.source), parameters, body, new Type.FunctionType(parameterTypes , type), storageClass);
+    }
+
+    private void ParseParameterList(List<Token> tokens, List<string> parameterNames, List<Type> parameterTypes)
+    {
+        var type = ParseType(ParseTypeSpecifiers(tokens));
+        var paramId = Expect(Lexer.TokenType.Identifier, tokens);
+        parameterNames.Add(GetIdentifier(paramId, source));
+        parameterTypes.Add(type);
+
+        while (Peek(tokens).Type == Lexer.TokenType.Comma)
+        {
+            TakeToken(tokens);
+            type = ParseType(ParseTypeSpecifiers(tokens));
+            paramId = Expect(Lexer.TokenType.Identifier, tokens);
+            parameterNames.Add(GetIdentifier(paramId, source));
+            parameterTypes.Add(type);
+        }
     }
 
     private List<Token> ParseSpecifiers(List<Token> tokens)
@@ -76,6 +90,7 @@ public class Parser
         List<Token> specifiers = [];
         var nextToken = Peek(tokens);
         while (nextToken.Type == Lexer.TokenType.IntKeyword ||
+            nextToken.Type == Lexer.TokenType.LongKeyword ||
             nextToken.Type == Lexer.TokenType.StaticKeyword ||
             nextToken.Type == Lexer.TokenType.ExternKeyword)
         {
@@ -86,26 +101,49 @@ public class Parser
         return specifiers;
     }
 
-    private void ParseTypeAndStorageClass(List<Token> specifiers, out Token type, out Declaration.StorageClasses? storageClass)
+    private List<Token> ParseTypeSpecifiers(List<Token> tokens)
+    {
+        List<Token> specifiers = [];
+        var nextToken = Peek(tokens);
+        while (nextToken.Type == Lexer.TokenType.IntKeyword ||
+            nextToken.Type == Lexer.TokenType.LongKeyword)
+        {
+            specifiers.Add(TakeToken(tokens));
+            nextToken = Peek(tokens);
+        }
+
+        return specifiers;
+    }
+
+    private Type ParseType(List<Token> types)
+    {
+        if (types.Count == 1 && types[0].Type == Lexer.TokenType.IntKeyword)
+            return new Type.Int();
+        if (types.Count == 1 && types[0].Type == Lexer.TokenType.LongKeyword ||
+            types.Count == 2 && types[0].Type == Lexer.TokenType.LongKeyword && types[1].Type == Lexer.TokenType.IntKeyword ||
+            types.Count == 2 && types[0].Type == Lexer.TokenType.IntKeyword && types[1].Type == Lexer.TokenType.LongKeyword)
+            return new Type.Long();
+
+        throw new Exception($"Parsing Error: Invalid type specifier");
+    }
+
+    private void ParseTypeAndStorageClass(List<Token> specifiers, out Type type, out Declaration.StorageClasses? storageClass)
     {
         List<Token> types = [];
         List<Token> storageClasses = [];
         foreach (var specifier in specifiers)
         {
-            if (specifier.Type == Lexer.TokenType.IntKeyword)
+            if (specifier.Type == Lexer.TokenType.IntKeyword ||
+                specifier.Type == Lexer.TokenType.LongKeyword)
                 types.Add(specifier);
             else
                 storageClasses.Add(specifier);
         }
 
-        if (types.Count != 1)
-            throw new Exception($"Parsing Error: Invalid type specifier");
+        type = ParseType(types);
 
         if (storageClasses.Count > 1)
             throw new Exception($"Parsing Error: Invalid storage class count");
-
-        type = types[0];    // int for now
-
         if (storageClasses.Count == 1)
             storageClass = ParseStorageClass(storageClasses[0]);
         else
@@ -127,17 +165,16 @@ public class Parser
     private Declaration ParseDeclaration(List<Token> tokens)
     {
         var specifiers = ParseSpecifiers(tokens);
-        // note: we dont use the type parameter yet
-        ParseTypeAndStorageClass(specifiers, out Token _, out Declaration.StorageClasses? storageClass);
+        ParseTypeAndStorageClass(specifiers, out Type type, out Declaration.StorageClasses? storageClass);
 
         // 0 ahead = last specifier, 1 ahead is openParen or not
         if (PeekAhead(tokens, 1).Type == Lexer.TokenType.OpenParenthesis)
         {
-            return ParseFunctionDeclaration(tokens, storageClass);
+            return ParseFunctionDeclaration(tokens, type, storageClass);
         }
         else
         {
-            return ParseVariableDeclaration(tokens, storageClass);
+            return ParseVariableDeclaration(tokens, type, storageClass);
         }
     }
 
@@ -157,6 +194,7 @@ public class Parser
     {
         var nextToken = Peek(tokens);
         if (nextToken.Type == Lexer.TokenType.IntKeyword ||
+            nextToken.Type == Lexer.TokenType.LongKeyword ||
             nextToken.Type == Lexer.TokenType.StaticKeyword ||
             nextToken.Type == Lexer.TokenType.ExternKeyword)
         {
@@ -168,7 +206,7 @@ public class Parser
         }
     }
 
-    private Declaration.VariableDeclaration ParseVariableDeclaration(List<Token> tokens, Declaration.StorageClasses? storageClass)
+    private Declaration.VariableDeclaration ParseVariableDeclaration(List<Token> tokens, Type type, Declaration.StorageClasses? storageClass)
     {
         var id = Expect(Lexer.TokenType.Identifier, tokens);
         Expression? expression = null;
@@ -181,7 +219,7 @@ public class Parser
         }
 
         Expect(Lexer.TokenType.Semicolon, tokens);
-        return new Declaration.VariableDeclaration(GetIdentifier(id, this.source), expression, storageClass);
+        return new Declaration.VariableDeclaration(GetIdentifier(id, this.source), expression, type, storageClass);
     }
 
     private Statement ParseStatement(List<Token> tokens)
@@ -278,6 +316,7 @@ public class Parser
         var nextToken = Peek(tokens);
 
         if (nextToken.Type == Lexer.TokenType.IntKeyword ||
+            nextToken.Type == Lexer.TokenType.LongKeyword ||
             nextToken.Type == Lexer.TokenType.StaticKeyword ||
             nextToken.Type == Lexer.TokenType.ExternKeyword)
         {
@@ -365,7 +404,7 @@ public class Parser
     {
         var nextToken = Peek(tokens);
 
-        if (nextToken.Type == Lexer.TokenType.Constant)
+        if (nextToken.Type == Lexer.TokenType.Constant || nextToken.Type == Lexer.TokenType.LongConstant)
         {
             var constant = TakeToken(tokens);
             return new Expression.ConstantExpression(GetConstant(constant, this.source));
@@ -379,9 +418,22 @@ public class Parser
         else if (nextToken.Type == Lexer.TokenType.OpenParenthesis)
         {
             TakeToken(tokens);
-            var innerExpression = ParseExpression(tokens);
-            Expect(Lexer.TokenType.CloseParenthesis, tokens);
-            return innerExpression;
+
+            nextToken = Peek(tokens);
+            if (nextToken.Type == Lexer.TokenType.IntKeyword ||
+                nextToken.Type == Lexer.TokenType.LongKeyword)
+            {
+                var type = ParseType(ParseTypeSpecifiers(tokens));
+                Expect(Lexer.TokenType.CloseParenthesis, tokens);
+                var factor = ParseFactor(tokens);
+                return new Expression.CastExpression(type, factor);
+            }
+            else
+            {
+                var innerExpression = ParseExpression(tokens);
+                Expect(Lexer.TokenType.CloseParenthesis, tokens);
+                return innerExpression;
+            }
         }
         else if (nextToken.Type == Lexer.TokenType.Identifier)
         {
@@ -481,7 +533,7 @@ public class Parser
         return tokens[tokenPos++];
     }
 
-    private string GetIdentifier(Lexer.Token token, string source)
+    private string GetIdentifier(Token token, string source)
     {
         Regex regex = new($"\\G[a-zA-Z_]\\w*\\b");
         Match match = regex.Match(source, token.Position);
@@ -489,11 +541,31 @@ public class Parser
         return match.Value;
     }
 
-    private int GetConstant(Lexer.Token token, string source)
+    private Const GetConstant(Token token, string source)
     {
-        Regex regex = new($"\\G[0-9]+\\b");
-        Match match = regex.Match(source, token.Position);
-        Debug.Assert(match.Success, "There should be a Constant");
-        return int.Parse(match.Value);
+        System.Numerics.BigInteger value;
+        if (token.Type == Lexer.TokenType.Constant)
+        {
+            Regex regex = new($"\\G[0-9]+\\b");
+            Match match = regex.Match(source, token.Position);
+            Debug.Assert(match.Success, "There should be an Int Constant");
+            value = System.Numerics.BigInteger.Parse(match.Value);
+        }
+        else
+        {
+            Regex regex = new($"\\G[0-9]+[lL]\\b");
+            Match match = regex.Match(source, token.Position);
+            Debug.Assert(match.Success, "There should be a Long Constant");
+            // note: this does not parse the l suffix, so we remove it
+            value = System.Numerics.BigInteger.Parse(match.Value[0..^1]);
+        }
+
+        if (value > long.MaxValue)
+            throw new Exception("Parsing Error: Constant is too large to represent as an int or long");
+
+        if (token.Type == Lexer.TokenType.Constant && value <= int.MaxValue)
+            return new Const.ConstInt((int)value);
+
+        return new Const.ConstLong((long)value);
     }
 }

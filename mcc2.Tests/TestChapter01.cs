@@ -49,7 +49,7 @@ public class TestChapter01
         Assert.IsInstanceOfType(((Declaration.FunctionDeclaration)ast.Declarations[0]).Body, typeof(Statement.ReturnStatement), "Expected ReturnStatement type");
         Assert.IsNotNull(((Statement.ReturnStatement)((Declaration.FunctionDeclaration)ast.Declarations[0]).Body.BlockItems[0]).Expression, "Invalid Expression");
         Assert.IsInstanceOfType(((Statement.ReturnStatement)((Declaration.FunctionDeclaration)ast.Declarations[0]).Body.BlockItems[0]).Expression, typeof(Expression.ConstantExpression), "Expected ConstantExpression type");
-        Assert.AreEqual(((Expression.ConstantExpression)((Statement.ReturnStatement)((Declaration.FunctionDeclaration)ast.Declarations[0]).Body.BlockItems[0]).Expression).Value, 2, "Invalid Constant");
+        Assert.AreEqual(((Const.ConstInt)((Expression.ConstantExpression)((Statement.ReturnStatement)((Declaration.FunctionDeclaration)ast.Declarations[0]).Body.BlockItems[0]).Expression).Value).Value, 2, "Invalid Constant");
     }
 
     [TestMethod]

@@ -23,6 +23,7 @@ public class LoopLabeler
             return new Declaration.FunctionDeclaration(functionDeclaration.Identifier,
                 functionDeclaration.Parameters,
                 LabelBlock(functionDeclaration.Body, null),
+                functionDeclaration.FunctionType,
                 functionDeclaration.StorageClass);
         }
 

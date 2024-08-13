@@ -18,7 +18,7 @@ public class TypeChecker
 
     private void TypeCheckFunctionDeclaration(Declaration.FunctionDeclaration functionDeclaration, Dictionary<string, SymbolEntry> symbolTable)
     {
-        Type.FunctionType funType = new Type.FunctionType(functionDeclaration.Parameters.Count);
+        Type.FunctionType funType = (Type.FunctionType)functionDeclaration.FunctionType;
         bool hasBody = functionDeclaration.Body != null;
         bool alreadyDefined = false;
         bool global = functionDeclaration.StorageClass != Declaration.StorageClasses.Static;
@@ -27,7 +27,7 @@ public class TypeChecker
         {
             var attributes = (IdentifierAttributes.Function)prevEntry.IdentifierAttributes;
             // note: check correct type and number of parameters
-            if (prevEntry.Type is not Type.FunctionType funcA || funcA.ParameterCount != funType.ParameterCount)
+            if (prevEntry.Type is not Type.FunctionType funcA || funcA.Parameters.Count != funType.Parameters.Count)
                 throw new Exception("Type Error: Incompatible function declarations");
 
             alreadyDefined = attributes.Defined;
@@ -76,7 +76,7 @@ public class TypeChecker
     {
         InitialValue initialValue;
         if (variableDeclaration.Initializer is Expression.ConstantExpression constant)
-            initialValue = new InitialValue.Initial(constant.Value);
+            initialValue = new InitialValue.Initial(((Const.ConstInt)constant.Value).Value);
         else if (variableDeclaration.Initializer == null)
         {
             if (variableDeclaration.StorageClass == Declaration.StorageClasses.Extern)
@@ -129,7 +129,7 @@ public class TypeChecker
         {
             InitialValue initialValue;
             if (variableDeclaration.Initializer is Expression.ConstantExpression constant)
-                initialValue = new InitialValue.Initial(constant.Value);
+                initialValue = new InitialValue.Initial(((Const.ConstInt)constant.Value).Value);
             else if (variableDeclaration.Initializer == null)
                 initialValue = new InitialValue.Initial(0);
             else
@@ -175,7 +175,7 @@ public class TypeChecker
                 if (funType is Type.Int)
                     throw new Exception("Type Error: Variable used as function name");
 
-                if (funType is Type.FunctionType functionType && functionType.ParameterCount != functionCallExpression.Arguments.Count)
+                if (funType is Type.FunctionType functionType && functionType.Parameters.Count != functionCallExpression.Arguments.Count)
                     throw new Exception("Type Error: Function called with the wrong number of arguments");
 
                 foreach (var arg in functionCallExpression.Arguments)

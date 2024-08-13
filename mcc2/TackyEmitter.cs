@@ -190,7 +190,7 @@ public class TackyEmitter
         switch (expression)
         {
             case Expression.ConstantExpression constant:
-                return new Val.Constant(constant.Value);
+                return new Val.Constant(((Const.ConstInt)constant.Value).Value);
             case Expression.UnaryExpression unary:
                 {
                     var src = EmitInstruction(unary.Expression, instructions);

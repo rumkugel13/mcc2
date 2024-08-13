@@ -11,7 +11,7 @@
             "preLaunchTask": "dotnet: build",
             "program": "${workspaceFolder}/mcc2/bin/Debug/net8.0/mcc2",
             "args": [
-                "-S", "--pretty", "mcc2.Tests/Source/distinct_local_and_extern.c"
+                "--parse", "--pretty", "mcc2.Tests/Source/assign.c"
             ],
             "cwd": "${workspaceFolder}",
             "stopAtEntry": false,

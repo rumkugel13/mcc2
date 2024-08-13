@@ -42,7 +42,7 @@ public class IdentifierResolver
         {
             newBody = ResolveBlock(functionDeclaration.Body, innerMap);
         }
-        return new Declaration.FunctionDeclaration(functionDeclaration.Identifier, newParams, newBody, functionDeclaration.StorageClass);
+        return new Declaration.FunctionDeclaration(functionDeclaration.Identifier, newParams, newBody, functionDeclaration.FunctionType, functionDeclaration.StorageClass);
     }
 
     private string ResolveParameter(string parameter, Dictionary<string, MapEntry> identifierMap)
@@ -233,7 +233,7 @@ public class IdentifierResolver
         var init = declaration.Initializer;
         if (init != null)
             init = ResolveExpression(init, identifierMap);
-        return new Declaration.VariableDeclaration(uniqueName, init, declaration.StorageClass);
+        return new Declaration.VariableDeclaration(uniqueName, init, declaration.VariableType, declaration.StorageClass);
     }
 
     private Dictionary<string, MapEntry> CopyIdentifierMap(Dictionary<string, MapEntry> identifierMap)
