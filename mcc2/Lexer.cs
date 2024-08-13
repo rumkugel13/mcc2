@@ -100,11 +100,14 @@ namespace mcc2
         {
             List<Token> tokens = [];
             int pos = 0;
+            int line = 0;
 
             while (pos < source.Length)
             {
                 if (char.IsWhiteSpace(source[pos]))
                 {
+                    if (source[pos] == '\n')
+                        line++;
                     pos++;
                     continue;
                 }
@@ -129,7 +132,7 @@ namespace mcc2
 
                 if (longest == 0)
                 {
-                    throw new Exception($"Lexing Error: Invalid Token: {source[pos]}");
+                    throw new Exception($"Lexing Error: Invalid Token: {source[pos]} at line {line}");
                 }
 
                 tokens.Add(new Token() { Type = (TokenType)longestPattern, Position = pos });
