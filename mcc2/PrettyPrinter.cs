@@ -74,7 +74,8 @@ public class PrettyPrinter
                 break;
             case Statement.IfStatement ifStatement:
                 PrintLine($"If(", indent);
-                PrintExpression(ifStatement.Condition, source, indent + 1);
+                PrintLine("condition=", indent + 1);
+                PrintExpression(ifStatement.Condition, source, indent + 2);
                 PrintLine($"Then(", indent + 1);
                 PrintStatement(ifStatement.Then, source, indent + 2);
                 PrintLine(")", indent + 1);
@@ -87,8 +88,10 @@ public class PrettyPrinter
                 PrintLine(")", indent);
                 break;
             case Statement.CompoundStatement compoundStatement:
+                PrintLine($"Compund(", indent);
                 foreach (var item in compoundStatement.Block.BlockItems)
                     PrintBlockItem(item, source, indent + 1);
+                PrintLine(")", indent);
                 break;
             case Statement.ExpressionStatement expressionStatement:
                 PrintExpression(expressionStatement.Expression, source, indent);
@@ -150,7 +153,9 @@ public class PrettyPrinter
         switch (expression)
         {
             case Expression.ConstantExpression c:
-                PrintLine($"Constant({c.Value})", indent);
+                PrintLine($"Constant(", indent);
+                PrintLine($"value=\"{c.Value}\"", indent + 1);
+                PrintLine(")", indent);
                 break;
             case Expression.UnaryExpression unaryExpression:
                 PrintLine($"Unary(", indent);
@@ -159,16 +164,16 @@ public class PrettyPrinter
                 PrintLine($")", indent + 1);
                 break;
             case Expression.BinaryExpression binaryExpression:
-                PrintLine($"Unary(", indent);
+                PrintLine($"Binary(", indent);
                 PrintExpression(binaryExpression.ExpressionLeft, source, indent + 2);
-                PrintLine($"{binaryExpression.Operator}(", indent + 1);
+                PrintLine($"operator=\"{binaryExpression.Operator}\"", indent + 1);
                 PrintExpression(binaryExpression.ExpressionRight, source, indent + 2);
                 PrintLine($")", indent + 1);
                 PrintLine(")", indent);
                 break;
             case Expression.VariableExpression variableExpression:
                 PrintLine($"Var(", indent);
-                PrintLine($"name=\"{variableExpression.Identifier}\",", indent + 1);
+                PrintLine($"name=\"{variableExpression.Identifier}\"", indent + 1);
                 PrintLine(")", indent);
                 break;
             case Expression.AssignmentExpression assignmentExpression:
@@ -202,6 +207,12 @@ public class PrettyPrinter
                     PrintExpression(arg, source, indent + 2);
                 }
                 PrintLine(")", indent + 1);
+                PrintLine(")", indent);
+                break;
+            case Expression.CastExpression castExpression:
+                PrintLine($"Cast(", indent);
+                PrintLine($"target=\"{castExpression.TargetType}\"", indent + 1);
+                PrintExpression(castExpression.Expression, source, indent + 1);
                 PrintLine(")", indent);
                 break;
         }
