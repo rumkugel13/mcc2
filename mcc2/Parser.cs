@@ -373,19 +373,19 @@ public class Parser
             {
                 TakeToken(tokens);
                 var right = ParseExpression(tokens, precedence);
-                left = new Expression.AssignmentExpression(left, right, null);
+                left = new Expression.AssignmentExpression(left, right, Type.None);
             }
             else if (nextToken.Type == Lexer.TokenType.Question)
             {
                 var middle = ParseConditionalMiddle(tokens);
                 var right = ParseExpression(tokens, precedence);
-                left = new Expression.ConditionalExpression(left, middle, right, null);
+                left = new Expression.ConditionalExpression(left, middle, right, Type.None);
             }
             else
             {
                 var op = ParseBinaryOperator(nextToken, tokens);
                 var right = ParseExpression(tokens, precedence + 1);
-                left = new Expression.BinaryExpression(op, left, right, null);
+                left = new Expression.BinaryExpression(op, left, right, Type.None);
             }
             nextToken = Peek(tokens);
         }
@@ -407,13 +407,13 @@ public class Parser
         if (nextToken.Type == Lexer.TokenType.Constant || nextToken.Type == Lexer.TokenType.LongConstant)
         {
             var constant = TakeToken(tokens);
-            return new Expression.ConstantExpression(GetConstant(constant, this.source), null);
+            return new Expression.ConstantExpression(GetConstant(constant, this.source), Type.None);
         }
         else if (nextToken.Type == Lexer.TokenType.Hyphen || nextToken.Type == Lexer.TokenType.Tilde || nextToken.Type == Lexer.TokenType.Exclamation)
         {
             var op = ParseUnaryOperator(nextToken, tokens);
             var innerExpression = ParseFactor(tokens);
-            return new Expression.UnaryExpression(op, innerExpression, null);
+            return new Expression.UnaryExpression(op, innerExpression, Type.None);
         }
         else if (nextToken.Type == Lexer.TokenType.OpenParenthesis)
         {
@@ -426,7 +426,7 @@ public class Parser
                 var type = ParseType(ParseTypeSpecifiers(tokens));
                 Expect(Lexer.TokenType.CloseParenthesis, tokens);
                 var factor = ParseFactor(tokens);
-                return new Expression.CastExpression(type, factor, null);
+                return new Expression.CastExpression(type, factor, Type.None);
             }
             else
             {
@@ -455,10 +455,10 @@ public class Parser
                 }
 
                 Expect(Lexer.TokenType.CloseParenthesis, tokens);
-                return new Expression.FunctionCallExpression(GetIdentifier(id, this.source), arguments, null);
+                return new Expression.FunctionCallExpression(GetIdentifier(id, this.source), arguments, Type.None);
             }
 
-            return new Expression.VariableExpression(GetIdentifier(id, this.source), null);
+            return new Expression.VariableExpression(GetIdentifier(id, this.source), Type.None);
         }
         else
         {
