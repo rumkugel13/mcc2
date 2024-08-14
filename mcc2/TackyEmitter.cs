@@ -280,8 +280,7 @@ public class TackyEmitter
 
     private Val EmitShortCurcuit(Expression.BinaryExpression binary, List<Instruction> instructions)
     {
-        var dstName = MakeTemporary();
-        var dst = new Val.Variable(dstName);
+        var dst = MakeTackyVariable(binary.Type);
 
         if (binary.Operator == Expression.BinaryOperator.And)
         {
