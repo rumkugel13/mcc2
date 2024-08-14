@@ -115,7 +115,7 @@ public class PseudoReplacer
             return new Operand.Stack(val);
         }
 
-        if (AssemblyGenerator.AsmSymbolTable.TryGetValue(name, out AsmSymbolTableEntry asmSymbolTableEntry) && asmSymbolTableEntry is AsmSymbolTableEntry.ObjectEntry objEntry && objEntry.IsStatic)
+        if ((AsmSymbolTableEntry.ObjectEntry)AssemblyGenerator.AsmSymbolTable[name] is AsmSymbolTableEntry.ObjectEntry objEntry && objEntry.IsStatic)
         { 
             return new Operand.Data(name); 
         }
