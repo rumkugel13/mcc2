@@ -35,6 +35,12 @@ public class PrettyPrinter
     {
         PrintLine("Function(", indent++);
         PrintLine($"name=\"{functionDefinition.Identifier}\",", indent);
+        PrintLine($"parameters=(", indent);
+        foreach (var param in functionDefinition.Parameters)
+        {
+            PrintLine($"\"{param}\",", indent + 1);
+        }
+        PrintLine(")", indent);
         PrintLine($"body=(", indent);
         if (functionDefinition.Body != null)
             foreach (var item in functionDefinition.Body.BlockItems)
