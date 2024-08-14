@@ -27,11 +27,7 @@ public class Parser
     private ASTProgram ParseProgram(List<Token> tokens)
     {
         List<Declaration> declarations = [];
-        while (tokenPos < tokens.Count &&
-            (Peek(tokens).Type == Lexer.TokenType.IntKeyword ||
-            Peek(tokens).Type == Lexer.TokenType.LongKeyword ||
-            Peek(tokens).Type == Lexer.TokenType.StaticKeyword ||
-            Peek(tokens).Type == Lexer.TokenType.ExternKeyword))
+        while (tokenPos < tokens.Count && IsSpecifier(Peek(tokens)))
         {
             var fun = ParseDeclaration(tokens);
             declarations.Add(fun);
@@ -65,7 +61,7 @@ public class Parser
             body = ParseBlock(tokens);
         else
             Expect(Lexer.TokenType.Semicolon, tokens);
-        return new Declaration.FunctionDeclaration(GetIdentifier(id, this.source), parameters, body, new Type.FunctionType(parameterTypes , type), storageClass);
+        return new Declaration.FunctionDeclaration(GetIdentifier(id, this.source), parameters, body, new Type.FunctionType(parameterTypes, type), storageClass);
     }
 
     private void ParseParameterList(List<Token> tokens, List<string> parameterNames, List<Type> parameterTypes)
@@ -85,56 +81,56 @@ public class Parser
         }
     }
 
-    private List<Token> ParseSpecifiers(List<Token> tokens)
+    private List<Lexer.TokenType> ParseSpecifiers(List<Token> tokens)
     {
-        List<Token> specifiers = [];
+        List<Lexer.TokenType> specifiers = [];
         var nextToken = Peek(tokens);
-        while (nextToken.Type == Lexer.TokenType.IntKeyword ||
-            nextToken.Type == Lexer.TokenType.LongKeyword ||
-            nextToken.Type == Lexer.TokenType.StaticKeyword ||
-            nextToken.Type == Lexer.TokenType.ExternKeyword)
+        while (IsSpecifier(nextToken))
         {
-            specifiers.Add(TakeToken(tokens));
+            specifiers.Add(TakeToken(tokens).Type);
             nextToken = Peek(tokens);
         }
 
         return specifiers;
     }
 
-    private List<Token> ParseTypeSpecifiers(List<Token> tokens)
+    private List<Lexer.TokenType> ParseTypeSpecifiers(List<Token> tokens)
     {
-        List<Token> specifiers = [];
+        List<Lexer.TokenType> specifiers = [];
         var nextToken = Peek(tokens);
-        while (nextToken.Type == Lexer.TokenType.IntKeyword ||
-            nextToken.Type == Lexer.TokenType.LongKeyword)
+        while (IsTypeSpecifier(nextToken.Type))
         {
-            specifiers.Add(TakeToken(tokens));
+            specifiers.Add(TakeToken(tokens).Type);
             nextToken = Peek(tokens);
         }
 
         return specifiers;
     }
 
-    private Type ParseType(List<Token> types)
+    private Type ParseType(List<Lexer.TokenType> types)
     {
-        if (types.Count == 1 && types[0].Type == Lexer.TokenType.IntKeyword)
-            return new Type.Int();
-        if (types.Count == 1 && types[0].Type == Lexer.TokenType.LongKeyword ||
-            types.Count == 2 && types[0].Type == Lexer.TokenType.LongKeyword && types[1].Type == Lexer.TokenType.IntKeyword ||
-            types.Count == 2 && types[0].Type == Lexer.TokenType.IntKeyword && types[1].Type == Lexer.TokenType.LongKeyword)
+        if (types.Count == 0 ||
+            (new HashSet<Lexer.TokenType>(types).Count != types.Count) ||
+            (types.Contains(Lexer.TokenType.SignedKeyword) && types.Contains(Lexer.TokenType.UnsignedKeyword)))
+            throw new Exception($"Parsing Error: Invalid type specifier");
+
+        if (types.Contains(Lexer.TokenType.UnsignedKeyword) && types.Contains(Lexer.TokenType.LongKeyword))
+            return new Type.ULong();
+        if (types.Contains(Lexer.TokenType.LongKeyword))
             return new Type.Long();
+        if (types.Contains(Lexer.TokenType.UnsignedKeyword))
+            return new Type.UInt();
 
-        throw new Exception($"Parsing Error: Invalid type specifier");
+        return new Type.Int();
     }
 
-    private void ParseTypeAndStorageClass(List<Token> specifiers, out Type type, out Declaration.StorageClasses? storageClass)
+    private void ParseTypeAndStorageClass(List<Lexer.TokenType> specifiers, out Type type, out Declaration.StorageClasses? storageClass)
     {
-        List<Token> types = [];
-        List<Token> storageClasses = [];
+        List<Lexer.TokenType> types = [];
+        List<Lexer.TokenType> storageClasses = [];
         foreach (var specifier in specifiers)
         {
-            if (specifier.Type == Lexer.TokenType.IntKeyword ||
-                specifier.Type == Lexer.TokenType.LongKeyword)
+            if (IsTypeSpecifier(specifier))
                 types.Add(specifier);
             else
                 storageClasses.Add(specifier);
@@ -152,9 +148,9 @@ public class Parser
         return;
     }
 
-    private Declaration.StorageClasses ParseStorageClass(Token storageClass)
+    private Declaration.StorageClasses ParseStorageClass(Lexer.TokenType storageClass)
     {
-        return storageClass.Type switch
+        return storageClass switch
         {
             Lexer.TokenType.ExternKeyword => Declaration.StorageClasses.Extern,
             Lexer.TokenType.StaticKeyword => Declaration.StorageClasses.Static,
@@ -193,10 +189,7 @@ public class Parser
     private BlockItem ParseBlockItem(List<Token> tokens)
     {
         var nextToken = Peek(tokens);
-        if (nextToken.Type == Lexer.TokenType.IntKeyword ||
-            nextToken.Type == Lexer.TokenType.LongKeyword ||
-            nextToken.Type == Lexer.TokenType.StaticKeyword ||
-            nextToken.Type == Lexer.TokenType.ExternKeyword)
+        if (IsSpecifier(nextToken))
         {
             return ParseDeclaration(tokens);
         }
@@ -315,10 +308,7 @@ public class Parser
     {
         var nextToken = Peek(tokens);
 
-        if (nextToken.Type == Lexer.TokenType.IntKeyword ||
-            nextToken.Type == Lexer.TokenType.LongKeyword ||
-            nextToken.Type == Lexer.TokenType.StaticKeyword ||
-            nextToken.Type == Lexer.TokenType.ExternKeyword)
+        if (IsSpecifier(nextToken))
         {
             var decl = (Declaration.VariableDeclaration)ParseDeclaration(tokens);
             return new ForInit.InitDeclaration(decl);
@@ -404,7 +394,7 @@ public class Parser
     {
         var nextToken = Peek(tokens);
 
-        if (nextToken.Type == Lexer.TokenType.IntConstant || nextToken.Type == Lexer.TokenType.LongConstant)
+        if (IsConstant(nextToken))
         {
             var constant = TakeToken(tokens);
             return new Expression.ConstantExpression(GetConstant(constant, this.source), Type.None);
@@ -420,8 +410,7 @@ public class Parser
             TakeToken(tokens);
 
             nextToken = Peek(tokens);
-            if (nextToken.Type == Lexer.TokenType.IntKeyword ||
-                nextToken.Type == Lexer.TokenType.LongKeyword)
+            if (IsTypeSpecifier(nextToken.Type))
             {
                 var type = ParseType(ParseTypeSpecifiers(tokens));
                 Expect(Lexer.TokenType.CloseParenthesis, tokens);
@@ -500,6 +489,32 @@ public class Parser
         };
     }
 
+    private bool IsSpecifier(Token token)
+    {
+        return token.Type == Lexer.TokenType.IntKeyword ||
+            token.Type == Lexer.TokenType.LongKeyword ||
+            token.Type == Lexer.TokenType.SignedKeyword ||
+            token.Type == Lexer.TokenType.UnsignedKeyword ||
+            token.Type == Lexer.TokenType.StaticKeyword ||
+            token.Type == Lexer.TokenType.ExternKeyword;
+    }
+
+    private bool IsTypeSpecifier(Lexer.TokenType tokenType)
+    {
+        return tokenType == Lexer.TokenType.IntKeyword ||
+            tokenType == Lexer.TokenType.LongKeyword ||
+            tokenType == Lexer.TokenType.SignedKeyword ||
+            tokenType == Lexer.TokenType.UnsignedKeyword;
+    }
+
+    private bool IsConstant(Token token)
+    {
+        return token.Type == Lexer.TokenType.IntConstant || 
+            token.Type == Lexer.TokenType.LongConstant ||
+            token.Type == Lexer.TokenType.UnsignedIntConstant || 
+            token.Type == Lexer.TokenType.UnsignedLongConstant;
+    }
+
     private Token Peek(List<Token> tokens)
     {
         if (tokenPos >= tokens.Count)
@@ -548,24 +563,49 @@ public class Parser
         {
             Regex regex = new($"\\G[0-9]+\\b");
             Match match = regex.Match(source, token.Position);
-            Debug.Assert(match.Success, "There should be an Int Constant");
             value = System.Numerics.BigInteger.Parse(match.Value);
         }
-        else
+        else if (token.Type == Lexer.TokenType.LongConstant)
         {
             Regex regex = new($"\\G[0-9]+[lL]\\b");
             Match match = regex.Match(source, token.Position);
-            Debug.Assert(match.Success, "There should be a Long Constant");
             // note: this does not parse the l suffix, so we remove it
             value = System.Numerics.BigInteger.Parse(match.Value[0..^1]);
         }
+        else if (token.Type == Lexer.TokenType.UnsignedIntConstant)
+        {
+            Regex regex = new($"\\G[0-9]+[uU]\\b");
+            Match match = regex.Match(source, token.Position);
+            // note: this does not parse the u suffix, so we remove it
+            value = System.Numerics.BigInteger.Parse(match.Value[0..^1]);
+        }
+        else
+        {
+            Regex regex = new($"[0-9]+([lL][uU]|[uU][lL])\\b");
+            Match match = regex.Match(source, token.Position);
+            // note: this does not parse the ul/lu suffix, so we remove it
+            value = System.Numerics.BigInteger.Parse(match.Value[0..^2]);
+        }
 
-        if (value > long.MaxValue)
-            throw new Exception("Parsing Error: Constant is too large to represent as an int or long");
+        if (token.Type == Lexer.TokenType.UnsignedIntConstant || token.Type == Lexer.TokenType.UnsignedLongConstant)
+        {
+            if (value > ulong.MaxValue)
+                throw new Exception("Parsing Error: Constant is too large to represent as an uint or ulong");
 
-        if (token.Type == Lexer.TokenType.IntConstant && value <= int.MaxValue)
-            return new Const.ConstInt((int)value);
+            if (token.Type == Lexer.TokenType.UnsignedIntConstant && value <= uint.MaxValue)
+                return new Const.ConstUInt((uint)value);
 
-        return new Const.ConstLong((long)value);
+            return new Const.ConstULong((ulong)value);
+        }
+        else
+        {
+            if (value > long.MaxValue)
+                throw new Exception("Parsing Error: Constant is too large to represent as an int or long");
+
+            if (token.Type == Lexer.TokenType.IntConstant && value <= int.MaxValue)
+                return new Const.ConstInt((int)value);
+
+            return new Const.ConstLong((long)value);
+        }
     }
 }
