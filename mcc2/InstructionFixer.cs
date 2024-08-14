@@ -98,7 +98,7 @@ public class InstructionFixer
                     {
                         Instruction.Mov moveSrc = new Instruction.Mov(Instruction.AssemblyType.Quadword, binary.SrcOperand, srcReg);
                         Instruction.Mov moveDst = new Instruction.Mov(Instruction.AssemblyType.Quadword, binary.DstOperand, dstReg);
-                        instructions[i] = new Instruction.Cmp(Instruction.AssemblyType.Quadword, srcReg, dstReg);
+                        instructions[i] = new Instruction.Binary(binary.Operator, Instruction.AssemblyType.Quadword, srcReg, dstReg);
                         Instruction.Mov moveAfter = new Instruction.Mov(Instruction.AssemblyType.Quadword, dstReg, binary.DstOperand);
                         instructions.Insert(i + 1, moveAfter);
                         instructions.Insert(i, moveDst);
