@@ -349,18 +349,35 @@ public class TypeChecker
     {
         if (type1 == type2)
             return type1;
-        if (type1 is Type.Int or Type.UInt && type2 is Type.Int or Type.UInt ||
-            type1 is Type.Long or Type.ULong && type2 is Type.Long or Type.ULong)
+        if (GetTypeSize(type1) == GetTypeSize(type2))
         {
-            if (type1 is Type.Int or Type.Long)
+            if (IsSignedType(type1))
                 return type2;
             else 
                 return type1;
         }
-        if (type1 is Type.Long or Type.ULong && type2 is Type.Int or Type.UInt)
+        if (GetTypeSize(type1) > GetTypeSize(type2))
             return type1;
         else
             return type2;
+    }
+
+    public static int GetTypeSize(Type type)
+    {
+        return type switch {
+            Type.Int or Type.UInt => 4,
+            Type.Long or Type.ULong => 8,
+             _ => throw new NotImplementedException()
+        };
+    }
+
+    public static bool IsSignedType(Type type)
+    {
+        return type switch {
+            Type.Int or Type.Long => true,
+            Type.UInt or Type.ULong => false,
+             _ => throw new NotImplementedException()
+        };
     }
 
     public static Type GetType(Expression expression)
