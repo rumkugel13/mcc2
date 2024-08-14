@@ -22,7 +22,11 @@ public abstract record Instruction
         G,
         GE,
         L,
-        LE
+        LE,
+        A,
+        AE,
+        B,
+        BE,
     }
 
     public enum AssemblyType
@@ -33,10 +37,12 @@ public abstract record Instruction
 
     public record Mov(AssemblyType Type, Operand Src, Operand Dst) : Instruction;
     public record Movsx(Operand Src, Operand Dst) : Instruction;
+    public record MovZeroExtend(Operand Src, Operand Dst) : Instruction;
     public record Unary(UnaryOperator Operator, AssemblyType Type, Operand Operand) : Instruction;
     public record Binary(BinaryOperator Operator, AssemblyType Type, Operand SrcOperand, Operand DstOperand) : Instruction;
     public record Cmp(AssemblyType Type, Operand OperandA, Operand OperandB) : Instruction;
     public record Idiv(AssemblyType Type, Operand Operand) : Instruction;
+    public record Div(AssemblyType Type, Operand Operand) : Instruction;
     public record Cdq(AssemblyType Type) : Instruction;
     public record Jmp(string Identifier) : Instruction;
     public record JmpCC(ConditionCode Condition, string Identifier) : Instruction;

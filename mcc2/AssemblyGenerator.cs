@@ -11,7 +11,7 @@ public class AssemblyGenerator
     public AssemblyGenerator(Dictionary<string, SemanticAnalyzer.SymbolEntry> symbolTable)
     {
         this.symbolTable = symbolTable;
-        
+
         foreach (var entry in symbolTable)
         {
             if (entry.Value.IdentifierAttributes is IdentifierAttributes.Function funAttr)
@@ -37,7 +37,7 @@ public class AssemblyGenerator
             if (def is TAC.TopLevel.Function fun)
                 functionDefinitions.Add(GenerateFunction(fun));
             else if (def is TAC.TopLevel.StaticVariable staticVariable)
-                functionDefinitions.Add(new TopLevel.StaticVariable(staticVariable.Identifier, staticVariable.Global, 
+                functionDefinitions.Add(new TopLevel.StaticVariable(staticVariable.Identifier, staticVariable.Global,
                     GetAlignment(staticVariable.Type), staticVariable.Init));
         return new AssemblyProgram(functionDefinitions);
     }
@@ -67,7 +67,7 @@ public class AssemblyGenerator
                 instructions.Add(new Instruction.Mov(assemblyType, new Operand.Stack(16 + (i - ABIRegisters.Length) * 8), new Operand.Pseudo(function.Parameters[i])));
             }
         }
-        
+
         TopLevel.Function fn = new TopLevel.Function(function.Name, function.Global, GenerateInstructions(function.Instructions, instructions));
 
         PseudoReplacer stackAllocator = new PseudoReplacer();
@@ -118,14 +118,20 @@ public class AssemblyGenerator
                         binary.Operator == AST.Expression.BinaryOperator.Remainder)
                     {
                         instructions.Add(new Instruction.Mov(GetAssemblyType(binary.Src1), GenerateOperand(binary.Src1), new Operand.Reg(Operand.RegisterName.AX)));
-                        instructions.Add(new Instruction.Cdq(GetAssemblyType(binary.Src1)));
-                        instructions.Add(new Instruction.Idiv(GetAssemblyType(binary.Src1), GenerateOperand(binary.Src2)));
-                        var reg = new Operand.Reg(binary.Operator == AST.Expression.BinaryOperator.Divide ?
-                            Operand.RegisterName.AX :
-                            Operand.RegisterName.DX);
+                        if (IsSignedType(binary.Src1))
+                        {
+                            instructions.Add(new Instruction.Cdq(GetAssemblyType(binary.Src1)));
+                            instructions.Add(new Instruction.Idiv(GetAssemblyType(binary.Src1), GenerateOperand(binary.Src2)));
+                        }
+                        else
+                        {
+                            instructions.Add(new Instruction.Mov(GetAssemblyType(binary.Src1), new Operand.Imm(0), new Operand.Reg(Operand.RegisterName.DX)));
+                            instructions.Add(new Instruction.Div(GetAssemblyType(binary.Src1), GenerateOperand(binary.Src2)));
+                        }
+                        var reg = new Operand.Reg(binary.Operator == AST.Expression.BinaryOperator.Divide ? Operand.RegisterName.AX : Operand.RegisterName.DX);
                         instructions.Add(new Instruction.Mov(GetAssemblyType(binary.Src1), reg, GenerateOperand(binary.Dst)));
                     }
-                    else if(binary.Operator == AST.Expression.BinaryOperator.Equal ||
+                    else if (binary.Operator == AST.Expression.BinaryOperator.Equal ||
                         binary.Operator == AST.Expression.BinaryOperator.NotEqual ||
                         binary.Operator == AST.Expression.BinaryOperator.GreaterThan ||
                         binary.Operator == AST.Expression.BinaryOperator.GreaterOrEqual ||
@@ -134,7 +140,7 @@ public class AssemblyGenerator
                     {
                         instructions.Add(new Instruction.Cmp(GetAssemblyType(binary.Src1), GenerateOperand(binary.Src2), GenerateOperand(binary.Src1)));
                         instructions.Add(new Instruction.Mov(GetAssemblyType(binary.Dst), new Operand.Imm(0), GenerateOperand(binary.Dst)));
-                        instructions.Add(new Instruction.SetCC(ConvertConditionCode(binary.Operator), GenerateOperand(binary.Dst)));
+                        instructions.Add(new Instruction.SetCC(ConvertConditionCode(binary.Operator, IsSignedType(binary.Src1)), GenerateOperand(binary.Dst)));
                     }
                     else
                     {
@@ -210,6 +216,9 @@ public class AssemblyGenerator
                 case TAC.Instruction.Truncate truncate:
                     instructions.Add(new Instruction.Mov(Instruction.AssemblyType.Longword, GenerateOperand(truncate.Src), GenerateOperand(truncate.Dst)));
                     break;
+                case TAC.Instruction.ZeroExtend zeroExtend:
+                    instructions.Add(new Instruction.MovZeroExtend(GenerateOperand(zeroExtend.Src), GenerateOperand(zeroExtend.Dst)));
+                    break;
                 default:
                     throw new NotImplementedException();
             }
@@ -220,33 +229,53 @@ public class AssemblyGenerator
 
     public static int GetAlignment(Type type)
     {
-        return type switch {
-            Type.Int => 4,
-            Type.Long => 8,
+        return type switch
+        {
+            Type.Int or Type.UInt => 4,
+            Type.Long or Type.ULong => 8,
             _ => throw new NotImplementedException()
         };
     }
 
     public static Instruction.AssemblyType GetAssemblyType(Type type)
     {
-        return type switch {
-            Type.Int => Instruction.AssemblyType.Longword,
-            Type.Long => Instruction.AssemblyType.Quadword,
+        return type switch
+        {
+            Type.Int or Type.UInt => Instruction.AssemblyType.Longword,
+            Type.Long or Type.ULong => Instruction.AssemblyType.Quadword,
             _ => throw new NotImplementedException()
         };
     }
 
     private Instruction.AssemblyType GetAssemblyType(TAC.Val val)
     {
-        return val switch {
-            TAC.Val.Constant constant => constant.Value switch {
-                AST.Const.ConstInt => Instruction.AssemblyType.Longword,
-                AST.Const.ConstLong => Instruction.AssemblyType.Quadword,
+        return val switch
+        {
+            TAC.Val.Constant constant => constant.Value switch
+            {
+                AST.Const.ConstInt or AST.Const.ConstUInt => Instruction.AssemblyType.Longword,
+                AST.Const.ConstLong or AST.Const.ConstULong => Instruction.AssemblyType.Quadword,
                 _ => throw new NotImplementedException()
             },
-            TAC.Val.Variable var => symbolTable[var.Name].Type switch {
-                Type.Int => Instruction.AssemblyType.Longword,
-                Type.Long => Instruction.AssemblyType.Quadword,
+            TAC.Val.Variable var => GetAssemblyType(symbolTable[var.Name].Type),
+            _ => throw new NotImplementedException()
+        };
+    }
+
+    private bool IsSignedType(TAC.Val val)
+    {
+        return val switch
+        {
+            TAC.Val.Constant constant => constant.Value switch
+            {
+                AST.Const.ConstInt or AST.Const.ConstLong => true,
+                AST.Const.ConstUInt or AST.Const.ConstULong => false,
+                _ => throw new NotImplementedException()
+            },
+            TAC.Val.Variable var => symbolTable[var.Name].Type switch
+            {
+                Type.Int or Type.Long => true,
+                Type.UInt or Type.ULong => false,
                 _ => throw new NotImplementedException()
             },
             _ => throw new NotImplementedException()
@@ -257,9 +286,12 @@ public class AssemblyGenerator
     {
         return val switch
         {
-            TAC.Val.Constant c => c.Value switch {
+            TAC.Val.Constant c => c.Value switch
+            {
                 AST.Const.ConstInt constInt => new Operand.Imm(constInt.Value),
                 AST.Const.ConstLong constLong => new Operand.Imm(constLong.Value),
+                AST.Const.ConstUInt constUInt => new Operand.Imm(constUInt.Value),
+                AST.Const.ConstULong constULong => new Operand.Imm((long)constULong.Value),
                 _ => throw new NotImplementedException()
             },
             TAC.Val.Variable v => new Operand.Pseudo(v.Name),
@@ -278,17 +310,17 @@ public class AssemblyGenerator
         };
     }
 
-    private Instruction.ConditionCode ConvertConditionCode(AST.Expression.BinaryOperator binaryOperator)
+    private Instruction.ConditionCode ConvertConditionCode(AST.Expression.BinaryOperator binaryOperator, bool isSigned)
     {
         return binaryOperator switch
         {
             AST.Expression.BinaryOperator.Equal => Instruction.ConditionCode.E,
             AST.Expression.BinaryOperator.NotEqual => Instruction.ConditionCode.NE,
-            AST.Expression.BinaryOperator.GreaterThan => Instruction.ConditionCode.G,
-            AST.Expression.BinaryOperator.GreaterOrEqual => Instruction.ConditionCode.GE,
-            AST.Expression.BinaryOperator.LessThan => Instruction.ConditionCode.L,
-            AST.Expression.BinaryOperator.LessOrEqual => Instruction.ConditionCode.LE,
-             _ => throw new NotImplementedException()
+            AST.Expression.BinaryOperator.GreaterThan => isSigned ? Instruction.ConditionCode.G : Instruction.ConditionCode.A,
+            AST.Expression.BinaryOperator.GreaterOrEqual => isSigned ? Instruction.ConditionCode.GE : Instruction.ConditionCode.AE,
+            AST.Expression.BinaryOperator.LessThan => isSigned ? Instruction.ConditionCode.L : Instruction.ConditionCode.B,
+            AST.Expression.BinaryOperator.LessOrEqual => isSigned ? Instruction.ConditionCode.LE : Instruction.ConditionCode.BE,
+            _ => throw new NotImplementedException()
         };
     }
 

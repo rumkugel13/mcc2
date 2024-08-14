@@ -58,6 +58,15 @@ public class PseudoReplacer
                         instructions[i] = new Instruction.Idiv(idiv.Type, op);
                         break;
                     }
+                case Instruction.Div div:
+                    {
+                        var op = div.Operand;
+                        if (op is Operand.Pseudo pseudo)
+                            op = ReplacePseudo(pseudo.Identifier);
+
+                        instructions[i] = new Instruction.Div(div.Type, op);
+                        break;
+                    }
                 case Instruction.Cmp cmp:
                     {
                         var opA = cmp.OperandA;
@@ -100,6 +109,19 @@ public class PseudoReplacer
                             dst = ReplacePseudo(pseudoDst.Identifier);
 
                         instructions[i] = new Instruction.Movsx(src, dst);
+                        break;
+                    }
+                case Instruction.MovZeroExtend movzx:
+                    {
+                        var src = movzx.Src;
+                        var dst = movzx.Dst;
+                        if (src is Operand.Pseudo pseudoSrc)
+                            src = ReplacePseudo(pseudoSrc.Identifier);
+
+                        if (dst is Operand.Pseudo pseudoDst)
+                            dst = ReplacePseudo(pseudoDst.Identifier);
+
+                        instructions[i] = new Instruction.MovZeroExtend(src, dst);
                         break;
                     }
             }

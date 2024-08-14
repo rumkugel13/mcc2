@@ -73,6 +73,15 @@ public class InstructionFixer
                     instructions.Insert(i, moveBefore);
                 }
             }
+            else if (inst is Instruction.Div div)
+            {
+                if (div.Operand is Operand.Imm imm)
+                {
+                    Instruction.Mov moveBefore = new Instruction.Mov(div.Type, imm, srcReg);
+                    instructions[i] = new Instruction.Div(div.Type, srcReg);
+                    instructions.Insert(i, moveBefore);
+                }
+            }
             else if (inst is Instruction.Binary binary)
             {
                 if (binary.Operator == Instruction.BinaryOperator.Add || binary.Operator == Instruction.BinaryOperator.Sub)
@@ -150,6 +159,19 @@ public class InstructionFixer
                 {
                     Instruction.Mov moveBefore = new Instruction.Mov(Instruction.AssemblyType.Quadword, push.Operand, srcReg);
                     instructions[i] = new Instruction.Push(srcReg);
+                    instructions.Insert(i, moveBefore);
+                }
+            }
+            else if (inst is Instruction.MovZeroExtend movzx)
+            {
+                if (movzx.Dst is Operand.Reg reg)
+                {
+                    instructions[i] = new Instruction.Mov(Instruction.AssemblyType.Longword, movzx.Src, movzx.Dst);
+                }
+                else if (movzx.Dst is Operand.Stack or Operand.Data)
+                {
+                    Instruction.Mov moveBefore = new Instruction.Mov(Instruction.AssemblyType.Longword, movzx.Src, dstReg);
+                    instructions[i] = new Instruction.Mov(Instruction.AssemblyType.Quadword, dstReg, movzx.Dst);
                     instructions.Insert(i, moveBefore);
                 }
             }
