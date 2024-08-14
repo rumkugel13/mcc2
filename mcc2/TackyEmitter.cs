@@ -35,11 +35,7 @@ public class TackyEmitter
                             instructions.Add(new TopLevel.StaticVariable(entry.Key, stat.Global, entry.Value.Type, init.Init));
                             break;
                         case InitialValue.Tentative:
-                            instructions.Add(new TopLevel.StaticVariable(entry.Key, stat.Global, entry.Value.Type, entry.Value.Type switch {
-                                Type.Int => new StaticInit.IntInit(0),
-                                Type.Long => new StaticInit.LongInit(0),
-                                _ => throw new NotImplementedException()
-                            }));
+                            instructions.Add(new TopLevel.StaticVariable(entry.Key, stat.Global, entry.Value.Type, TypeChecker.ConvertConstantToInit(entry.Value.Type, new Const.ConstInt(0))));
                             break;
                         case InitialValue.NoInitializer:
                             break;
@@ -257,13 +253,19 @@ public class TackyEmitter
             case Expression.CastExpression castExpression:
                 {
                     var result = EmitInstruction(castExpression.Expression, instructions);
-                    if (castExpression.TargetType == TypeChecker.GetType(castExpression.Expression))
+                    var innerType = TypeChecker.GetType(castExpression.Expression);
+                    if (castExpression.TargetType == innerType)
                         return result;
                     var dst = MakeTackyVariable(castExpression.TargetType);
-                    if (castExpression.TargetType is Type.Long)
+                    if (TypeChecker.GetTypeSize(castExpression.TargetType) == TypeChecker.GetTypeSize(innerType))
+                        instructions.Add(new Instruction.Copy(result, dst));
+                    else if (TypeChecker.GetTypeSize(castExpression.TargetType) < TypeChecker.GetTypeSize(innerType))
+                        instructions.Add(new Instruction.Truncate(result, dst));
+                    else if (TypeChecker.IsSignedType(innerType))
                         instructions.Add(new Instruction.SignExtend(result, dst));
                     else
-                        instructions.Add(new Instruction.Truncate(result, dst));
+                        instructions.Add(new Instruction.ZeroExtend(result, dst));
+
                     return dst;
                 }
             default:

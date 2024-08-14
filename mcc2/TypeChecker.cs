@@ -319,7 +319,7 @@ public class TypeChecker
             return null;
     }
 
-    private StaticInit ConvertConstantToInit(Type target, Const constant)
+    public static StaticInit ConvertConstantToInit(Type target, Const constant)
     {
         ulong value = constant switch {
             Const.ConstInt constInt => (ulong)constInt.Value,
