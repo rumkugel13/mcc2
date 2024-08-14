@@ -152,13 +152,7 @@ public class TypeChecker
             if (variableDeclaration.Initializer is Expression.ConstantExpression constant)
                 initialValue = new InitialValue.Initial(ConvertConstantToInit(variableDeclaration.VariableType, constant.Value));
             else if (variableDeclaration.Initializer == null)
-                initialValue = new InitialValue.Initial(variableDeclaration.VariableType switch {
-                    Type.Int => new StaticInit.IntInit(0),
-                    Type.Long => new StaticInit.LongInit(0),
-                    Type.UInt => new StaticInit.UIntInit(0),
-                    Type.ULong => new StaticInit.ULongInit(0),
-                    _ => throw new NotImplementedException()
-                });
+                initialValue = new InitialValue.Initial(ConvertConstantToInit(variableDeclaration.VariableType, new Const.ConstInt(0)));
             else
                 throw new Exception("Type Error: Non-constant initializer on local static variable");
             symbolTable[variableDeclaration.Identifier] = new SymbolEntry() { Type = variableDeclaration.VariableType, IdentifierAttributes = new IdentifierAttributes.Static(initialValue, false) };
