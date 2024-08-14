@@ -5,13 +5,6 @@ namespace mcc2;
 
 public class CodeEmitter
 {
-    private Dictionary<string, SemanticAnalyzer.SymbolEntry> symbolTable;
-
-    public CodeEmitter(Dictionary<string, SemanticAnalyzer.SymbolEntry> symbolTable)
-    {
-        this.symbolTable = symbolTable;
-    }
-
     public StringBuilder Emit(AssemblyProgram program)
     {
         StringBuilder builder = new();
@@ -50,7 +43,7 @@ public class CodeEmitter
         if (staticVariable.Global)
             builder.AppendLine($"\t.globl {staticVariable.Identifier}");
 
-        if (staticVariable.Init == 0)
+        if (((StaticInit.IntInit)staticVariable.Init).Value == 0)
         {
             builder.AppendLine($"\t.bss");
             if (OperatingSystem.IsLinux())
@@ -96,9 +89,6 @@ public class CodeEmitter
             case Instruction.Cdq:
                 builder.AppendLine("\tcdq");
                 break;
-            case Instruction.AllocateStack allocateStack:
-                builder.AppendLine($"\tsubq ${allocateStack.Bytes}, %rsp");
-                break;
             case Instruction.Cmp cmp:
                 builder.AppendLine($"\tcmpl {EmitOperand(cmp.OperandA)}, {EmitOperand(cmp.OperandB)}");
                 break;
@@ -114,14 +104,11 @@ public class CodeEmitter
             case Instruction.Label label:
                 builder.AppendLine($".L{label.Identifier}:");
                 break;
-            case Instruction.DeallocateStack deallocateStack:
-                builder.AppendLine($"\taddq ${deallocateStack.Bytes}, %rsp");
-                break;
             case Instruction.Push push:
                 builder.AppendLine($"\tpushq {EmitOperand(push.Operand, 8)}");
                 break;
             case Instruction.Call call:
-                builder.AppendLine($"\tcall {call.Identifier}{(!((IdentifierAttributes.Function)symbolTable[call.Identifier].IdentifierAttributes).Defined && OperatingSystem.IsLinux() ? "@PLT" : "")}");
+                builder.AppendLine($"\tcall {call.Identifier}{(!((AsmSymbolTableEntry.FunctionEntry)AssemblyGenerator.AsmSymbolTable[call.Identifier]).Defined && OperatingSystem.IsLinux() ? "@PLT" : "")}");
                 break;
             default:
                 throw new NotImplementedException();

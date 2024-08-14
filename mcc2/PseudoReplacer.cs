@@ -6,12 +6,6 @@ public class PseudoReplacer
 {
     public Dictionary<string, int> OffsetMap = [];
     private int currentOffset;
-    private Dictionary<string, SemanticAnalyzer.SymbolEntry> symbolTable;
-
-    public PseudoReplacer(Dictionary<string, SemanticAnalyzer.SymbolEntry> symbolTable)
-    {
-        this.symbolTable = symbolTable;
-    }
 
     public int Replace(List<Instruction> instructions)
     {
@@ -30,7 +24,7 @@ public class PseudoReplacer
                         if (dst is Operand.Pseudo pseudoDst)
                             dst = ReplacePseudo(pseudoDst.Identifier);
 
-                        instructions[i] = new Instruction.Mov(src, dst);
+                        instructions[i] = new Instruction.Mov(mov.Type, src, dst);
                         break;
                     }
                 case Instruction.Unary unary:
@@ -39,7 +33,7 @@ public class PseudoReplacer
                         if (op is Operand.Pseudo pseudoOp)
                             op = ReplacePseudo(pseudoOp.Identifier);
 
-                        instructions[i] = new Instruction.Unary(unary.Operator, op);
+                        instructions[i] = new Instruction.Unary(unary.Operator, unary.Type, op);
                         break;
                     }
                 case Instruction.Binary binary:
@@ -52,7 +46,7 @@ public class PseudoReplacer
                         if (dst is Operand.Pseudo pseudoDst)
                             dst = ReplacePseudo(pseudoDst.Identifier);
 
-                        instructions[i] = new Instruction.Binary(binary.Operator, src, dst);
+                        instructions[i] = new Instruction.Binary(binary.Operator, binary.Type, src, dst);
                         break;
                     }
                 case Instruction.Idiv idiv:
@@ -61,7 +55,7 @@ public class PseudoReplacer
                         if (op is Operand.Pseudo pseudo)
                             op = ReplacePseudo(pseudo.Identifier);
 
-                        instructions[i] = new Instruction.Idiv(op);
+                        instructions[i] = new Instruction.Idiv(idiv.Type, op);
                         break;
                     }
                 case Instruction.Cmp cmp:
@@ -74,7 +68,7 @@ public class PseudoReplacer
                         if (opB is Operand.Pseudo pseudoB)
                             opB = ReplacePseudo(pseudoB.Identifier);
 
-                        instructions[i] = new Instruction.Cmp(opA, opB);
+                        instructions[i] = new Instruction.Cmp(cmp.Type, opA, opB);
                         break;
                     }
                 case Instruction.SetCC setCC:
@@ -95,11 +89,23 @@ public class PseudoReplacer
                         instructions[i] = new Instruction.Push(op);
                         break;
                     }
+                case Instruction.Movsx movsx:
+                    {
+                        var src = movsx.Src;
+                        var dst = movsx.Dst;
+                        if (src is Operand.Pseudo pseudoSrc)
+                            src = ReplacePseudo(pseudoSrc.Identifier);
+
+                        if (dst is Operand.Pseudo pseudoDst)
+                            dst = ReplacePseudo(pseudoDst.Identifier);
+
+                        instructions[i] = new Instruction.Movsx(src, dst);
+                        break;
+                    }
             }
         }
 
-        // note: we sub the offset from rsp, so we need to negate it
-        return -currentOffset;
+        return currentOffset;
     }
 
     private Operand ReplacePseudo(string name)
@@ -109,14 +115,19 @@ public class PseudoReplacer
             return new Operand.Stack(val);
         }
 
-        if (symbolTable.TryGetValue(name, out SemanticAnalyzer.SymbolEntry symbolEntry) &&
-            symbolEntry.IdentifierAttributes is IdentifierAttributes.Static)
+        if (AssemblyGenerator.AsmSymbolTable.TryGetValue(name, out AsmSymbolTableEntry asmSymbolTableEntry) && asmSymbolTableEntry is AsmSymbolTableEntry.ObjectEntry objEntry && objEntry.IsStatic)
         { 
             return new Operand.Data(name); 
         }
 
-        currentOffset -= 4;
-        OffsetMap[name] = currentOffset;
-        return new Operand.Stack(currentOffset);
+        var align = ((AsmSymbolTableEntry.ObjectEntry)AssemblyGenerator.AsmSymbolTable[name]).AssemblyType switch {
+            Instruction.AssemblyType.Longword => 4,
+            Instruction.AssemblyType.Quadword => 8,
+            _ => throw new NotImplementedException()
+        };
+
+        currentOffset = AssemblyGenerator.AlignTo(currentOffset + align, align);
+        OffsetMap[name] = -currentOffset;
+        return new Operand.Stack(-currentOffset);
     }
 }

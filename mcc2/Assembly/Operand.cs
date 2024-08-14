@@ -13,9 +13,10 @@ public abstract record Operand
         R9,
         R10,
         R11,
+        SP,
     }
     
-    public record Imm(int Value) : Operand;
+    public record Imm(long Value) : Operand;
     public record Pseudo(string Identifier) : Operand;
     public record Reg(RegisterName Register) : Operand;
     public record Stack(int Offset) : Operand;
