@@ -404,7 +404,7 @@ public class Parser
     {
         var nextToken = Peek(tokens);
 
-        if (nextToken.Type == Lexer.TokenType.Constant || nextToken.Type == Lexer.TokenType.LongConstant)
+        if (nextToken.Type == Lexer.TokenType.IntConstant || nextToken.Type == Lexer.TokenType.LongConstant)
         {
             var constant = TakeToken(tokens);
             return new Expression.ConstantExpression(GetConstant(constant, this.source), Type.None);
@@ -544,7 +544,7 @@ public class Parser
     private Const GetConstant(Token token, string source)
     {
         System.Numerics.BigInteger value;
-        if (token.Type == Lexer.TokenType.Constant)
+        if (token.Type == Lexer.TokenType.IntConstant)
         {
             Regex regex = new($"\\G[0-9]+\\b");
             Match match = regex.Match(source, token.Position);
@@ -563,7 +563,7 @@ public class Parser
         if (value > long.MaxValue)
             throw new Exception("Parsing Error: Constant is too large to represent as an int or long");
 
-        if (token.Type == Lexer.TokenType.Constant && value <= int.MaxValue)
+        if (token.Type == Lexer.TokenType.IntConstant && value <= int.MaxValue)
             return new Const.ConstInt((int)value);
 
         return new Const.ConstLong((long)value);

@@ -14,7 +14,7 @@ public class TestChapter01
         new Lexer.Token(){Position = 13, Type = Lexer.TokenType.CloseParenthesis},
         new Lexer.Token(){Position = 15, Type = Lexer.TokenType.OpenBrace},
         new Lexer.Token(){Position = 21, Type = Lexer.TokenType.ReturnKeyword},
-        new Lexer.Token(){Position = 28, Type = Lexer.TokenType.Constant},
+        new Lexer.Token(){Position = 28, Type = Lexer.TokenType.IntConstant},
         new Lexer.Token(){Position = 29, Type = Lexer.TokenType.Semicolon},
         new Lexer.Token(){Position = 31, Type = Lexer.TokenType.CloseBrace},
     ];
