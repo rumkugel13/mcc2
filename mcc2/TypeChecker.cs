@@ -194,7 +194,7 @@ public class TypeChecker
             case Expression.BinaryExpression binaryExpression:
                 var typedE1 = TypeCheckExpression(binaryExpression.ExpressionLeft, symbolTable);
                 var typedE2 = TypeCheckExpression(binaryExpression.ExpressionRight, symbolTable);
-                if (binaryExpression.Operator is Expression.BinaryOperator.And or Expression.BinaryOperator.Add)
+                if (binaryExpression.Operator is Expression.BinaryOperator.And or Expression.BinaryOperator.Or)
                 {
                     return new Expression.BinaryExpression(binaryExpression.Operator, typedE1, typedE2, new Type.Int());
                 }
