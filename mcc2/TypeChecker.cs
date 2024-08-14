@@ -165,7 +165,7 @@ public class TypeChecker
         {
             symbolTable[variableDeclaration.Identifier] = new SymbolEntry() { Type = variableDeclaration.VariableType, IdentifierAttributes = new IdentifierAttributes.Local() };
             if (variableDeclaration.Initializer != null)
-                return new Declaration.VariableDeclaration(variableDeclaration.Identifier, TypeCheckExpression(variableDeclaration.Initializer, symbolTable), variableDeclaration.VariableType, variableDeclaration.StorageClass);
+                return new Declaration.VariableDeclaration(variableDeclaration.Identifier, ConvertTo(TypeCheckExpression(variableDeclaration.Initializer, symbolTable),variableDeclaration.VariableType), variableDeclaration.VariableType, variableDeclaration.StorageClass);
         }
         return variableDeclaration;
     }
