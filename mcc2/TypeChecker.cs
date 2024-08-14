@@ -96,7 +96,7 @@ public class TypeChecker
     {
         InitialValue initialValue;
         if (variableDeclaration.Initializer is Expression.ConstantExpression constant)
-            initialValue = new InitialValue.Initial(ConvertConstant(variableDeclaration.VariableType, constant.Value));
+            initialValue = new InitialValue.Initial(ConvertConstantToInit(variableDeclaration.VariableType, constant.Value));
         else if (variableDeclaration.Initializer == null)
         {
             if (variableDeclaration.StorageClass == Declaration.StorageClasses.Extern)
@@ -150,11 +150,13 @@ public class TypeChecker
         {
             InitialValue initialValue;
             if (variableDeclaration.Initializer is Expression.ConstantExpression constant)
-                initialValue = new InitialValue.Initial(ConvertConstant(variableDeclaration.VariableType, constant.Value));
+                initialValue = new InitialValue.Initial(ConvertConstantToInit(variableDeclaration.VariableType, constant.Value));
             else if (variableDeclaration.Initializer == null)
                 initialValue = new InitialValue.Initial(variableDeclaration.VariableType switch {
                     Type.Int => new StaticInit.IntInit(0),
                     Type.Long => new StaticInit.LongInit(0),
+                    Type.UInt => new StaticInit.UIntInit(0),
+                    Type.ULong => new StaticInit.ULongInit(0),
                     _ => throw new NotImplementedException()
                 });
             else
@@ -216,6 +218,8 @@ public class TypeChecker
                 return new Expression.ConstantExpression(constantExpression.Value, constantExpression.Value switch {
                     Const.ConstInt => new Type.Int(),
                     Const.ConstLong => new Type.Long(),
+                    Const.ConstUInt => new Type.UInt(),
+                    Const.ConstULong => new Type.ULong(),
                     _ => throw new NotImplementedException()
                 });
             case Expression.ConditionalExpression conditionalExpression:
@@ -321,15 +325,20 @@ public class TypeChecker
             return null;
     }
 
-    private StaticInit ConvertConstant(Type target, Const constant)
+    private StaticInit ConvertConstantToInit(Type target, Const constant)
     {
-        if (target is Type.Int && constant is Const.ConstLong constLong)
-            return new StaticInit.IntInit((int)constLong.Value);
-        else if (target is Type.Long && constant is Const.ConstInt constInt)
-            return new StaticInit.LongInit((long)constInt.Value);
-        else return constant switch {
-            Const.ConstInt val => new StaticInit.IntInit(val.Value),
-            Const.ConstLong val => new StaticInit.LongInit(val.Value),
+        ulong value = constant switch {
+            Const.ConstInt constInt => (ulong)constInt.Value,
+            Const.ConstLong constLong => (ulong)constLong.Value,
+            Const.ConstUInt constUInt => (ulong)constUInt.Value,
+            Const.ConstULong constULong => (ulong)constULong.Value,
+            _ => throw new NotImplementedException()
+        };
+        return target switch {
+            Type.Int => new StaticInit.IntInit((int)value),
+            Type.Long => new StaticInit.LongInit((long)value),
+            Type.UInt => new StaticInit.UIntInit((uint)value),
+            Type.ULong => new StaticInit.ULongInit((ulong)value),
             _ => throw new NotImplementedException()
         };
     }
@@ -342,12 +351,22 @@ public class TypeChecker
         return new Expression.CastExpression(type, expression, type);
     }
 
-    private Type GetCommonType(Type one, Type two)
+    private Type GetCommonType(Type type1, Type type2)
     {
-        if (one == two)
-            return one;
+        if (type1 == type2)
+            return type1;
+        if (type1 is Type.Int or Type.UInt && type2 is Type.Int or Type.UInt ||
+            type1 is Type.Long or Type.ULong && type2 is Type.Long or Type.ULong)
+        {
+            if (type1 is Type.Int or Type.Long)
+                return type2;
+            else 
+                return type1;
+        }
+        if (type1 is Type.Long or Type.ULong && type2 is Type.Int or Type.UInt)
+            return type1;
         else
-            return new Type.Long();
+            return type2;
     }
 
     public static Type GetType(Expression expression)
