@@ -32,7 +32,7 @@ The current goal is to output assembly for the following ISA's:
   - [X] 9: Functions
   - [X] 10: File Scope Variable Declarations and Storage-Class Specifiers
 - [ ] Part II: Types beyond int
-  - [ ] 11: Long Integers
+  - [X] 11: Long Integers
   - [ ] 12: Unsigned Integers
   - [ ] 13: Floating-Point Numbers
     - [ ] Extra: NaN
