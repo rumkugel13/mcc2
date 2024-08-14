@@ -31,7 +31,7 @@ public class TypeChecker
             var attributes = (IdentifierAttributes.Function)prevEntry.IdentifierAttributes;
             // note: check correct type and number of parameters
             var prevFunType = (Type.FunctionType) prevEntry.Type;
-            if (prevFunType is not Type.FunctionType funcA || funcA.Parameters.Count != funType.Parameters.Count)
+            if (prevFunType is not Type.FunctionType funcA || funcA.Parameters.Count != funType.Parameters.Count || funcA.Return != funType.Return)
                 throw new Exception("Type Error: Incompatible function declarations");
 
             for (int i = 0; i < prevFunType.Parameters.Count; i++)
