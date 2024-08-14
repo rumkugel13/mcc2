@@ -27,7 +27,7 @@ public class CodeEmitter
     {
         if (function.Global)
             builder.AppendLine($"\t.globl {function.Name}");
-            
+
         builder.AppendLine($"\t.text");
         builder.AppendLine($"{function.Name}:");
         builder.AppendLine($"\tpushq %rbp");
@@ -43,26 +43,19 @@ public class CodeEmitter
         if (staticVariable.Global)
             builder.AppendLine($"\t.globl {staticVariable.Identifier}");
 
-        if (((StaticInit.IntInit)staticVariable.Init).Value == 0)
-        {
-            builder.AppendLine($"\t.bss");
-            if (OperatingSystem.IsLinux())
-                builder.AppendLine($"\t.align 4");
-            else
-                builder.AppendLine($"\t.balign 4");
-            builder.AppendLine($"{staticVariable.Identifier}:");
-            builder.AppendLine($"\t.zero 4");
-        }
-        else
-        {
-            builder.AppendLine($"\t.data");
-            if (OperatingSystem.IsLinux())
-                builder.AppendLine($"\t.align 4");
-            else
-                builder.AppendLine($"\t.balign 4");
-            builder.AppendLine($"{staticVariable.Identifier}:");
-            builder.AppendLine($"\t.long {staticVariable.Init}");
-        }
+        var isZero = staticVariable.Init is StaticInit.IntInit intInit && intInit.Value == 0 ||
+            staticVariable.Init is StaticInit.LongInit longInit && longInit.Value == 0;
+
+        builder.AppendLine($"\t.{(isZero ? "bss" : "data")}");
+        builder.AppendLine($"\t.{(OperatingSystem.IsLinux() ? "align" : "balign")} {staticVariable.Alignment}");
+        builder.AppendLine($"{staticVariable.Identifier}:");
+
+        if (isZero)
+            builder.AppendLine($"\t.zero {staticVariable.Alignment}");
+        else if (staticVariable.Init is StaticInit.IntInit intVar)
+            builder.AppendLine($"\t.long {intVar.Value}");
+        else if (staticVariable.Init is StaticInit.LongInit longVar)
+            builder.AppendLine($"\t.quad {longVar.Value}");
     }
 
     private void EmitInstruction(Instruction instruction, StringBuilder builder)
@@ -70,7 +63,10 @@ public class CodeEmitter
         switch (instruction)
         {
             case Instruction.Mov mov:
-                builder.AppendLine($"\tmovl {EmitOperand(mov.Src)}, {EmitOperand(mov.Dst)}");
+                builder.AppendLine($"\tmov{EmitTypeSuffix(mov.Type)} {EmitOperand(mov.Src, mov.Type)}, {EmitOperand(mov.Dst, mov.Type)}");
+                break;
+            case Instruction.Movsx movsx:
+                builder.AppendLine($"\tmovslq {EmitOperand(movsx.Src, Instruction.AssemblyType.Longword)}, {EmitOperand(movsx.Dst, Instruction.AssemblyType.Quadword)}");
                 break;
             case Instruction.Ret:
                 builder.AppendLine($"\tmovq %rbp, %rsp");
@@ -78,19 +74,22 @@ public class CodeEmitter
                 builder.AppendLine("\tret");
                 break;
             case Instruction.Unary unary:
-                builder.AppendLine($"\t{EmitUnaryOperator(unary.Operator)} {EmitOperand(unary.Operand)}");
+                builder.AppendLine($"\t{EmitUnaryOperator(unary.Operator)}{EmitTypeSuffix(unary.Type)} {EmitOperand(unary.Operand, unary.Type)}");
                 break;
             case Instruction.Binary binary:
-                builder.AppendLine($"\t{EmitBinaryOperator(binary.Operator)} {EmitOperand(binary.SrcOperand)}, {EmitOperand(binary.DstOperand)}");
+                builder.AppendLine($"\t{EmitBinaryOperator(binary.Operator)}{EmitTypeSuffix(binary.Type)} {EmitOperand(binary.SrcOperand, binary.Type)}, {EmitOperand(binary.DstOperand, binary.Type)}");
                 break;
             case Instruction.Idiv idiv:
-                builder.AppendLine($"\tidivl {EmitOperand(idiv.Operand)}");
+                builder.AppendLine($"\tidiv{EmitTypeSuffix(idiv.Type)} {EmitOperand(idiv.Operand, idiv.Type)}");
                 break;
-            case Instruction.Cdq:
-                builder.AppendLine("\tcdq");
+            case Instruction.Cdq cdq:
+                if (cdq.Type == Instruction.AssemblyType.Longword)
+                    builder.AppendLine("\tcdq");
+                else
+                    builder.AppendLine("\tcqo");
                 break;
             case Instruction.Cmp cmp:
-                builder.AppendLine($"\tcmpl {EmitOperand(cmp.OperandA)}, {EmitOperand(cmp.OperandB)}");
+                builder.AppendLine($"\tcmp{EmitTypeSuffix(cmp.Type)} {EmitOperand(cmp.OperandA, cmp.Type)}, {EmitOperand(cmp.OperandB, cmp.Type)}");
                 break;
             case Instruction.Jmp jmp:
                 builder.AppendLine($"\tjmp .L{jmp.Identifier}");
@@ -105,7 +104,7 @@ public class CodeEmitter
                 builder.AppendLine($".L{label.Identifier}:");
                 break;
             case Instruction.Push push:
-                builder.AppendLine($"\tpushq {EmitOperand(push.Operand, 8)}");
+                builder.AppendLine($"\tpushq {EmitOperand(push.Operand, Instruction.AssemblyType.Quadword)}");
                 break;
             case Instruction.Call call:
                 builder.AppendLine($"\tcall {call.Identifier}{(!((AsmSymbolTableEntry.FunctionEntry)AssemblyGenerator.AsmSymbolTable[call.Identifier]).Defined && OperatingSystem.IsLinux() ? "@PLT" : "")}");
@@ -113,6 +112,16 @@ public class CodeEmitter
             default:
                 throw new NotImplementedException();
         }
+    }
+
+    private string EmitTypeSuffix(Instruction.AssemblyType assemblyType)
+    {
+        return assemblyType switch
+        {
+            Instruction.AssemblyType.Longword => "l",
+            Instruction.AssemblyType.Quadword => "q",
+            _ => throw new NotImplementedException()
+        };
     }
 
     private string EmitConditionCode(Instruction.ConditionCode condition)
@@ -133,9 +142,9 @@ public class CodeEmitter
     {
         return binaryOperator switch
         {
-            Instruction.BinaryOperator.Add => "addl",
-            Instruction.BinaryOperator.Sub => "subl",
-            Instruction.BinaryOperator.Mult => "imull",
+            Instruction.BinaryOperator.Add => "add",
+            Instruction.BinaryOperator.Sub => "sub",
+            Instruction.BinaryOperator.Mult => "imul",
             _ => throw new NotImplementedException()
         };
     }
@@ -144,13 +153,13 @@ public class CodeEmitter
     {
         return unaryOperator switch
         {
-            Instruction.UnaryOperator.Neg => "negl",
-            Instruction.UnaryOperator.Not => "notl",
+            Instruction.UnaryOperator.Neg => "neg",
+            Instruction.UnaryOperator.Not => "not",
             _ => throw new NotImplementedException()
         };
     }
 
-    private string EmitOperand(Operand operand, int bytes = 4)
+    private string EmitOperand(Operand operand, int bytes)
     {
         return operand switch
         {
@@ -162,18 +171,40 @@ public class CodeEmitter
         };
     }
 
-    private string EmitRegister(Operand.Reg reg, int bytes = 4)
+    private string EmitOperand(Operand operand, Instruction.AssemblyType assemblyType)
     {
-        // note: need to keep this updated with Reg.RegisterName
-        string[] byteRegs = ["%al", "%cl", "%dl", "%dil", "%sil", "%r8b", "%r9b", "%r10b", "%r11b"];
-        string[] fourByteRegs = ["%eax", "%ecx", "%edx", "%edi", "%esi", "%r8d", "%r9d", "%r10d", "%r11d"];
-        string[] eightByteRegs = ["%rax", "%rcx", "%rdx", "%rdi", "%rsi", "%r8", "%r9", "%r10", "%r11"];
+        return operand switch
+        {
+            Operand.Reg reg => EmitRegister(reg, assemblyType),
+            Operand.Imm imm => $"${imm.Value}",
+            Operand.Stack stack => $"{stack.Offset}(%rbp)",
+            Operand.Data data => $"{data.Identifier}(%rip)",
+            _ => throw new NotImplementedException()
+        };
+    }
 
+    // note: need to keep this updated with Reg.RegisterName
+    readonly string[] byteRegs = ["%al", "%cl", "%dl", "%dil", "%sil", "%r8b", "%r9b", "%r10b", "%r11b", "%spl"];
+    readonly string[] fourByteRegs = ["%eax", "%ecx", "%edx", "%edi", "%esi", "%r8d", "%r9d", "%r10d", "%r11d", "%esp"];
+    readonly string[] eightByteRegs = ["%rax", "%rcx", "%rdx", "%rdi", "%rsi", "%r8", "%r9", "%r10", "%r11", "%rsp"];
+
+    private string EmitRegister(Operand.Reg reg, int bytes)
+    {
         return bytes switch
         {
             1 => byteRegs[(int)reg.Register],
             4 => fourByteRegs[(int)reg.Register],
             8 => eightByteRegs[(int)reg.Register],
+            _ => throw new NotImplementedException()
+        };
+    }
+
+    private string EmitRegister(Operand.Reg reg, Instruction.AssemblyType assemblyType)
+    {
+        return assemblyType switch
+        {
+            Instruction.AssemblyType.Longword => fourByteRegs[(int)reg.Register],
+            Instruction.AssemblyType.Quadword => eightByteRegs[(int)reg.Register],
             _ => throw new NotImplementedException()
         };
     }
