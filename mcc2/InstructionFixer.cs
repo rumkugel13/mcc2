@@ -41,14 +41,14 @@ public class InstructionFixer
                     instructions[i] = new Instruction.Cmp(cmp.Type, srcReg, cmp.OperandB);
                     instructions.Insert(i, moveBefore);
                 }
-                else if (cmp.OperandA is Operand.Imm immA && cmp.OperandB is not Operand.Imm &&
+                else if (cmp.Type == Instruction.AssemblyType.Quadword && cmp.OperandA is Operand.Imm immA && cmp.OperandB is not Operand.Imm &&
                     (immA.Value > int.MaxValue || immA.Value < int.MinValue))
                 {
                     Instruction.Mov moveBefore = new Instruction.Mov(Instruction.AssemblyType.Quadword, cmp.OperandA, srcReg);
                     instructions[i] = new Instruction.Cmp(Instruction.AssemblyType.Quadword, srcReg, cmp.OperandB);
                     instructions.Insert(i, moveBefore);
                 }
-                else if (cmp.OperandA is Operand.Imm immA2 && cmp.OperandB is Operand.Imm &&
+                else if (cmp.Type == Instruction.AssemblyType.Quadword && cmp.OperandA is Operand.Imm immA2 && cmp.OperandB is Operand.Imm &&
                     (immA2.Value > int.MaxValue || immA2.Value < int.MinValue))
                 {
                     Instruction.Mov moveSrc = new Instruction.Mov(Instruction.AssemblyType.Quadword, cmp.OperandA, srcReg);
