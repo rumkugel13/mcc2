@@ -43,19 +43,35 @@ public class CodeEmitter
         if (staticVariable.Global)
             builder.AppendLine($"\t.globl {staticVariable.Identifier}");
 
-        var isZero = staticVariable.Init is StaticInit.IntInit intInit && intInit.Value == 0 ||
-            staticVariable.Init is StaticInit.LongInit longInit && longInit.Value == 0;
-
+        var isZero = GetValue(staticVariable.Init) == 0;
         builder.AppendLine($"\t.{(isZero ? "bss" : "data")}");
         builder.AppendLine($"\t.{(OperatingSystem.IsLinux() ? "align" : "balign")} {staticVariable.Alignment}");
         builder.AppendLine($"{staticVariable.Identifier}:");
 
         if (isZero)
             builder.AppendLine($"\t.zero {staticVariable.Alignment}");
-        else if (staticVariable.Init is StaticInit.IntInit intVar)
-            builder.AppendLine($"\t.long {intVar.Value}");
-        else if (staticVariable.Init is StaticInit.LongInit longVar)
-            builder.AppendLine($"\t.quad {longVar.Value}");
+        else
+            builder.AppendLine($"\t.{EmitAssemblerType(staticVariable.Init)} {GetValue(staticVariable.Init)}");
+    }
+
+    private long GetValue(StaticInit staticInit)
+    {
+        return staticInit switch {
+            StaticInit.IntInit init => init.Value,
+            StaticInit.LongInit init => init.Value,
+            StaticInit.UIntInit init => init.Value,
+            StaticInit.ULongInit init => (long)init.Value,
+            _ => throw new NotImplementedException()
+        };
+    }
+
+    private string EmitAssemblerType(StaticInit staticInit)
+    {
+        return staticInit switch {
+            StaticInit.IntInit or StaticInit.UIntInit => "long",
+            StaticInit.LongInit or StaticInit.ULongInit => "quad",
+            _ => throw new NotImplementedException()
+        };
     }
 
     private void EmitInstruction(Instruction instruction, StringBuilder builder)
@@ -81,6 +97,9 @@ public class CodeEmitter
                 break;
             case Instruction.Idiv idiv:
                 builder.AppendLine($"\tidiv{EmitTypeSuffix(idiv.Type)} {EmitOperand(idiv.Operand, idiv.Type)}");
+                break;
+            case Instruction.Div div:
+                builder.AppendLine($"\tdiv{EmitTypeSuffix(div.Type)} {EmitOperand(div.Operand, div.Type)}");
                 break;
             case Instruction.Cdq cdq:
                 if (cdq.Type == Instruction.AssemblyType.Longword)
@@ -134,6 +153,10 @@ public class CodeEmitter
             Instruction.ConditionCode.GE => "ge",
             Instruction.ConditionCode.L => "l",
             Instruction.ConditionCode.LE => "le",
+            Instruction.ConditionCode.A => "a",
+            Instruction.ConditionCode.AE => "ae",
+            Instruction.ConditionCode.B => "b",
+            Instruction.ConditionCode.BE => "be",
             _ => throw new NotImplementedException()
         };
     }
