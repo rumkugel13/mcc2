@@ -72,12 +72,12 @@ namespace mcc2
             return output;
         }
 
-        public static string AssembleAndLink(string file)
+        public static string AssembleAndLink(string file, string linkOption)
         {
             string output = $"{file[..^2]}";
             using Process process = new Process();
             process.StartInfo.FileName = "gcc";
-            process.StartInfo.Arguments = $"{file} -o {output}";
+            process.StartInfo.Arguments = $"{file} -o {output} {linkOption}";
             process.Start();
             process.WaitForExit();
             if (process.ExitCode != 0)

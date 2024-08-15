@@ -16,6 +16,7 @@ namespace mcc2
             bool assemble = true;
             bool link = true;
             bool prettyPrint = false;
+            string linkOption = "";
 
             foreach (string arg in args)
             {
@@ -38,6 +39,8 @@ namespace mcc2
                         link = false;
                     else if (option == "--pretty")
                         prettyPrint = true;
+                    else if (option.StartsWith("-l"))
+                        linkOption = option;
                     else
                     {
                         Console.WriteLine($"Invalid option: {option}");
@@ -83,7 +86,7 @@ namespace mcc2
             if (stages == CompilerDriver.Stages.Emitter)
             {
                 if (assemble && link)
-                    CompilerDriver.AssembleAndLink(assembly);
+                    CompilerDriver.AssembleAndLink(assembly, linkOption);
                 else if (assemble)
                     CompilerDriver.AssembleOnly(assembly);
             }
