@@ -14,6 +14,10 @@ public abstract record Instruction
     public record SignExtend(Val Src, Val Dst) : Instruction;
     public record Truncate(Val Src, Val Dst) : Instruction;
     public record ZeroExtend(Val Src, Val Dst) : Instruction;
+    public record DoubleToInt(Val Src, Val Dst) : Instruction;
+    public record DoubleToUInt(Val Src, Val Dst) : Instruction;
+    public record IntToDouble(Val Src, Val Dst) : Instruction;
+    public record UIntToDouble(Val Src, Val Dst) : Instruction;
 
     private Instruction() { }
 }

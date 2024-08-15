@@ -257,14 +257,29 @@ public class TackyEmitter
                     if (castExpression.TargetType == innerType)
                         return result;
                     var dst = MakeTackyVariable(castExpression.TargetType);
-                    if (TypeChecker.GetTypeSize(castExpression.TargetType) == TypeChecker.GetTypeSize(innerType))
-                        instructions.Add(new Instruction.Copy(result, dst));
-                    else if (TypeChecker.GetTypeSize(castExpression.TargetType) < TypeChecker.GetTypeSize(innerType))
-                        instructions.Add(new Instruction.Truncate(result, dst));
-                    else if (TypeChecker.IsSignedType(innerType))
-                        instructions.Add(new Instruction.SignExtend(result, dst));
+
+                    if (innerType is Type.Double || castExpression.TargetType is Type.Double)
+                    {
+                        if (innerType is Type.Int or Type.Long && castExpression.TargetType is Type.Double)
+                            instructions.Add(new Instruction.IntToDouble(result, dst));
+                        else if (innerType is Type.UInt or Type.ULong && castExpression.TargetType is Type.Double)
+                            instructions.Add(new Instruction.UIntToDouble(result, dst));
+                        else if (innerType is Type.Double && castExpression.TargetType is Type.Int or Type.Long)
+                            instructions.Add(new Instruction.DoubleToInt(result, dst));
+                        else if (innerType is Type.Double && castExpression.TargetType is Type.UInt or Type.ULong)
+                            instructions.Add(new Instruction.DoubleToUInt(result, dst));
+                    }
                     else
-                        instructions.Add(new Instruction.ZeroExtend(result, dst));
+                    {
+                        if (TypeChecker.GetTypeSize(castExpression.TargetType) == TypeChecker.GetTypeSize(innerType))
+                            instructions.Add(new Instruction.Copy(result, dst));
+                        else if (TypeChecker.GetTypeSize(castExpression.TargetType) < TypeChecker.GetTypeSize(innerType))
+                            instructions.Add(new Instruction.Truncate(result, dst));
+                        else if (TypeChecker.IsSignedType(innerType))
+                            instructions.Add(new Instruction.SignExtend(result, dst));
+                        else
+                            instructions.Add(new Instruction.ZeroExtend(result, dst));
+                    }
 
                     return dst;
                 }
@@ -276,7 +291,7 @@ public class TackyEmitter
     private Val.Variable MakeTackyVariable(Type varType)
     {
         var varName = MakeTemporary();
-        symbolTable.Add(varName, new SemanticAnalyzer.SymbolEntry() {Type = varType, IdentifierAttributes = new IdentifierAttributes.Local() });
+        symbolTable.Add(varName, new SemanticAnalyzer.SymbolEntry() { Type = varType, IdentifierAttributes = new IdentifierAttributes.Local() });
         return new Val.Variable(varName);
     }
 
