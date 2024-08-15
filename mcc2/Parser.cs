@@ -570,7 +570,7 @@ public class Parser
         {
             Regex regex = new(@"(([0-9]*\.[0-9]+|[0-9]+\.?)[Ee][+-]?[0-9]+|[0-9]*\.[0-9]+|[0-9]+\.)[^\w.]");
             Match match = regex.Match(source, token.Position);
-            return new Const.Double(double.Parse(match.Groups[1].Value, System.Globalization.CultureInfo.InvariantCulture));
+            return new Const.ConstDouble(double.Parse(match.Groups[1].Value, System.Globalization.CultureInfo.InvariantCulture));
         }
 
         System.Numerics.BigInteger value;

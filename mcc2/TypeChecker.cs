@@ -183,6 +183,8 @@ public class TypeChecker
                 return new Expression.VariableExpression(variableExpression.Identifier, varType);
             case Expression.UnaryExpression unaryExpression:
                 var unaryInner = TypeCheckExpression(unaryExpression.Expression, symbolTable);
+                if (unaryExpression.Operator == Expression.UnaryOperator.Complement && GetType(unaryInner) is Type.Double)
+                    throw new Exception("Type Error: Can't take the bitwise complement of a double");
                 return new Expression.UnaryExpression(unaryExpression.Operator, unaryInner, unaryExpression.Operator switch {
                     Expression.UnaryOperator.Not => new Type.Int(),
                     _ => GetType(unaryInner)
@@ -197,6 +199,8 @@ public class TypeChecker
                 var t1 = GetType(typedE1);
                 var t2 = GetType(typedE2);
                 var commonType = GetCommonType(t1, t2);
+                if (binaryExpression.Operator == Expression.BinaryOperator.Remainder && commonType is Type.Double)
+                    throw new Exception("Type Error: Can't apply remainder to double");
                 var convertedE1 = ConvertTo(typedE1, commonType);
                 var convertedE2 = ConvertTo(typedE2, commonType);
                 return new Expression.BinaryExpression(binaryExpression.Operator, convertedE1, convertedE2, binaryExpression.Operator switch {
@@ -214,6 +218,7 @@ public class TypeChecker
                     Const.ConstLong => new Type.Long(),
                     Const.ConstUInt => new Type.UInt(),
                     Const.ConstULong => new Type.ULong(),
+                    Const.ConstDouble => new Type.Double(),
                     _ => throw new NotImplementedException()
                 });
             case Expression.ConditionalExpression conditionalExpression:
@@ -326,6 +331,7 @@ public class TypeChecker
             Const.ConstLong constLong => (ulong)constLong.Value,
             Const.ConstUInt constUInt => (ulong)constUInt.Value,
             Const.ConstULong constULong => (ulong)constULong.Value,
+            Const.ConstDouble constDouble => (ulong)constDouble.Value,
             _ => throw new NotImplementedException()
         };
         return target switch {
@@ -333,6 +339,7 @@ public class TypeChecker
             Type.Long => new StaticInit.LongInit((long)value),
             Type.UInt => new StaticInit.UIntInit((uint)value),
             Type.ULong => new StaticInit.ULongInit((ulong)value),
+            Type.Double => new StaticInit.DoubleInit((double)value),
             _ => throw new NotImplementedException()
         };
     }
@@ -349,6 +356,8 @@ public class TypeChecker
     {
         if (type1 == type2)
             return type1;
+        if (type1 is Type.Double || type2 is Type.Double)
+            return new Type.Double();
         if (GetTypeSize(type1) == GetTypeSize(type2))
         {
             if (IsSignedType(type1))
