@@ -76,7 +76,7 @@ public class TestChapter01
 
         Assert.IsNotNull(((Instruction.Mov)((TopLevel.Function)assembly.TopLevel[0]).Instructions[0]).Src, "Invalid src");
         Assert.IsInstanceOfType(((Instruction.Mov)((TopLevel.Function)assembly.TopLevel[0]).Instructions[0]).Src, typeof(Operand.Imm), "Expected Imm type");
-        Assert.AreEqual(((Operand.Imm)((Instruction.Mov)((TopLevel.Function)assembly.TopLevel[0]).Instructions[0]).Src).Value, 2, "Invalid Imm value");
+        Assert.AreEqual((long)((Operand.Imm)((Instruction.Mov)((TopLevel.Function)assembly.TopLevel[0]).Instructions[0]).Src).Value, 2, "Invalid Imm value");
     }
 
     private string assembly = 
