@@ -137,8 +137,16 @@ namespace mcc2
                     Match match = regex.Match(source, pos);
                     if (match.Success)
                     {
+                        if (match.Groups.Count > 1)
+                        {
+                            if (match.Groups[1].Length >= longest)
+                            {
+                                longest = match.Groups[1].Length;
+                                longestPattern = i;
+                            }
+                        }
                         // note: >= matches keywords of the same length as identifiers afterwards
-                        if (match.Length >= longest)
+                        else if (match.Length >= longest)
                         {
                             longest = match.Length;
                             longestPattern = i;
