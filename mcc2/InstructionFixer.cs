@@ -48,7 +48,7 @@ public class InstructionFixer
                         if (cmp.Type is Instruction.AssemblyType.Double && cmp.OperandB is not Operand.Reg)
                         {
                             Instruction.Mov moveDst = new Instruction.Mov(Instruction.AssemblyType.Double, cmp.OperandB, dstFloatReg);
-                            instructions[i] = new Instruction.Cmp(Instruction.AssemblyType.Double, srcReg, dstFloatReg);
+                            instructions[i] = new Instruction.Cmp(Instruction.AssemblyType.Double, cmp.OperandA, dstFloatReg);
                             instructions.Insert(i, moveDst);
                         }
                         else if (cmp.OperandA is Operand.Stack or Operand.Data && cmp.OperandB is Operand.Stack or Operand.Data)
@@ -112,7 +112,7 @@ public class InstructionFixer
                         if (binary.Type is Instruction.AssemblyType.Double && binary.DstOperand is not Operand.Reg)
                         {
                             Instruction.Mov moveDst = new Instruction.Mov(Instruction.AssemblyType.Double, binary.DstOperand, dstFloatReg);
-                            instructions[i] = new Instruction.Binary(binary.Operator, Instruction.AssemblyType.Double, srcReg, dstFloatReg);
+                            instructions[i] = new Instruction.Binary(binary.Operator, Instruction.AssemblyType.Double, binary.SrcOperand, dstFloatReg);
                             Instruction.Mov moveAfter = new Instruction.Mov(Instruction.AssemblyType.Double, dstFloatReg, binary.DstOperand);
                             instructions.Insert(i + 1, moveAfter);
                             instructions.Insert(i, moveDst);
