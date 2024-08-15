@@ -6,6 +6,7 @@ public abstract record Instruction
     {
         Not,
         Neg,
+        Shr,
     }
 
     public enum BinaryOperator
@@ -13,6 +14,10 @@ public abstract record Instruction
         Add,
         Sub,
         Mult,
+        DivDouble,
+        And,
+        Or,
+        Xor,
     }
 
     public enum ConditionCode
@@ -32,12 +37,15 @@ public abstract record Instruction
     public enum AssemblyType
     {
         Longword,
-        Quadword
+        Quadword,
+        Double,
     }
 
     public record Mov(AssemblyType Type, Operand Src, Operand Dst) : Instruction;
     public record Movsx(Operand Src, Operand Dst) : Instruction;
     public record MovZeroExtend(Operand Src, Operand Dst) : Instruction;
+    public record Cvttsd2si(AssemblyType DstType, Operand Src, Operand Dst) : Instruction;
+    public record Cvtsi2sd(AssemblyType SrcType, Operand Src, Operand Dst) : Instruction;
     public record Unary(UnaryOperator Operator, AssemblyType Type, Operand Operand) : Instruction;
     public record Binary(BinaryOperator Operator, AssemblyType Type, Operand SrcOperand, Operand DstOperand) : Instruction;
     public record Cmp(AssemblyType Type, Operand OperandA, Operand OperandB) : Instruction;

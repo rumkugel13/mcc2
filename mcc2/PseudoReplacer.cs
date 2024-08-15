@@ -124,6 +124,32 @@ public class PseudoReplacer
                         instructions[i] = new Instruction.MovZeroExtend(src, dst);
                         break;
                     }
+                case Instruction.Cvttsd2si cvttsd2si:
+                    {
+                        var src = cvttsd2si.Src;
+                        var dst = cvttsd2si.Dst;
+                        if (src is Operand.Pseudo pseudoSrc)
+                            src = ReplacePseudo(pseudoSrc.Identifier);
+
+                        if (dst is Operand.Pseudo pseudoDst)
+                            dst = ReplacePseudo(pseudoDst.Identifier);
+
+                        instructions[i] = new Instruction.Cvttsd2si(cvttsd2si.DstType, src, dst);
+                    }
+                    break;
+                case Instruction.Cvtsi2sd cvtsi2sd:
+                    {
+                        var src = cvtsi2sd.Src;
+                        var dst = cvtsi2sd.Dst;
+                        if (src is Operand.Pseudo pseudoSrc)
+                            src = ReplacePseudo(pseudoSrc.Identifier);
+
+                        if (dst is Operand.Pseudo pseudoDst)
+                            dst = ReplacePseudo(pseudoDst.Identifier);
+
+                        instructions[i] = new Instruction.Cvtsi2sd(cvtsi2sd.SrcType, src, dst);
+                    }
+                    break;
             }
         }
 
@@ -145,6 +171,7 @@ public class PseudoReplacer
         var align = ((AsmSymbolTableEntry.ObjectEntry)AssemblyGenerator.AsmSymbolTable[name]).AssemblyType switch {
             Instruction.AssemblyType.Longword => 4,
             Instruction.AssemblyType.Quadword => 8,
+            Instruction.AssemblyType.Double => 8,
             _ => throw new NotImplementedException()
         };
 

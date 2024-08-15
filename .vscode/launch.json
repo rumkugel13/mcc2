@@ -11,7 +11,7 @@
             "preLaunchTask": "dotnet: build",
             "program": "${workspaceFolder}/mcc2/bin/Debug/net8.0/mcc2",
             "args": [
-                "-S", "--pretty", "mcc2.Tests/Source/simple.c"
+                "--codegen", "--pretty", "mcc2.Tests/Source/constant_doubles.c"
             ],
             "cwd": "${workspaceFolder}",
             "stopAtEntry": false,
