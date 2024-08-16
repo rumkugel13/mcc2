@@ -30,7 +30,7 @@ public class TypeChecker
         {
             var attributes = (IdentifierAttributes.Function)prevEntry.IdentifierAttributes;
             // note: check correct type and number of parameters
-            var prevFunType = (Type.FunctionType) prevEntry.Type;
+            var prevFunType = (Type.FunctionType)prevEntry.Type;
             if (prevFunType is not Type.FunctionType funcA || funcA.Parameters.Count != funType.Parameters.Count || funcA.Return != funType.Return)
                 throw new Exception("Type Error: Incompatible function declarations");
 
@@ -61,7 +61,7 @@ public class TypeChecker
                 symbolTable.Add(param, new SymbolEntry() { Type = funType.Parameters[i] });
             }
 
-            return new Declaration.FunctionDeclaration(functionDeclaration.Identifier, functionDeclaration.Parameters, TypeCheckBlock(functionDeclaration.Body, symbolTable), funType, functionDeclaration.StorageClass) ;
+            return new Declaration.FunctionDeclaration(functionDeclaration.Identifier, functionDeclaration.Parameters, TypeCheckBlock(functionDeclaration.Body, symbolTable), funType, functionDeclaration.StorageClass);
         }
 
         return functionDeclaration;
@@ -161,7 +161,7 @@ public class TypeChecker
         {
             symbolTable[variableDeclaration.Identifier] = new SymbolEntry() { Type = variableDeclaration.VariableType, IdentifierAttributes = new IdentifierAttributes.Local() };
             if (variableDeclaration.Initializer != null)
-                return new Declaration.VariableDeclaration(variableDeclaration.Identifier, ConvertTo(TypeCheckExpression(variableDeclaration.Initializer, symbolTable),variableDeclaration.VariableType), variableDeclaration.VariableType, variableDeclaration.StorageClass);
+                return new Declaration.VariableDeclaration(variableDeclaration.Identifier, ConvertByAssignment(TypeCheckExpression(variableDeclaration.Initializer, symbolTable), variableDeclaration.VariableType), variableDeclaration.VariableType, variableDeclaration.StorageClass);
         }
         return variableDeclaration;
     }
@@ -174,7 +174,7 @@ public class TypeChecker
                 var typedLeft = TypeCheckExpression(assignment.ExpressionLeft, symbolTable);
                 var typedRight = TypeCheckExpression(assignment.ExpressionRight, symbolTable);
                 var leftType = GetType(typedLeft);
-                var convertedRight = ConvertTo(typedRight, leftType);
+                var convertedRight = ConvertByAssignment(typedRight, leftType);
                 return new Expression.Assignment(typedLeft, convertedRight, leftType);
             case Expression.Variable variable:
                 var varType = symbolTable[variable.Identifier].Type;
@@ -183,9 +183,14 @@ public class TypeChecker
                 return new Expression.Variable(variable.Identifier, varType);
             case Expression.Unary unary:
                 var unaryInner = TypeCheckExpression(unary.Expression, symbolTable);
+                if (unary.Operator is Expression.UnaryOperator.Negate && !IsArithmetic(GetType(unaryInner)))
+                    throw new Exception("Type Error: Can only negate arithmetic types");
+                if (unary.Operator is Expression.UnaryOperator.Complement && !IsArithmetic(GetType(unaryInner)))
+                    throw new Exception("Type Error: Bitwise complement only valid for integer types");
                 if (unary.Operator == Expression.UnaryOperator.Complement && GetType(unaryInner) is Type.Double)
                     throw new Exception("Type Error: Can't take the bitwise complement of a double");
-                return new Expression.Unary(unary.Operator, unaryInner, unary.Operator switch {
+                return new Expression.Unary(unary.Operator, unaryInner, unary.Operator switch
+                {
                     Expression.UnaryOperator.Not => new Type.Int(),
                     _ => GetType(unaryInner)
                 });
@@ -198,22 +203,30 @@ public class TypeChecker
                 }
                 var t1 = GetType(typedE1);
                 var t2 = GetType(typedE2);
-                var commonType = GetCommonType(t1, t2);
+                var commonType = binary.Operator is Expression.BinaryOperator.Equal or Expression.BinaryOperator.NotEqual &&
+                    (t1 is Type.Pointer || t2 is Type.Pointer)
+                    ? GetCommonPointerType(typedE1, typedE2)
+                    : GetCommonType(t1, t2);
                 if (binary.Operator == Expression.BinaryOperator.Remainder && commonType is Type.Double)
                     throw new Exception("Type Error: Can't apply remainder to double");
+                if (binary.Operator is Expression.BinaryOperator.Multiply or Expression.BinaryOperator.Divide or Expression.BinaryOperator.Remainder &&
+                    !IsArithmetic(commonType))
+                    throw new Exception("Type Error: Can only multiply arithmetic types");
                 var convertedE1 = ConvertTo(typedE1, commonType);
                 var convertedE2 = ConvertTo(typedE2, commonType);
-                return new Expression.Binary(binary.Operator, convertedE1, convertedE2, binary.Operator switch {
-                    Expression.BinaryOperator.Add or 
-                    Expression.BinaryOperator.Subtract or 
-                    Expression.BinaryOperator.Multiply or 
-                    Expression.BinaryOperator.Divide or 
+                return new Expression.Binary(binary.Operator, convertedE1, convertedE2, binary.Operator switch
+                {
+                    Expression.BinaryOperator.Add or
+                    Expression.BinaryOperator.Subtract or
+                    Expression.BinaryOperator.Multiply or
+                    Expression.BinaryOperator.Divide or
                     Expression.BinaryOperator.Remainder =>
                         commonType,
                     _ => new Type.Int() // note: comparison results in int
                 });
             case Expression.Constant constant:
-                return new Expression.Constant(constant.Value, constant.Value switch {
+                return new Expression.Constant(constant.Value, constant.Value switch
+                {
                     Const.ConstInt => new Type.Int(),
                     Const.ConstLong => new Type.Long(),
                     Const.ConstUInt => new Type.UInt(),
@@ -227,7 +240,9 @@ public class TypeChecker
                 var typedElse = TypeCheckExpression(conditional.Else, symbolTable);
                 var typeThen = GetType(typedThen);
                 var typeElse = GetType(typedElse);
-                var common = GetCommonType(typeThen, typeElse);
+                var common = (typeThen is Type.Pointer || typeElse is Type.Pointer)
+                    ? GetCommonPointerType(typedThen, typedElse)
+                    : GetCommonType(typeThen, typeElse);
                 var convertedThen = ConvertTo(typedThen, common);
                 var convertedElse = ConvertTo(typedElse, common);
                 return new Expression.Conditional(typedCond, convertedThen, convertedElse, common);
@@ -243,15 +258,95 @@ public class TypeChecker
                 for (int i = 0; i < functionCall.Arguments.Count; i++)
                 {
                     var typedArg = TypeCheckExpression(functionCall.Arguments[i], symbolTable);
-                    convertedArgs.Add(ConvertTo(typedArg, ((Type.FunctionType)funType).Parameters[i]));
+                    convertedArgs.Add(ConvertByAssignment(typedArg, ((Type.FunctionType)funType).Parameters[i]));
                 }
                 return new Expression.FunctionCall(functionCall.Identifier, convertedArgs, ((Type.FunctionType)funType).Return);
             case Expression.Cast cast:
-                var typedInner = TypeCheckExpression(cast.Expression, symbolTable);
-                return new Expression.Cast(cast.TargetType, typedInner, cast.TargetType);
+                {
+                    var typedInner = TypeCheckExpression(cast.Expression, symbolTable);
+                    if (cast.TargetType is Type.Double && GetType(typedInner) is Type.Pointer ||
+                        cast.TargetType is Type.Pointer && GetType(typedInner) is Type.Double)
+                        throw new Exception("Type Error: Cannot cast between pointer and double");
+                    return new Expression.Cast(cast.TargetType, typedInner, cast.TargetType);
+                }
+            case Expression.Dereference dereference:
+                {
+                    var typedInner = TypeCheckExpression(dereference.Expression, symbolTable);
+                    switch (GetType(typedInner))
+                    {
+                        case Type.Pointer pointer:
+                            return new Expression.Dereference(typedInner, pointer.Referenced);
+                        default:
+                            throw new Exception("Type Error: Cannot dereference non-pointer");
+                    }
+                }
+            case Expression.AddressOf addressOf:
+                {
+                    if (IsLvalue(addressOf.Expression))
+                    {
+                        var typedInner = TypeCheckExpression(addressOf.Expression, symbolTable);
+                        var referencedType = GetType(typedInner);
+                        return new Expression.AddressOf(typedInner, new Type.Pointer(referencedType));
+                    }
+                    else
+                        throw new Exception("Type Error: Can't take the address of a non-lvalue");
+                }
             default:
                 throw new NotImplementedException();
         }
+    }
+
+    private Expression ConvertByAssignment(Expression exp, Type targetType)
+    {
+        if (GetType(exp) == targetType)
+            return exp;
+        else if (IsArithmetic(GetType(exp)) && IsArithmetic(targetType))
+            return ConvertTo(exp, targetType);
+        else if (IsNullPointerConstant(exp) && targetType is Type.Pointer)
+            return ConvertTo(exp, targetType);
+        else
+            throw new Exception("Type Error: Cannot convert type for assignment");
+    }
+
+    private bool IsArithmetic(Type type)
+    {
+        return type switch {
+            Type.Int or Type.Long or Type.UInt or Type.ULong or Type.Double => true,
+            _ => false
+        };
+    }
+
+    private bool IsLvalue(Expression exp)
+    {
+        return exp is Expression.Variable or Expression.Dereference;
+    }
+
+    private bool IsNullPointerConstant(Expression exp)
+    {
+        return exp switch {
+            Expression.Constant constant => constant.Value switch {
+                Const.ConstInt c => c.Value == 0,
+                Const.ConstUInt c => c.Value == 0,
+                Const.ConstLong c => c.Value == 0,
+                Const.ConstULong c => c.Value == 0,
+                _ => false
+            },
+            _ => false
+        };
+    }
+
+    private Type GetCommonPointerType(Expression exp1, Expression exp2)
+    {
+        var type1 = GetType(exp1);
+        var type2 = GetType(exp2);
+        if (type1 == type2)
+            return type1;
+        else if (IsNullPointerConstant(exp1))
+            return type2;
+        else if (IsNullPointerConstant(exp2))
+            return type1;
+        else
+            throw new Exception("Type Error: Expressions have incompatible types");
     }
 
     private Statement TypeCheckStatement(Statement statement, Dictionary<string, SymbolEntry> symbolTable)
@@ -260,7 +355,7 @@ public class TypeChecker
         {
             case Statement.ReturnStatement ret:
                 var typedReturn = TypeCheckExpression(ret.Expression, symbolTable);
-                var converted = ConvertTo(typedReturn, functionReturnType);
+                var converted = ConvertByAssignment(typedReturn, functionReturnType);
                 return new Statement.ReturnStatement(converted);
             case Statement.ExpressionStatement expressionStatement:
                 return new Statement.ExpressionStatement(TypeCheckExpression(expressionStatement.Expression, symbolTable));
@@ -327,11 +422,10 @@ public class TypeChecker
     public static StaticInit ConvertConstantToInit(Type target, Const constant)
     {
         if (constant is Const.ConstDouble cd && target is Type.Double)
-        {
             return new StaticInit.DoubleInit(cd.Value);
-        }
 
-        ulong value = constant switch {
+        ulong value = constant switch
+        {
             Const.ConstInt constInt => (ulong)constInt.Value,
             Const.ConstLong constLong => (ulong)constLong.Value,
             Const.ConstUInt constUInt => (ulong)constUInt.Value,
@@ -339,12 +433,18 @@ public class TypeChecker
             Const.ConstDouble constDouble => (ulong)constDouble.Value,
             _ => throw new NotImplementedException()
         };
-        return target switch {
+
+        if (target is Type.Pointer && value != 0)
+            throw new Exception("Type Error: Invalid static initializer for pointer");
+
+        return target switch
+        {
             Type.Int => new StaticInit.IntInit((int)value),
             Type.Long => new StaticInit.LongInit((long)value),
             Type.UInt => new StaticInit.UIntInit((uint)value),
             Type.ULong => new StaticInit.ULongInit((ulong)value),
             Type.Double => new StaticInit.DoubleInit((double)value),
+            Type.Pointer => new StaticInit.ULongInit(value),
             _ => throw new NotImplementedException()
         };
     }
@@ -353,7 +453,7 @@ public class TypeChecker
     {
         if (GetType(expression) == type)
             return expression;
-        
+
         return new Expression.Cast(type, expression, type);
     }
 
@@ -367,7 +467,7 @@ public class TypeChecker
         {
             if (IsSignedType(type1))
                 return type2;
-            else 
+            else
                 return type1;
         }
         if (GetTypeSize(type1) > GetTypeSize(type2))
@@ -378,25 +478,28 @@ public class TypeChecker
 
     public static int GetTypeSize(Type type)
     {
-        return type switch {
+        return type switch
+        {
             Type.Int or Type.UInt => 4,
             Type.Long or Type.ULong => 8,
-             _ => throw new NotImplementedException()
+            _ => throw new NotImplementedException()
         };
     }
 
     public static bool IsSignedType(Type type)
     {
-        return type switch {
+        return type switch
+        {
             Type.Int or Type.Long => true,
             Type.UInt or Type.ULong => false,
-             _ => throw new NotImplementedException()
+            _ => throw new NotImplementedException()
         };
     }
 
     public static Type GetType(Expression expression)
     {
-        return expression switch {
+        return expression switch
+        {
             Expression.Constant exp => exp.Type,
             Expression.Variable exp => exp.Type,
             Expression.Unary exp => exp.Type,
@@ -405,6 +508,8 @@ public class TypeChecker
             Expression.Conditional exp => exp.Type,
             Expression.FunctionCall exp => exp.Type,
             Expression.Cast exp => exp.Type,
+            Expression.Dereference exp => exp.Type,
+            Expression.AddressOf exp => exp.Type,
             _ => throw new NotImplementedException()
         };
     }

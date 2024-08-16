@@ -164,9 +164,6 @@ public class IdentifierResolver
         switch (expression)
         {
             case Expression.Assignment assignment:
-                if (assignment.ExpressionLeft is not Expression.Variable)
-                    throw new Exception("Semantic Error: Invalid lvalue");
-
                 {
                     var left = ResolveExpression(assignment.ExpressionLeft, identifierMap);
                     var right = ResolveExpression(assignment.ExpressionRight, identifierMap);
@@ -211,6 +208,16 @@ public class IdentifierResolver
             case Expression.Cast cast:
                 {
                     return new Expression.Cast(cast.TargetType, ResolveExpression(cast.Expression, identifierMap), cast.Type);
+                }
+            case Expression.Dereference dereference:
+                {
+                    var exp = ResolveExpression(dereference.Expression, identifierMap);
+                    return new Expression.Dereference(exp, dereference.Type);
+                }
+            case Expression.AddressOf addressOf:
+                {
+                    var exp = ResolveExpression(addressOf.Expression, identifierMap);
+                    return new Expression.AddressOf(exp, addressOf.Type);
                 }
             default:
                 throw new NotImplementedException();
