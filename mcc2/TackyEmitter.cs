@@ -350,7 +350,7 @@ public class TackyEmitter
             case ExpResult.DereferencedPointer pointer:
                 var dst = MakeTackyVariable(GetType(expression));
                 instructions.Add(new Instruction.Load(pointer.Val, dst));
-                return pointer;
+                return new ExpResult.PlainOperand(dst);
             default:
             throw new NotImplementedException();
         }
