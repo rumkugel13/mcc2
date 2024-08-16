@@ -481,7 +481,7 @@ public class TypeChecker
         return type switch
         {
             Type.Int or Type.UInt => 4,
-            Type.Long or Type.ULong => 8,
+            Type.Long or Type.ULong or Type.Pointer => 8,
             _ => throw new NotImplementedException()
         };
     }

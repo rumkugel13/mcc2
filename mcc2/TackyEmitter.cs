@@ -77,31 +77,31 @@ public class TackyEmitter
         {
             case Statement.ReturnStatement returnStatement:
                 {
-                    var val = EmitInstruction(returnStatement.Expression, instructions);
-                    instructions.Add(new Instruction.Return(val));
+                    var val = EmitTackyAndConvert(returnStatement.Expression, instructions);
+                    instructions.Add(new Instruction.Return(ToVal(val)));
                     break;
                 }
             case Declaration.VariableDeclaration declaration:
                 if (declaration.Initializer != null && declaration.StorageClass == null)
                 {
-                    var result = EmitInstruction(declaration.Initializer, instructions);
-                    instructions.Add(new Instruction.Copy(result, new Val.Variable(declaration.Identifier)));
+                    var result = EmitTackyAndConvert(declaration.Initializer, instructions);
+                    instructions.Add(new Instruction.Copy(ToVal(result), new Val.Variable(declaration.Identifier)));
                 }
                 break;
             case Statement.ExpressionStatement expressionStatement:
-                EmitInstruction(expressionStatement.Expression, instructions);
+                EmitTackyAndConvert(expressionStatement.Expression, instructions);
                 break;
             case Statement.NullStatement:
                 break;
             case Statement.IfStatement ifStatement:
                 {
-                    var cond = EmitInstruction(ifStatement.Condition, instructions);
+                    var cond = EmitTackyAndConvert(ifStatement.Condition, instructions);
                     var endLabel = MakeLabel();
                     var elseLabel = MakeLabel();
                     if (ifStatement.Else == null)
-                        instructions.Add(new Instruction.JumpIfZero(cond, endLabel));
+                        instructions.Add(new Instruction.JumpIfZero(ToVal(cond), endLabel));
                     else
-                        instructions.Add(new Instruction.JumpIfZero(cond, elseLabel));
+                        instructions.Add(new Instruction.JumpIfZero(ToVal(cond), elseLabel));
                     EmitInstruction(ifStatement.Then, instructions);
                     if (ifStatement.Else != null)
                     {
@@ -128,8 +128,8 @@ public class TackyEmitter
                     instructions.Add(new Instruction.Label(start));
                     EmitInstruction(doWhileStatement.Body, instructions);
                     instructions.Add(new Instruction.Label(MakeContinueLabel(doWhileStatement.Label)));
-                    var val = EmitInstruction(doWhileStatement.Condition, instructions);
-                    instructions.Add(new Instruction.JumpIfNotZero(val, start));
+                    var val = EmitTackyAndConvert(doWhileStatement.Condition, instructions);
+                    instructions.Add(new Instruction.JumpIfNotZero(ToVal(val), start));
                     instructions.Add(new Instruction.Label(MakeBreakLabel(doWhileStatement.Label)));
                     break;
                 }
@@ -137,9 +137,9 @@ public class TackyEmitter
                 {
                     var continueLabel = MakeContinueLabel(whileStatement.Label);
                     instructions.Add(new Instruction.Label(continueLabel));
-                    var val = EmitInstruction(whileStatement.Condition, instructions);
+                    var val = EmitTackyAndConvert(whileStatement.Condition, instructions);
                     var breakLabel = MakeBreakLabel(whileStatement.Label);
-                    instructions.Add(new Instruction.JumpIfZero(val, breakLabel));
+                    instructions.Add(new Instruction.JumpIfZero(ToVal(val), breakLabel));
                     EmitInstruction(whileStatement.Body, instructions);
                     instructions.Add(new Instruction.Jump(continueLabel));
                     instructions.Add(new Instruction.Label(breakLabel));
@@ -150,20 +150,20 @@ public class TackyEmitter
                     if (forStatement.Init is ForInit.InitDeclaration initDeclaration)
                         EmitInstruction(initDeclaration.Declaration, instructions);
                     else if (forStatement.Init is ForInit.InitExpression initExpression && initExpression.Expression != null)
-                        EmitInstruction(initExpression.Expression, instructions);
+                        EmitTackyAndConvert(initExpression.Expression, instructions);
                     var start = MakeStartLabel(forStatement.Label);
                     instructions.Add(new Instruction.Label(start));
                     var breakLabel = MakeBreakLabel(forStatement.Label);
                     if (forStatement.Condition != null)
                     {
-                        var val = EmitInstruction(forStatement.Condition, instructions);
-                        instructions.Add(new Instruction.JumpIfZero(val, breakLabel));
+                        var val = EmitTackyAndConvert(forStatement.Condition, instructions);
+                        instructions.Add(new Instruction.JumpIfZero(ToVal(val), breakLabel));
                     }
                     EmitInstruction(forStatement.Body, instructions);
                     var continueLabel = MakeContinueLabel(forStatement.Label);
                     instructions.Add(new Instruction.Label(continueLabel));
                     if (forStatement.Post != null)
-                        EmitInstruction(forStatement.Post, instructions);
+                        EmitTackyAndConvert(forStatement.Post, instructions);
                     instructions.Add(new Instruction.Jump(start));
                     instructions.Add(new Instruction.Label(breakLabel));
                     break;
@@ -176,74 +176,115 @@ public class TackyEmitter
         }
     }
 
-    private Val EmitInstruction(Expression expression, List<Instruction> instructions)
+    private ExpResult EmitTacky(Expression expression, List<Instruction> instructions)
     {
         switch (expression)
         {
             case Expression.Constant constant:
-                return new Val.Constant(constant.Value);
+                return new ExpResult.PlainOperand(new Val.Constant(constant.Value));
             case Expression.Unary unary:
                 {
-                    var src = EmitInstruction(unary.Expression, instructions);
+                    var src = EmitTackyAndConvert(unary.Expression, instructions);
                     var dst = MakeTackyVariable(unary.Type);
-                    instructions.Add(new Instruction.Unary(unary.Operator, src, dst));
-                    return dst;
+                    instructions.Add(new Instruction.Unary(unary.Operator, ToVal(src), dst));
+                    return new ExpResult.PlainOperand(dst);
                 }
             case Expression.Binary binary:
                 {
                     if (binary.Operator == Expression.BinaryOperator.And ||
                         binary.Operator == Expression.BinaryOperator.Or)
                     {
-                        return EmitShortCurcuit(binary, instructions);
-                    }
+                        var dstAndOr = MakeTackyVariable(binary.Type);
 
-                    var v1 = EmitInstruction(binary.ExpressionLeft, instructions);
-                    var v2 = EmitInstruction(binary.ExpressionRight, instructions);
-                    var dst = MakeTackyVariable(binary.Type);
-                    instructions.Add(new Instruction.Binary(binary.Operator, v1, v2, dst));
-                    return dst;
+                        if (binary.Operator == Expression.BinaryOperator.And)
+                        {
+                            var v1 = EmitTackyAndConvert(binary.ExpressionLeft, instructions);
+                            var falseLabel = MakeLabel();
+                            instructions.Add(new Instruction.JumpIfZero(ToVal(v1), falseLabel));
+                            var v2 = EmitTackyAndConvert(binary.ExpressionRight, instructions);
+                            instructions.Add(new Instruction.JumpIfZero(ToVal(v2), falseLabel));
+                            instructions.Add(new Instruction.Copy(new Val.Constant(new Const.ConstInt(1)), dstAndOr));
+                            var endLabel = MakeLabel();
+                            instructions.Add(new Instruction.Jump(endLabel));
+                            instructions.Add(new Instruction.Label(falseLabel));
+                            instructions.Add(new Instruction.Copy(new Val.Constant(new Const.ConstInt(0)), dstAndOr));
+                            instructions.Add(new Instruction.Label(endLabel));
+                        }
+                        else
+                        {
+                            var v1 = EmitTackyAndConvert(binary.ExpressionLeft, instructions);
+                            var trueLabel = MakeLabel();
+                            instructions.Add(new Instruction.JumpIfNotZero(ToVal(v1), trueLabel));
+                            var v2 = EmitTackyAndConvert(binary.ExpressionRight, instructions);
+                            instructions.Add(new Instruction.JumpIfNotZero(ToVal(v2), trueLabel));
+                            instructions.Add(new Instruction.Copy(new Val.Constant(new Const.ConstInt(0)), dstAndOr));
+                            var endLabel = MakeLabel();
+                            instructions.Add(new Instruction.Jump(endLabel));
+                            instructions.Add(new Instruction.Label(trueLabel));
+                            instructions.Add(new Instruction.Copy(new Val.Constant(new Const.ConstInt(1)), dstAndOr));
+                            instructions.Add(new Instruction.Label(endLabel));
+                        }
+                        return new ExpResult.PlainOperand(dstAndOr);
+                    }
+                    else
+                    {
+                        var v1 = EmitTackyAndConvert(binary.ExpressionLeft, instructions);
+                        var v2 = EmitTackyAndConvert(binary.ExpressionRight, instructions);
+                        var dst = MakeTackyVariable(binary.Type);
+                        instructions.Add(new Instruction.Binary(binary.Operator, ToVal(v1), ToVal(v2), dst));
+                        return new ExpResult.PlainOperand(dst);
+                    }
                 }
             case Expression.Variable variable:
-                return new Val.Variable(variable.Identifier);
+                return new ExpResult.PlainOperand(new Val.Variable(variable.Identifier));
             case Expression.Assignment assignment:
                 {
-                    var result = EmitInstruction(assignment.ExpressionRight, instructions);
-                    var dst = new Val.Variable(((Expression.Variable)assignment.ExpressionLeft).Identifier);
-                    instructions.Add(new Instruction.Copy(result, dst));
-                    return dst;
+                    var lval = EmitTacky(assignment.ExpressionLeft, instructions);
+                    var rval = EmitTackyAndConvert(assignment.ExpressionRight, instructions);
+                    switch (lval)
+                    {
+                        case ExpResult.PlainOperand operand:
+                            instructions.Add(new Instruction.Copy(ToVal(rval), (Val.Variable)operand.Val));
+                            return lval;
+                        case ExpResult.DereferencedPointer pointer:
+                            instructions.Add(new Instruction.Store(ToVal(rval), pointer.Val));
+                            return new ExpResult.PlainOperand(ToVal(rval));
+                        default:
+                            throw new NotImplementedException();
+                    }
                 }
             case Expression.Conditional conditional:
                 {
-                    var cond = EmitInstruction(conditional.Condition, instructions);
+                    var cond = EmitTackyAndConvert(conditional.Condition, instructions);
                     var exp2Label = MakeLabel();
-                    instructions.Add(new Instruction.JumpIfZero(cond, exp2Label));
-                    var var1 = EmitInstruction(conditional.Then, instructions);
+                    instructions.Add(new Instruction.JumpIfZero(ToVal(cond), exp2Label));
+                    var var1 = EmitTackyAndConvert(conditional.Then, instructions);
                     var dst = MakeTackyVariable(conditional.Type);
-                    instructions.Add(new Instruction.Copy(var1, dst));
+                    instructions.Add(new Instruction.Copy(ToVal(var1), dst));
                     var endLabel = MakeLabel();
                     instructions.Add(new Instruction.Jump(endLabel));
                     instructions.Add(new Instruction.Label(exp2Label));
-                    var var2 = EmitInstruction(conditional.Else, instructions);
-                    instructions.Add(new Instruction.Copy(var2, dst));
+                    var var2 = EmitTackyAndConvert(conditional.Else, instructions);
+                    instructions.Add(new Instruction.Copy(ToVal(var2), dst));
                     instructions.Add(new Instruction.Label(endLabel));
-                    return dst;
+                    return new ExpResult.PlainOperand(dst);
                 }
             case Expression.FunctionCall functionCall:
                 {
                     List<Val> arguments = [];
                     foreach (var arg in functionCall.Arguments)
                     {
-                        var val = EmitInstruction(arg, instructions);
-                        arguments.Add(val);
+                        var val = EmitTackyAndConvert(arg, instructions);
+                        arguments.Add(ToVal(val));
                     }
 
                     var dst = MakeTackyVariable(functionCall.Type);
                     instructions.Add(new Instruction.FunctionCall(functionCall.Identifier, arguments, dst));
-                    return dst;
+                    return new ExpResult.PlainOperand(dst);
                 }
             case Expression.Cast cast:
                 {
-                    var result = EmitInstruction(cast.Expression, instructions);
+                    var result = EmitTackyAndConvert(cast.Expression, instructions);
                     var innerType = TypeChecker.GetType(cast.Expression);
                     if (cast.TargetType == innerType)
                         return result;
@@ -252,31 +293,77 @@ public class TackyEmitter
                     if (innerType is Type.Double || cast.TargetType is Type.Double)
                     {
                         if (innerType is Type.Int or Type.Long && cast.TargetType is Type.Double)
-                            instructions.Add(new Instruction.IntToDouble(result, dst));
+                            instructions.Add(new Instruction.IntToDouble(ToVal(result), dst));
                         else if (innerType is Type.UInt or Type.ULong && cast.TargetType is Type.Double)
-                            instructions.Add(new Instruction.UIntToDouble(result, dst));
+                            instructions.Add(new Instruction.UIntToDouble(ToVal(result), dst));
                         else if (innerType is Type.Double && cast.TargetType is Type.Int or Type.Long)
-                            instructions.Add(new Instruction.DoubleToInt(result, dst));
+                            instructions.Add(new Instruction.DoubleToInt(ToVal(result), dst));
                         else if (innerType is Type.Double && cast.TargetType is Type.UInt or Type.ULong)
-                            instructions.Add(new Instruction.DoubleToUInt(result, dst));
+                            instructions.Add(new Instruction.DoubleToUInt(ToVal(result), dst));
                     }
                     else
                     {
                         if (TypeChecker.GetTypeSize(cast.TargetType) == TypeChecker.GetTypeSize(innerType))
-                            instructions.Add(new Instruction.Copy(result, dst));
+                            instructions.Add(new Instruction.Copy(ToVal(result), dst));
                         else if (TypeChecker.GetTypeSize(cast.TargetType) < TypeChecker.GetTypeSize(innerType))
-                            instructions.Add(new Instruction.Truncate(result, dst));
+                            instructions.Add(new Instruction.Truncate(ToVal(result), dst));
                         else if (TypeChecker.IsSignedType(innerType))
-                            instructions.Add(new Instruction.SignExtend(result, dst));
+                            instructions.Add(new Instruction.SignExtend(ToVal(result), dst));
                         else
-                            instructions.Add(new Instruction.ZeroExtend(result, dst));
+                            instructions.Add(new Instruction.ZeroExtend(ToVal(result), dst));
                     }
 
-                    return dst;
+                    return new ExpResult.PlainOperand(dst);
+                }
+            case Expression.Dereference dereference:
+                {
+                    var result = EmitTackyAndConvert(dereference.Expression, instructions);
+                    return new ExpResult.DereferencedPointer(ToVal(result));
+                }
+            case Expression.AddressOf addressOf:
+                {
+                    var val = EmitTacky(addressOf.Expression, instructions);
+                    switch (val)
+                    {
+                        case ExpResult.PlainOperand operand:
+                            var dst = MakeTackyVariable(GetType(expression));
+                            instructions.Add(new Instruction.GetAddress(operand.Val, dst));
+                            return new ExpResult.PlainOperand(dst);
+                        case ExpResult.DereferencedPointer pointer:
+                            return new ExpResult.PlainOperand(pointer.Val);
+                        default:
+                            throw new NotImplementedException();
+                    }
                 }
             default:
                 throw new NotImplementedException();
         }
+    }
+
+    private ExpResult EmitTackyAndConvert(Expression expression, List<Instruction> instructions)
+    {
+        var result = EmitTacky(expression, instructions);
+        switch (result)
+        {
+            case ExpResult.PlainOperand operand:
+                return operand;
+            case ExpResult.DereferencedPointer pointer:
+                var dst = MakeTackyVariable(GetType(expression));
+                instructions.Add(new Instruction.Load(pointer.Val, dst));
+                return pointer;
+            default:
+            throw new NotImplementedException();
+        }
+    }
+
+    private Val ToVal(ExpResult expResult)
+    {
+        return expResult switch
+        {
+            ExpResult.PlainOperand result => result.Val,
+            ExpResult.DereferencedPointer result => result.Val,
+            _ => throw new NotImplementedException()
+        };
     }
 
     private Val.Variable MakeTackyVariable(Type varType)
@@ -286,39 +373,9 @@ public class TackyEmitter
         return new Val.Variable(varName);
     }
 
-    private Val EmitShortCurcuit(Expression.Binary binary, List<Instruction> instructions)
+    private Type GetType(Expression expression)
     {
-        var dst = MakeTackyVariable(binary.Type);
-
-        if (binary.Operator == Expression.BinaryOperator.And)
-        {
-            var v1 = EmitInstruction(binary.ExpressionLeft, instructions);
-            var falseLabel = MakeLabel();
-            instructions.Add(new Instruction.JumpIfZero(v1, falseLabel));
-            var v2 = EmitInstruction(binary.ExpressionRight, instructions);
-            instructions.Add(new Instruction.JumpIfZero(v2, falseLabel));
-            instructions.Add(new Instruction.Copy(new Val.Constant(new Const.ConstInt(1)), dst));
-            var endLabel = MakeLabel();
-            instructions.Add(new Instruction.Jump(endLabel));
-            instructions.Add(new Instruction.Label(falseLabel));
-            instructions.Add(new Instruction.Copy(new Val.Constant(new Const.ConstInt(0)), dst));
-            instructions.Add(new Instruction.Label(endLabel));
-        }
-        else
-        {
-            var v1 = EmitInstruction(binary.ExpressionLeft, instructions);
-            var trueLabel = MakeLabel();
-            instructions.Add(new Instruction.JumpIfNotZero(v1, trueLabel));
-            var v2 = EmitInstruction(binary.ExpressionRight, instructions);
-            instructions.Add(new Instruction.JumpIfNotZero(v2, trueLabel));
-            instructions.Add(new Instruction.Copy(new Val.Constant(new Const.ConstInt(0)), dst));
-            var endLabel = MakeLabel();
-            instructions.Add(new Instruction.Jump(endLabel));
-            instructions.Add(new Instruction.Label(trueLabel));
-            instructions.Add(new Instruction.Copy(new Val.Constant(new Const.ConstInt(1)), dst));
-            instructions.Add(new Instruction.Label(endLabel));
-        }
-        return dst;
+        return TypeChecker.GetType(expression);
     }
 
     private string MakeTemporary()

@@ -18,6 +18,9 @@ public abstract record Instruction
     public record DoubleToUInt(Val Src, Val Dst) : Instruction;
     public record IntToDouble(Val Src, Val Dst) : Instruction;
     public record UIntToDouble(Val Src, Val Dst) : Instruction;
+    public record GetAddress(Val Src, Val Dst) : Instruction;
+    public record Load(Val SrcPtr, Val Dst) : Instruction;
+    public record Store(Val Src, Val DstPtr) : Instruction;
 
     private Instruction() { }
 }
