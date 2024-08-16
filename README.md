@@ -36,7 +36,7 @@ The current goal is to output assembly for the following ISA's:
   - [X] 12: Unsigned Integers
   - [X] 13: Floating-Point Numbers
     - [ ] Extra: NaN
-  - [ ] 14: Pointers
+  - [X] 14: Pointers
   - [ ] 15: Arrays and Pointer Arithmetic
   - [ ] 16: Characters and Strings
   - [ ] 17: Supporting Dynamic Memory Allocation
