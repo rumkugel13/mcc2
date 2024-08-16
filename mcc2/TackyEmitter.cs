@@ -147,7 +147,10 @@ public class TackyEmitter
                 }
             case Statement.ForStatement forStatement:
                 {
-                    EmitInstruction(forStatement.Init, instructions);
+                    if (forStatement.Init is ForInit.InitDeclaration initDeclaration)
+                        EmitInstruction(initDeclaration.Declaration, instructions);
+                    else if (forStatement.Init is ForInit.InitExpression initExpression && initExpression.Expression != null)
+                        EmitInstruction(initExpression.Expression, instructions);
                     var start = MakeStartLabel(forStatement.Label);
                     instructions.Add(new Instruction.Label(start));
                     var breakLabel = MakeBreakLabel(forStatement.Label);
@@ -170,18 +173,6 @@ public class TackyEmitter
                 break;
             default:
                 throw new NotImplementedException();
-        }
-    }
-
-    private void EmitInstruction(ForInit init, List<Instruction> instructions)
-    {
-        if (init is ForInit.InitDeclaration initDeclaration)
-        {
-            EmitInstruction(initDeclaration.Declaration, instructions);
-        }
-        else if (init is ForInit.InitExpression initExpression && initExpression.Expression != null)
-        {
-            EmitInstruction(initExpression.Expression, instructions);
         }
     }
 
