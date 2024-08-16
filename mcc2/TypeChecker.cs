@@ -326,6 +326,11 @@ public class TypeChecker
 
     public static StaticInit ConvertConstantToInit(Type target, Const constant)
     {
+        if (constant is Const.ConstDouble cd && target is Type.Double)
+        {
+            return new StaticInit.DoubleInit(cd.Value);
+        }
+
         ulong value = constant switch {
             Const.ConstInt constInt => (ulong)constInt.Value,
             Const.ConstLong constLong => (ulong)constLong.Value,
