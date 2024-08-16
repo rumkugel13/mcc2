@@ -470,6 +470,10 @@ public class Parser
         {
             var op = ParseUnaryOperator(nextToken, tokens);
             var innerExpression = ParseFactor(tokens);
+            if (op is Expression.UnaryOperator.Dereference)
+                return new Expression.Dereference(innerExpression, Type.None);
+            else if (op is Expression.UnaryOperator.AddressOf)
+                return new Expression.AddressOf(innerExpression, Type.None);
             return new Expression.Unary(op, innerExpression, Type.None);
         }
         else if (nextToken.Type == Lexer.TokenType.OpenParenthesis)

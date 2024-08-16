@@ -36,8 +36,8 @@ public abstract record Expression
     public record Conditional(Expression Condition, Expression Then, Expression Else, Type Type) : Expression;
     public record FunctionCall(string Identifier, List<Expression> Arguments, Type Type) : Expression;
     public record Cast(Type TargetType, Expression Expression, Type Type) : Expression;
-    public record Dereference(Expression Expression) : Expression;
-    public record AddressOf(Expression Expression) : Expression;
+    public record Dereference(Expression Expression, Type Type) : Expression;
+    public record AddressOf(Expression Expression, Type Type) : Expression;
 
     private Expression() { }
 }
