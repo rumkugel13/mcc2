@@ -21,6 +21,8 @@ public class CodeEmitter
                 EmitFunction(fun, builder);
             else if (topLevel is TopLevel.StaticVariable stat)
                 EmitStaticVariable(stat, builder);
+            else if (topLevel is TopLevel.StaticConstant statConst)
+                EmitStaticConstant(statConst, builder);
     }
 
     private void EmitFunction(TopLevel.Function function, StringBuilder builder)
@@ -43,7 +45,7 @@ public class CodeEmitter
         if (staticVariable.Global)
             builder.AppendLine($"\t.globl {staticVariable.Identifier}");
 
-        var isZero = GetValue(staticVariable.Init) == 0;
+        var isZero = GetValue(staticVariable.Init) == 0 && staticVariable.Init is not StaticInit.DoubleInit;
         builder.AppendLine($"\t.{(isZero ? "bss" : "data")}");
         builder.AppendLine($"\t.{(OperatingSystem.IsLinux() ? "align" : "balign")} {staticVariable.Alignment}");
         builder.AppendLine($"{staticVariable.Identifier}:");
@@ -54,13 +56,28 @@ public class CodeEmitter
             builder.AppendLine($"\t.{EmitAssemblerType(staticVariable.Init)} {GetValue(staticVariable.Init)}");
     }
 
-    private long GetValue(StaticInit staticInit)
+    private void EmitStaticConstant(TopLevel.StaticConstant statConst, StringBuilder builder)
+    {
+        if (OperatingSystem.IsLinux())
+            builder.AppendLine($".section .rodata");
+        if (OperatingSystem.IsMacOS())
+            builder.AppendLine($".literal{statConst.Alignment}");
+
+        builder.AppendLine($"\t.{(OperatingSystem.IsLinux() ? "align" : "balign")} {statConst.Alignment}");
+        builder.AppendLine($"{statConst.Identifier}:");
+        builder.AppendLine($"\t.{EmitAssemblerType(statConst.Init)} {GetValue(statConst.Init)}");
+        if (OperatingSystem.IsMacOS() && statConst.Alignment == 16)
+            builder.AppendLine($"\t.quad 0");
+    }
+
+    private ulong GetValue(StaticInit staticInit)
     {
         return staticInit switch {
-            StaticInit.IntInit init => init.Value,
-            StaticInit.LongInit init => init.Value,
-            StaticInit.UIntInit init => init.Value,
-            StaticInit.ULongInit init => (long)init.Value,
+            StaticInit.IntInit init => (ulong)init.Value,
+            StaticInit.LongInit init => (ulong)init.Value,
+            StaticInit.UIntInit init => (ulong)init.Value,
+            StaticInit.ULongInit init => (ulong)init.Value,
+            StaticInit.DoubleInit init => BitConverter.DoubleToUInt64Bits(init.Value),
             _ => throw new NotImplementedException()
         };
     }
@@ -69,7 +86,7 @@ public class CodeEmitter
     {
         return staticInit switch {
             StaticInit.IntInit or StaticInit.UIntInit => "long",
-            StaticInit.LongInit or StaticInit.ULongInit => "quad",
+            StaticInit.LongInit or StaticInit.ULongInit or StaticInit.DoubleInit => "quad",
             _ => throw new NotImplementedException()
         };
     }
@@ -93,7 +110,15 @@ public class CodeEmitter
                 builder.AppendLine($"\t{EmitUnaryOperator(unary.Operator)}{EmitTypeSuffix(unary.Type)} {EmitOperand(unary.Operand, unary.Type)}");
                 break;
             case Instruction.Binary binary:
-                builder.AppendLine($"\t{EmitBinaryOperator(binary.Operator)}{EmitTypeSuffix(binary.Type)} {EmitOperand(binary.SrcOperand, binary.Type)}, {EmitOperand(binary.DstOperand, binary.Type)}");
+                if (binary.Type == Instruction.AssemblyType.Double && binary.Operator is Instruction.BinaryOperator.Xor or Instruction.BinaryOperator.Mult)
+                {
+                    if (binary.Operator == Instruction.BinaryOperator.Xor)
+                        builder.AppendLine($"\txorpd {EmitOperand(binary.SrcOperand, binary.Type)}, {EmitOperand(binary.DstOperand, binary.Type)}");
+                    else if (binary.Operator == Instruction.BinaryOperator.Mult)
+                        builder.AppendLine($"\tmulsd {EmitOperand(binary.SrcOperand, binary.Type)}, {EmitOperand(binary.DstOperand, binary.Type)}");
+                }
+                else
+                    builder.AppendLine($"\t{EmitBinaryOperator(binary.Operator)}{EmitTypeSuffix(binary.Type)} {EmitOperand(binary.SrcOperand, binary.Type)}, {EmitOperand(binary.DstOperand, binary.Type)}");
                 break;
             case Instruction.Idiv idiv:
                 builder.AppendLine($"\tidiv{EmitTypeSuffix(idiv.Type)} {EmitOperand(idiv.Operand, idiv.Type)}");
@@ -108,7 +133,10 @@ public class CodeEmitter
                     builder.AppendLine("\tcqo");
                 break;
             case Instruction.Cmp cmp:
-                builder.AppendLine($"\tcmp{EmitTypeSuffix(cmp.Type)} {EmitOperand(cmp.OperandA, cmp.Type)}, {EmitOperand(cmp.OperandB, cmp.Type)}");
+                if (cmp.Type == Instruction.AssemblyType.Double)
+                    builder.AppendLine($"\tcomisd {EmitOperand(cmp.OperandA, cmp.Type)}, {EmitOperand(cmp.OperandB, cmp.Type)}");
+                else
+                    builder.AppendLine($"\tcmp{EmitTypeSuffix(cmp.Type)} {EmitOperand(cmp.OperandA, cmp.Type)}, {EmitOperand(cmp.OperandB, cmp.Type)}");
                 break;
             case Instruction.Jmp jmp:
                 builder.AppendLine($"\tjmp .L{jmp.Identifier}");
@@ -128,6 +156,12 @@ public class CodeEmitter
             case Instruction.Call call:
                 builder.AppendLine($"\tcall {call.Identifier}{(!((AsmSymbolTableEntry.FunctionEntry)AssemblyGenerator.AsmSymbolTable[call.Identifier]).Defined && OperatingSystem.IsLinux() ? "@PLT" : "")}");
                 break;
+            case Instruction.Cvtsi2sd cvtsi2sd:
+                builder.AppendLine($"\tcvtsi2sd{EmitTypeSuffix(cvtsi2sd.SrcType)} {EmitOperand(cvtsi2sd.Src, cvtsi2sd.SrcType)}, {EmitOperand(cvtsi2sd.Dst, Instruction.AssemblyType.Double)}");
+                break;
+            case Instruction.Cvttsd2si cvttsd2si:
+                builder.AppendLine($"\tcvttsd2si{EmitTypeSuffix(cvttsd2si.DstType)} {EmitOperand(cvttsd2si.Src, Instruction.AssemblyType.Double)}, {EmitOperand(cvttsd2si.Dst, cvttsd2si.DstType)}");
+                break;
             default:
                 throw new NotImplementedException();
         }
@@ -139,6 +173,7 @@ public class CodeEmitter
         {
             Instruction.AssemblyType.Longword => "l",
             Instruction.AssemblyType.Quadword => "q",
+            Instruction.AssemblyType.Double => "sd",
             _ => throw new NotImplementedException()
         };
     }
@@ -168,6 +203,9 @@ public class CodeEmitter
             Instruction.BinaryOperator.Add => "add",
             Instruction.BinaryOperator.Sub => "sub",
             Instruction.BinaryOperator.Mult => "imul",
+            Instruction.BinaryOperator.DivDouble => "div",
+            Instruction.BinaryOperator.And => "and",
+            Instruction.BinaryOperator.Or => "or",
             _ => throw new NotImplementedException()
         };
     }
@@ -178,6 +216,7 @@ public class CodeEmitter
         {
             Instruction.UnaryOperator.Neg => "neg",
             Instruction.UnaryOperator.Not => "not",
+            Instruction.UnaryOperator.Shr => "shr",
             _ => throw new NotImplementedException()
         };
     }
@@ -210,6 +249,7 @@ public class CodeEmitter
     readonly string[] byteRegs = ["%al", "%cl", "%dl", "%dil", "%sil", "%r8b", "%r9b", "%r10b", "%r11b", "%spl"];
     readonly string[] fourByteRegs = ["%eax", "%ecx", "%edx", "%edi", "%esi", "%r8d", "%r9d", "%r10d", "%r11d", "%esp"];
     readonly string[] eightByteRegs = ["%rax", "%rcx", "%rdx", "%rdi", "%rsi", "%r8", "%r9", "%r10", "%r11", "%rsp"];
+    readonly string[] floatRegs = ["%xmm0", "%xmm1", "%xmm2", "%xmm3", "%xmm4", "%xmm5", "%xmm6", "%xmm7", "%xmm14", "%xmm15"];
 
     private string EmitRegister(Operand.Reg reg, int bytes)
     {
@@ -228,6 +268,7 @@ public class CodeEmitter
         {
             Instruction.AssemblyType.Longword => fourByteRegs[(int)reg.Register],
             Instruction.AssemblyType.Quadword => eightByteRegs[(int)reg.Register],
+            Instruction.AssemblyType.Double => floatRegs[(int)(reg.Register - byteRegs.Length)],
             _ => throw new NotImplementedException()
         };
     }
