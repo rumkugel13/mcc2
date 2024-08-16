@@ -35,14 +35,9 @@ public class Parser
         return new ASTProgram(declarations);
     }
 
-    private Declaration.FunctionDeclaration ParseFunctionDeclaration(List<Token> tokens, Type type, Declaration.StorageClasses? storageClass)
+    private void ParseParameterList(List<Token> tokens, List<Declarator> parameterDeclarations, List<Type> parameterTypes)
     {
-        var id = Expect(Lexer.TokenType.Identifier, tokens);
         Expect(Lexer.TokenType.OpenParenthesis, tokens);
-
-        var returnType = type;
-        List<string> parameters = [];
-        List<Type> parameterTypes = [];
 
         var nextToken = Peek(tokens);
         if (nextToken.Type == Lexer.TokenType.VoidKeyword)
@@ -51,34 +46,21 @@ public class Parser
         }
         else
         {
-            ParseParameterList(tokens, parameters, parameterTypes);
-        }
+            var paramType = ParseType(ParseTypeSpecifiers(tokens));
+            var paramDecl = ParseDeclarator(tokens);
+            parameterTypes.Add(paramType);
+            parameterDeclarations.Add(paramDecl);
 
+            while (Peek(tokens).Type == Lexer.TokenType.Comma)
+            {
+                TakeToken(tokens);
+                paramType = ParseType(ParseTypeSpecifiers(tokens));
+                paramDecl = ParseDeclarator(tokens);
+                parameterTypes.Add(paramType);
+                parameterDeclarations.Add(paramDecl);
+            }
+        }
         Expect(Lexer.TokenType.CloseParenthesis, tokens);
-
-        Block? body = null;
-        if (Peek(tokens).Type == Lexer.TokenType.OpenBrace)
-            body = ParseBlock(tokens);
-        else
-            Expect(Lexer.TokenType.Semicolon, tokens);
-        return new Declaration.FunctionDeclaration(GetIdentifier(id, this.source), parameters, body, new Type.FunctionType(parameterTypes, type), storageClass);
-    }
-
-    private void ParseParameterList(List<Token> tokens, List<string> parameterNames, List<Type> parameterTypes)
-    {
-        var type = ParseType(ParseTypeSpecifiers(tokens));
-        var paramId = Expect(Lexer.TokenType.Identifier, tokens);
-        parameterNames.Add(GetIdentifier(paramId, source));
-        parameterTypes.Add(type);
-
-        while (Peek(tokens).Type == Lexer.TokenType.Comma)
-        {
-            TakeToken(tokens);
-            type = ParseType(ParseTypeSpecifiers(tokens));
-            paramId = Expect(Lexer.TokenType.Identifier, tokens);
-            parameterNames.Add(GetIdentifier(paramId, source));
-            parameterTypes.Add(type);
-        }
     }
 
     private List<Lexer.TokenType> ParseSpecifiers(List<Token> tokens)
@@ -166,16 +148,112 @@ public class Parser
     private Declaration ParseDeclaration(List<Token> tokens)
     {
         var specifiers = ParseSpecifiers(tokens);
-        ParseTypeAndStorageClass(specifiers, out Type type, out Declaration.StorageClasses? storageClass);
+        ParseTypeAndStorageClass(specifiers, out Type baseType, out Declaration.StorageClasses? storageClass);
+        var declarator = ParseDeclarator(tokens);
+        var (name, declType, paramNames) = ProcessDeclarator(declarator, baseType);
 
-        // 0 ahead = last specifier, 1 ahead is openParen or not
-        if (PeekAhead(tokens, 1).Type == Lexer.TokenType.OpenParenthesis)
+        if (declType is Type.FunctionType)
         {
-            return ParseFunctionDeclaration(tokens, type, storageClass);
+            Block? body = null;
+            if (Peek(tokens).Type == Lexer.TokenType.OpenBrace)
+                body = ParseBlock(tokens);
+            else
+                Expect(Lexer.TokenType.Semicolon, tokens);
+            return new Declaration.FunctionDeclaration(name, paramNames, body, declType, storageClass);
         }
         else
         {
-            return ParseVariableDeclaration(tokens, type, storageClass);
+            Expression? expression = null;
+            if (Peek(tokens).Type == Lexer.TokenType.Equals)
+            {
+                TakeToken(tokens);
+                expression = ParseExpression(tokens);
+            }
+
+            Expect(Lexer.TokenType.Semicolon, tokens);
+            return new Declaration.VariableDeclaration(name, expression, declType, storageClass);
+        }
+    }
+
+    private Declarator ParseDeclarator(List<Token> tokens)
+    {
+        if (Peek(tokens).Type == Lexer.TokenType.Asterisk)
+        {
+            TakeToken(tokens);
+            return new Declarator.PointerDeclarator(ParseDeclarator(tokens));
+        }
+        else
+        {
+            return ParseDirectDeclarator(tokens);
+        }
+    }
+
+    private Declarator ParseDirectDeclarator(List<Token> tokens)
+    {
+        var simple = ParseSimpleDeclarator(tokens);
+        
+        List<Declarator> parameterDeclarators = [];
+        List<Type> parameterTypes = [];
+        if (Peek(tokens).Type == Lexer.TokenType.OpenParenthesis)
+        {
+            ParseParameterList(tokens, parameterDeclarators, parameterTypes);
+            List<ParameterInfo> paramInfos = [];
+            for (int i = 0; i < parameterDeclarators.Count; i++)
+            {
+                paramInfos.Add(new ParameterInfo(parameterTypes[i], parameterDeclarators[i]));
+            }
+
+            return new Declarator.FunctionDeclarator(paramInfos, simple);
+        }
+        else
+            return simple;
+    }
+
+    private Declarator ParseSimpleDeclarator(List<Token> tokens)
+    {
+        if (Peek(tokens).Type == Lexer.TokenType.Identifier)
+            return new Declarator.IdentifierDeclarator(GetIdentifier(TakeToken(tokens), source));
+        else
+        {
+            Expect(Lexer.TokenType.OpenParenthesis, tokens);
+            var declarator = ParseDeclarator(tokens);
+            Expect(Lexer.TokenType.CloseParenthesis, tokens);
+            return declarator;
+        }
+    }
+
+    private (string Name, Type DerivedType, List<string> ParameterNames) ProcessDeclarator(Declarator declarator, Type baseType)
+    {
+        switch (declarator)
+        {
+            case Declarator.IdentifierDeclarator identDecl:
+                return (identDecl.Identifier, baseType, []);
+            case Declarator.PointerDeclarator pointerDecl:
+                var derivedType = new Type.Pointer(baseType);
+                return ProcessDeclarator(pointerDecl.Declarator, derivedType);
+            case Declarator.FunctionDeclarator funcDecl:
+                switch (funcDecl.Declarator)
+                {
+                    case Declarator.IdentifierDeclarator nameDecl:
+                        List<string> paramNames = [];
+                        List<Type> paramTypes = [];
+                        foreach (var funcParam in funcDecl.Parameters)
+                        {
+                            var (paramName, paramType, _) = ProcessDeclarator(funcParam.Declarator, funcParam.Type);
+                            if (paramType is Type.FunctionType)
+                                throw new Exception("Parsing Error: Function pointers in parameters aren't supported");
+
+                            paramNames.Add(paramName);
+                            paramTypes.Add(paramType);
+                        }
+
+                        var newType = new Type.FunctionType(paramTypes, baseType);
+                        return (nameDecl.Identifier, newType, paramNames);
+                    default:
+                        throw new Exception("Parsing Error: Can't apply additional type derivations to a function type");
+                }
+            default:
+                throw new NotImplementedException();
         }
     }
 
@@ -202,22 +280,6 @@ public class Parser
         {
             return ParseStatement(tokens);
         }
-    }
-
-    private Declaration.VariableDeclaration ParseVariableDeclaration(List<Token> tokens, Type type, Declaration.StorageClasses? storageClass)
-    {
-        var id = Expect(Lexer.TokenType.Identifier, tokens);
-        Expression? expression = null;
-        var nextToken = Peek(tokens);
-
-        if (nextToken.Type == Lexer.TokenType.Equals)
-        {
-            TakeToken(tokens);
-            expression = ParseExpression(tokens);
-        }
-
-        Expect(Lexer.TokenType.Semicolon, tokens);
-        return new Declaration.VariableDeclaration(GetIdentifier(id, this.source), expression, type, storageClass);
     }
 
     private Statement ParseStatement(List<Token> tokens)
@@ -418,6 +480,14 @@ public class Parser
             if (IsTypeSpecifier(nextToken.Type))
             {
                 var type = ParseType(ParseTypeSpecifiers(tokens));
+                // optional abstract declarator
+                nextToken = Peek(tokens);
+                if (nextToken.Type is Lexer.TokenType.Asterisk or Lexer.TokenType.OpenParenthesis)
+                {
+                    AbstractDeclarator abstractDeclarator = ParseAbstractDeclarator(tokens);
+                    var derivedType = ProcessAbstractDeclarator(abstractDeclarator, type);
+                    type = derivedType;
+                }
                 Expect(Lexer.TokenType.CloseParenthesis, tokens);
                 var factor = ParseFactor(tokens);
                 return new Expression.Cast(type, factor, Type.None);
@@ -457,6 +527,39 @@ public class Parser
         else
         {
             throw new Exception($"Parsing Error: Unsupported Token '{nextToken.Type}'");
+        }
+    }
+
+    private AbstractDeclarator ParseAbstractDeclarator(List<Token> tokens)
+    {
+        var nextToken = Peek(tokens);
+        if (nextToken.Type == Lexer.TokenType.Asterisk)
+        {
+            TakeToken(tokens);
+            return new AbstractDeclarator.AbstractPointer(ParseAbstractDeclarator(tokens));
+        }
+        else if (nextToken.Type == Lexer.TokenType.OpenParenthesis)
+        {
+            TakeToken(tokens);
+            var inner = ParseAbstractDeclarator(tokens);
+            Expect(Lexer.TokenType.CloseParenthesis, tokens);
+            return inner;
+        }
+        else
+            return new AbstractDeclarator.AbstractBase();
+    }
+
+    private Type ProcessAbstractDeclarator(AbstractDeclarator abstractDeclarator, Type baseType)
+    {
+        switch (abstractDeclarator)
+        {
+            case AbstractDeclarator.AbstractBase:
+                return baseType;
+            case AbstractDeclarator.AbstractPointer abstractPointer:
+                var derivedType = ProcessAbstractDeclarator(abstractPointer.AbstractDeclarator, baseType);
+                return new Type.Pointer(derivedType);
+            default:
+                throw new NotImplementedException();
         }
     }
 
