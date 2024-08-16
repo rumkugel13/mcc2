@@ -14,6 +14,7 @@ public abstract record Operand
         R10,
         R11,
         SP,
+        BP,
         XMM0,
         XMM1,
         XMM2,
@@ -29,7 +30,7 @@ public abstract record Operand
     public record Imm(ulong Value) : Operand;
     public record Pseudo(string Identifier) : Operand;
     public record Reg(RegisterName Register) : Operand;
-    public record Stack(int Offset) : Operand;
+    public record Memory(RegisterName Register, int Offset) : Operand;
     public record Data(string Identifier) : Operand;
 
     private Operand() { }

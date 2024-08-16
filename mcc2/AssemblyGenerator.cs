@@ -122,7 +122,7 @@ public class AssemblyGenerator
         for (int i = 0; i < stackArgs.Count; i++)
         {
             var arg = stackArgs[i];
-            instructions.Add(new Instruction.Mov(arg.Item1, new Operand.Stack(16 + i * 8), arg.Item2));
+            instructions.Add(new Instruction.Mov(arg.Item1, new Operand.Memory(Operand.RegisterName.BP, 16 + i * 8), arg.Item2));
         }
     }
 
@@ -408,6 +408,17 @@ public class AssemblyGenerator
                         instructions.Add(new Instruction.Label(endLabel));
                     }
                     break;
+                case TAC.Instruction.Load load:
+                    instructions.Add(new Instruction.Mov(Instruction.AssemblyType.Quadword, GenerateOperand(load.SrcPtr), new Operand.Reg(Operand.RegisterName.AX)));
+                    instructions.Add(new Instruction.Mov(GetAssemblyType(load.Dst), new Operand.Memory(Operand.RegisterName.AX, 0), GenerateOperand(load.Dst)));
+                    break;
+                case TAC.Instruction.Store store:
+                    instructions.Add(new Instruction.Mov(Instruction.AssemblyType.Quadword, GenerateOperand(store.DstPtr), new Operand.Reg(Operand.RegisterName.AX)));
+                    instructions.Add(new Instruction.Mov(GetAssemblyType(store.Src), GenerateOperand(store.Src), new Operand.Memory(Operand.RegisterName.AX, 0)));
+                    break;
+                case TAC.Instruction.GetAddress getAddress:
+                    instructions.Add(new Instruction.Lea(GenerateOperand(getAddress.Src), GenerateOperand(getAddress.Dst)));
+                    break;
                 default:
                     throw new NotImplementedException();
             }
@@ -421,7 +432,7 @@ public class AssemblyGenerator
         return type switch
         {
             Type.Int or Type.UInt => 4,
-            Type.Long or Type.ULong or Type.Double => 8,
+            Type.Long or Type.ULong or Type.Double or Type.Pointer => 8,
             _ => throw new NotImplementedException()
         };
     }
@@ -431,7 +442,7 @@ public class AssemblyGenerator
         return type switch
         {
             Type.Int or Type.UInt => Instruction.AssemblyType.Longword,
-            Type.Long or Type.ULong => Instruction.AssemblyType.Quadword,
+            Type.Long or Type.ULong or Type.Pointer => Instruction.AssemblyType.Quadword,
             Type.Double => Instruction.AssemblyType.Double,
             _ => throw new NotImplementedException()
         };
@@ -466,7 +477,7 @@ public class AssemblyGenerator
             TAC.Val.Variable var => symbolTable[var.Name].Type switch
             {
                 Type.Int or Type.Long => true,
-                Type.UInt or Type.ULong => false,
+                Type.UInt or Type.ULong or Type.Pointer => false,
                 _ => throw new NotImplementedException()
             },
             _ => throw new NotImplementedException()

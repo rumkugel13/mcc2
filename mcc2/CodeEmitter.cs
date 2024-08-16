@@ -227,7 +227,7 @@ public class CodeEmitter
         {
             Operand.Reg reg => EmitRegister(reg, bytes),
             Operand.Imm imm => $"${imm.Value}",
-            Operand.Stack stack => $"{stack.Offset}(%rbp)",
+            Operand.Memory stack => $"{stack.Offset}(%rbp)",
             Operand.Data data => $"{data.Identifier}(%rip)",
             _ => throw new NotImplementedException()
         };
@@ -239,7 +239,7 @@ public class CodeEmitter
         {
             Operand.Reg reg => EmitRegister(reg, assemblyType),
             Operand.Imm imm => $"${imm.Value}",
-            Operand.Stack stack => $"{stack.Offset}(%rbp)",
+            Operand.Memory stack => $"{stack.Offset}(%rbp)",
             Operand.Data data => $"{data.Identifier}(%rip)",
             _ => throw new NotImplementedException()
         };

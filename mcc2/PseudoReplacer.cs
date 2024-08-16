@@ -150,6 +150,19 @@ public class PseudoReplacer
                         instructions[i] = new Instruction.Cvtsi2sd(cvtsi2sd.SrcType, src, dst);
                     }
                     break;
+                case Instruction.Lea lea:
+                    {
+                        var src = lea.Src;
+                        var dst = lea.Dst;
+                        if (src is Operand.Pseudo pseudoSrc)
+                            src = ReplacePseudo(pseudoSrc.Identifier);
+
+                        if (dst is Operand.Pseudo pseudoDst)
+                            dst = ReplacePseudo(pseudoDst.Identifier);
+
+                        instructions[i] = new Instruction.Lea(src, dst);
+                    }
+                    break;
             }
         }
 
@@ -160,7 +173,7 @@ public class PseudoReplacer
     {
         if (OffsetMap.TryGetValue(name, out int val))
         {
-            return new Operand.Stack(val);
+            return new Operand.Memory(Operand.RegisterName.BP, val);
         }
 
         if ((AsmSymbolTableEntry.ObjectEntry)AssemblyGenerator.AsmSymbolTable[name] is AsmSymbolTableEntry.ObjectEntry objEntry && objEntry.IsStatic)
@@ -177,6 +190,6 @@ public class PseudoReplacer
 
         currentOffset = AssemblyGenerator.AlignTo(currentOffset + align, align);
         OffsetMap[name] = -currentOffset;
-        return new Operand.Stack(-currentOffset);
+        return new Operand.Memory(Operand.RegisterName.BP, -currentOffset);
     }
 }
