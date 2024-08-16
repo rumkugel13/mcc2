@@ -404,7 +404,7 @@ public class Parser
             var constant = TakeToken(tokens);
             return new Expression.Constant(GetConstant(constant, this.source), Type.None);
         }
-        else if (nextToken.Type == Lexer.TokenType.Hyphen || nextToken.Type == Lexer.TokenType.Tilde || nextToken.Type == Lexer.TokenType.Exclamation)
+        else if (IsUnaryOperator(nextToken))
         {
             var op = ParseUnaryOperator(nextToken, tokens);
             var innerExpression = ParseFactor(tokens);
@@ -490,8 +490,19 @@ public class Parser
             Lexer.TokenType.Hyphen => Expression.UnaryOperator.Negate,
             Lexer.TokenType.Tilde => Expression.UnaryOperator.Complement,
             Lexer.TokenType.Exclamation => Expression.UnaryOperator.Not,
+            Lexer.TokenType.Asterisk => Expression.UnaryOperator.Dereference,
+            Lexer.TokenType.Ampersand => Expression.UnaryOperator.AddressOf,
             _ => throw new Exception($"Parsing Error: Unknown Unary Operator: {current.Type}")
         };
+    }
+
+    private bool IsUnaryOperator(Token token)
+    {
+        return token.Type == Lexer.TokenType.Hyphen || 
+        token.Type == Lexer.TokenType.Tilde || 
+        token.Type == Lexer.TokenType.Exclamation ||
+        token.Type == Lexer.TokenType.Asterisk || 
+        token.Type == Lexer.TokenType.Ampersand;
     }
 
     private bool IsSpecifier(Token token)

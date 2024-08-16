@@ -7,6 +7,8 @@ public abstract record Expression
         Complement,
         Negate,
         Not,
+        Dereference,
+        AddressOf,
     }
 
     public enum BinaryOperator
