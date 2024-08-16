@@ -59,6 +59,7 @@ namespace mcc2
             Question,
             Colon,
             Comma,
+            Ampersand,
         }
 
         // note: pattern order needs to match tokentype order
@@ -110,6 +111,7 @@ namespace mcc2
             "\\?",
             ":",
             ",",
+            "&",
         ];
 
         public List<Token> Lex(string source)
