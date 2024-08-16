@@ -36,6 +36,8 @@ public class PrettyPrinter
         PrintLine("Function(", indent++);
         PrintLine($"name=\"{functionDefinition.Identifier}\",", indent);
         PrintLine($"parameters=(", indent);
+        if (functionDefinition.Parameters.Count == 0)
+            PrintLine($"void", indent + 1);
         foreach (var param in functionDefinition.Parameters)
         {
             PrintLine($"\"{param}\",", indent + 1);
@@ -59,8 +61,11 @@ public class PrettyPrinter
             case Declaration.VariableDeclaration declaration:
                 PrintLine($"Declare(", indent);
                 PrintLine($"name=\"{declaration.Identifier}\",", indent + 1);
-                if (declaration.Initializer != null)
-                    PrintExpression(declaration.Initializer, source, indent + 1);
+                if (declaration.Initializer != null){
+                    PrintLine("init=(", indent + 1);
+                    PrintExpression(declaration.Initializer, source, indent + 2);
+                    PrintLine(")", indent + 1);
+                }
                 PrintLine(")", indent);
                 break;
             case Declaration.FunctionDeclaration fun:
@@ -219,6 +224,16 @@ public class PrettyPrinter
                 PrintLine($"Cast(", indent);
                 PrintLine($"target=\"{cast.TargetType}\"", indent + 1);
                 PrintExpression(cast.Expression, source, indent + 1);
+                PrintLine(")", indent);
+                break;
+            case Expression.Dereference dereference:
+                PrintLine($"Dereference(", indent);
+                PrintExpression(dereference.Expression, source, indent + 1);
+                PrintLine(")", indent);
+                break;
+            case Expression.AddressOf addressOf:
+                PrintLine($"AddressOf(", indent);
+                PrintExpression(addressOf.Expression, source, indent + 1);
                 PrintLine(")", indent);
                 break;
         }
