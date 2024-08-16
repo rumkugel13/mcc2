@@ -186,6 +186,7 @@ public class AssemblyGenerator
         {
             var reg = ABIFloatRegisters[regIndex];
             instructions.Add(new Instruction.Mov(Instruction.AssemblyType.Double, assemblyArg, new Operand.Reg(reg)));
+            regIndex++;
         }
 
         // pass args on stack
