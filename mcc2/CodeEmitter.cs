@@ -162,6 +162,9 @@ public class CodeEmitter
             case Instruction.Cvttsd2si cvttsd2si:
                 builder.AppendLine($"\tcvttsd2si{EmitTypeSuffix(cvttsd2si.DstType)} {EmitOperand(cvttsd2si.Src, Instruction.AssemblyType.Double)}, {EmitOperand(cvttsd2si.Dst, cvttsd2si.DstType)}");
                 break;
+            case Instruction.Lea lea:
+                builder.AppendLine($"\tleaq {EmitOperand(lea.Src, Instruction.AssemblyType.Quadword)}, {EmitOperand(lea.Dst, Instruction.AssemblyType.Quadword)}");
+                break;
             default:
                 throw new NotImplementedException();
         }
@@ -225,9 +228,9 @@ public class CodeEmitter
     {
         return operand switch
         {
-            Operand.Reg reg => EmitRegister(reg, bytes),
+            Operand.Reg reg => EmitRegister(reg.Register, bytes),
             Operand.Imm imm => $"${imm.Value}",
-            Operand.Memory stack => $"{stack.Offset}(%rbp)",
+            Operand.Memory memory => $"{memory.Offset}({EmitRegister(memory.Register, 8)})",
             Operand.Data data => $"{data.Identifier}(%rip)",
             _ => throw new NotImplementedException()
         };
@@ -237,38 +240,38 @@ public class CodeEmitter
     {
         return operand switch
         {
-            Operand.Reg reg => EmitRegister(reg, assemblyType),
+            Operand.Reg reg => EmitRegister(reg.Register, assemblyType),
             Operand.Imm imm => $"${imm.Value}",
-            Operand.Memory stack => $"{stack.Offset}(%rbp)",
+            Operand.Memory memory => $"{memory.Offset}({EmitRegister(memory.Register, Instruction.AssemblyType.Quadword)})",
             Operand.Data data => $"{data.Identifier}(%rip)",
             _ => throw new NotImplementedException()
         };
     }
 
     // note: need to keep this updated with Reg.RegisterName
-    readonly string[] byteRegs = ["%al", "%cl", "%dl", "%dil", "%sil", "%r8b", "%r9b", "%r10b", "%r11b", "%spl"];
-    readonly string[] fourByteRegs = ["%eax", "%ecx", "%edx", "%edi", "%esi", "%r8d", "%r9d", "%r10d", "%r11d", "%esp"];
-    readonly string[] eightByteRegs = ["%rax", "%rcx", "%rdx", "%rdi", "%rsi", "%r8", "%r9", "%r10", "%r11", "%rsp"];
+    readonly string[] byteRegs = ["%al", "%cl", "%dl", "%dil", "%sil", "%r8b", "%r9b", "%r10b", "%r11b", "%spl", "%bpl"];
+    readonly string[] fourByteRegs = ["%eax", "%ecx", "%edx", "%edi", "%esi", "%r8d", "%r9d", "%r10d", "%r11d", "%esp", "%ebp"];
+    readonly string[] eightByteRegs = ["%rax", "%rcx", "%rdx", "%rdi", "%rsi", "%r8", "%r9", "%r10", "%r11", "%rsp", "%rbp"];
     readonly string[] floatRegs = ["%xmm0", "%xmm1", "%xmm2", "%xmm3", "%xmm4", "%xmm5", "%xmm6", "%xmm7", "%xmm14", "%xmm15"];
 
-    private string EmitRegister(Operand.Reg reg, int bytes)
+    private string EmitRegister(Operand.RegisterName reg, int bytes)
     {
         return bytes switch
         {
-            1 => byteRegs[(int)reg.Register],
-            4 => fourByteRegs[(int)reg.Register],
-            8 => eightByteRegs[(int)reg.Register],
+            1 => byteRegs[(int)reg],
+            4 => fourByteRegs[(int)reg],
+            8 => eightByteRegs[(int)reg],
             _ => throw new NotImplementedException()
         };
     }
 
-    private string EmitRegister(Operand.Reg reg, Instruction.AssemblyType assemblyType)
+    private string EmitRegister(Operand.RegisterName reg, Instruction.AssemblyType assemblyType)
     {
         return assemblyType switch
         {
-            Instruction.AssemblyType.Longword => fourByteRegs[(int)reg.Register],
-            Instruction.AssemblyType.Quadword => eightByteRegs[(int)reg.Register],
-            Instruction.AssemblyType.Double => floatRegs[(int)(reg.Register - byteRegs.Length)],
+            Instruction.AssemblyType.Longword => fourByteRegs[(int)reg],
+            Instruction.AssemblyType.Quadword => eightByteRegs[(int)reg],
+            Instruction.AssemblyType.Double => floatRegs[(int)(reg - byteRegs.Length)],
             _ => throw new NotImplementedException()
         };
     }
