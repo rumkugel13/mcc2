@@ -163,54 +163,54 @@ public class IdentifierResolver
     {
         switch (expression)
         {
-            case Expression.AssignmentExpression assignmentExpression:
-                if (assignmentExpression.ExpressionLeft is not Expression.VariableExpression)
+            case Expression.Assignment assignment:
+                if (assignment.ExpressionLeft is not Expression.Variable)
                     throw new Exception("Semantic Error: Invalid lvalue");
 
                 {
-                    var left = ResolveExpression(assignmentExpression.ExpressionLeft, identifierMap);
-                    var right = ResolveExpression(assignmentExpression.ExpressionRight, identifierMap);
-                    return new Expression.AssignmentExpression(left, right, assignmentExpression.Type);
+                    var left = ResolveExpression(assignment.ExpressionLeft, identifierMap);
+                    var right = ResolveExpression(assignment.ExpressionRight, identifierMap);
+                    return new Expression.Assignment(left, right, assignment.Type);
                 }
-            case Expression.VariableExpression variableExpression:
-                if (identifierMap.TryGetValue(variableExpression.Identifier, out MapEntry newVariable))
-                    return new Expression.VariableExpression(newVariable.NewName, variableExpression.Type);
+            case Expression.Variable variable:
+                if (identifierMap.TryGetValue(variable.Identifier, out MapEntry newVariable))
+                    return new Expression.Variable(newVariable.NewName, variable.Type);
                 else
                     throw new Exception("Semantic Error: Undeclared variable");
-            case Expression.UnaryExpression unaryExpression:
+            case Expression.Unary unary:
                 {
-                    var exp = ResolveExpression(unaryExpression.Expression, identifierMap);
-                    return new Expression.UnaryExpression(unaryExpression.Operator, exp, unaryExpression.Type);
+                    var exp = ResolveExpression(unary.Expression, identifierMap);
+                    return new Expression.Unary(unary.Operator, exp, unary.Type);
                 }
-            case Expression.BinaryExpression binaryExpression:
+            case Expression.Binary binary:
                 {
-                    var left = ResolveExpression(binaryExpression.ExpressionLeft, identifierMap);
-                    var right = ResolveExpression(binaryExpression.ExpressionRight, identifierMap);
-                    return new Expression.BinaryExpression(binaryExpression.Operator, left, right, binaryExpression.Type);
+                    var left = ResolveExpression(binary.ExpressionLeft, identifierMap);
+                    var right = ResolveExpression(binary.ExpressionRight, identifierMap);
+                    return new Expression.Binary(binary.Operator, left, right, binary.Type);
                 }
-            case Expression.ConstantExpression constantExpression:
-                return constantExpression;
-            case Expression.ConditionalExpression conditionalExpression:
+            case Expression.Constant constant:
+                return constant;
+            case Expression.Conditional conditional:
                 {
-                    var cond = ResolveExpression(conditionalExpression.Condition, identifierMap);
-                    var then = ResolveExpression(conditionalExpression.Then, identifierMap);
-                    var el = ResolveExpression(conditionalExpression.Else, identifierMap);
-                    return new Expression.ConditionalExpression(cond, then, el, conditionalExpression.Type);
+                    var cond = ResolveExpression(conditional.Condition, identifierMap);
+                    var then = ResolveExpression(conditional.Then, identifierMap);
+                    var el = ResolveExpression(conditional.Else, identifierMap);
+                    return new Expression.Conditional(cond, then, el, conditional.Type);
                 }
-            case Expression.FunctionCallExpression functionCallExpression:
-                if (identifierMap.TryGetValue(functionCallExpression.Identifier, out MapEntry entry))
+            case Expression.FunctionCall functionCall:
+                if (identifierMap.TryGetValue(functionCall.Identifier, out MapEntry entry))
                 {
                     var newFunName = entry.NewName;
                     List<Expression> newArgs = [];
-                    foreach (var arg in functionCallExpression.Arguments)
+                    foreach (var arg in functionCall.Arguments)
                         newArgs.Add(ResolveExpression(arg, identifierMap));
-                    return new Expression.FunctionCallExpression(newFunName, newArgs, functionCallExpression.Type);
+                    return new Expression.FunctionCall(newFunName, newArgs, functionCall.Type);
                 }
                 else
                     throw new Exception("Semantic Error: Undeclared function");
-            case Expression.CastExpression castExpression:
+            case Expression.Cast cast:
                 {
-                    return new Expression.CastExpression(castExpression.TargetType, ResolveExpression(castExpression.Expression, identifierMap), castExpression.Type);
+                    return new Expression.Cast(cast.TargetType, ResolveExpression(cast.Expression, identifierMap), cast.Type);
                 }
             default:
                 throw new NotImplementedException();

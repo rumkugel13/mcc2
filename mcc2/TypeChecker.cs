@@ -95,7 +95,7 @@ public class TypeChecker
     private Declaration.VariableDeclaration TypeCheckFileScopeVariableDeclaration(Declaration.VariableDeclaration variableDeclaration, Dictionary<string, SymbolEntry> symbolTable)
     {
         InitialValue initialValue;
-        if (variableDeclaration.Initializer is Expression.ConstantExpression constant)
+        if (variableDeclaration.Initializer is Expression.Constant constant)
             initialValue = new InitialValue.Initial(ConvertConstantToInit(variableDeclaration.VariableType, constant.Value));
         else if (variableDeclaration.Initializer == null)
         {
@@ -149,7 +149,7 @@ public class TypeChecker
         else if (variableDeclaration.StorageClass == Declaration.StorageClasses.Static)
         {
             InitialValue initialValue;
-            if (variableDeclaration.Initializer is Expression.ConstantExpression constant)
+            if (variableDeclaration.Initializer is Expression.Constant constant)
                 initialValue = new InitialValue.Initial(ConvertConstantToInit(variableDeclaration.VariableType, constant.Value));
             else if (variableDeclaration.Initializer == null)
                 initialValue = new InitialValue.Initial(ConvertConstantToInit(variableDeclaration.VariableType, new Const.ConstInt(0)));
@@ -170,40 +170,40 @@ public class TypeChecker
     {
         switch (expression)
         {
-            case Expression.AssignmentExpression assignmentExpression:
-                var typedLeft = TypeCheckExpression(assignmentExpression.ExpressionLeft, symbolTable);
-                var typedRight = TypeCheckExpression(assignmentExpression.ExpressionRight, symbolTable);
+            case Expression.Assignment assignment:
+                var typedLeft = TypeCheckExpression(assignment.ExpressionLeft, symbolTable);
+                var typedRight = TypeCheckExpression(assignment.ExpressionRight, symbolTable);
                 var leftType = GetType(typedLeft);
                 var convertedRight = ConvertTo(typedRight, leftType);
-                return new Expression.AssignmentExpression(typedLeft, convertedRight, leftType);
-            case Expression.VariableExpression variableExpression:
-                var varType = symbolTable[variableExpression.Identifier].Type;
+                return new Expression.Assignment(typedLeft, convertedRight, leftType);
+            case Expression.Variable variable:
+                var varType = symbolTable[variable.Identifier].Type;
                 if (varType is Type.FunctionType)
                     throw new Exception("Type Error: Function name used as variable");
-                return new Expression.VariableExpression(variableExpression.Identifier, varType);
-            case Expression.UnaryExpression unaryExpression:
-                var unaryInner = TypeCheckExpression(unaryExpression.Expression, symbolTable);
-                if (unaryExpression.Operator == Expression.UnaryOperator.Complement && GetType(unaryInner) is Type.Double)
+                return new Expression.Variable(variable.Identifier, varType);
+            case Expression.Unary unary:
+                var unaryInner = TypeCheckExpression(unary.Expression, symbolTable);
+                if (unary.Operator == Expression.UnaryOperator.Complement && GetType(unaryInner) is Type.Double)
                     throw new Exception("Type Error: Can't take the bitwise complement of a double");
-                return new Expression.UnaryExpression(unaryExpression.Operator, unaryInner, unaryExpression.Operator switch {
+                return new Expression.Unary(unary.Operator, unaryInner, unary.Operator switch {
                     Expression.UnaryOperator.Not => new Type.Int(),
                     _ => GetType(unaryInner)
                 });
-            case Expression.BinaryExpression binaryExpression:
-                var typedE1 = TypeCheckExpression(binaryExpression.ExpressionLeft, symbolTable);
-                var typedE2 = TypeCheckExpression(binaryExpression.ExpressionRight, symbolTable);
-                if (binaryExpression.Operator is Expression.BinaryOperator.And or Expression.BinaryOperator.Or)
+            case Expression.Binary binary:
+                var typedE1 = TypeCheckExpression(binary.ExpressionLeft, symbolTable);
+                var typedE2 = TypeCheckExpression(binary.ExpressionRight, symbolTable);
+                if (binary.Operator is Expression.BinaryOperator.And or Expression.BinaryOperator.Or)
                 {
-                    return new Expression.BinaryExpression(binaryExpression.Operator, typedE1, typedE2, new Type.Int());
+                    return new Expression.Binary(binary.Operator, typedE1, typedE2, new Type.Int());
                 }
                 var t1 = GetType(typedE1);
                 var t2 = GetType(typedE2);
                 var commonType = GetCommonType(t1, t2);
-                if (binaryExpression.Operator == Expression.BinaryOperator.Remainder && commonType is Type.Double)
+                if (binary.Operator == Expression.BinaryOperator.Remainder && commonType is Type.Double)
                     throw new Exception("Type Error: Can't apply remainder to double");
                 var convertedE1 = ConvertTo(typedE1, commonType);
                 var convertedE2 = ConvertTo(typedE2, commonType);
-                return new Expression.BinaryExpression(binaryExpression.Operator, convertedE1, convertedE2, binaryExpression.Operator switch {
+                return new Expression.Binary(binary.Operator, convertedE1, convertedE2, binary.Operator switch {
                     Expression.BinaryOperator.Add or 
                     Expression.BinaryOperator.Subtract or 
                     Expression.BinaryOperator.Multiply or 
@@ -212,8 +212,8 @@ public class TypeChecker
                         commonType,
                     _ => new Type.Int() // note: comparison results in int
                 });
-            case Expression.ConstantExpression constantExpression:
-                return new Expression.ConstantExpression(constantExpression.Value, constantExpression.Value switch {
+            case Expression.Constant constant:
+                return new Expression.Constant(constant.Value, constant.Value switch {
                     Const.ConstInt => new Type.Int(),
                     Const.ConstLong => new Type.Long(),
                     Const.ConstUInt => new Type.UInt(),
@@ -221,34 +221,34 @@ public class TypeChecker
                     Const.ConstDouble => new Type.Double(),
                     _ => throw new NotImplementedException()
                 });
-            case Expression.ConditionalExpression conditionalExpression:
-                var typedCond = TypeCheckExpression(conditionalExpression.Condition, symbolTable);
-                var typedThen = TypeCheckExpression(conditionalExpression.Then, symbolTable);
-                var typedElse = TypeCheckExpression(conditionalExpression.Else, symbolTable);
+            case Expression.Conditional conditional:
+                var typedCond = TypeCheckExpression(conditional.Condition, symbolTable);
+                var typedThen = TypeCheckExpression(conditional.Then, symbolTable);
+                var typedElse = TypeCheckExpression(conditional.Else, symbolTable);
                 var typeThen = GetType(typedThen);
                 var typeElse = GetType(typedElse);
                 var common = GetCommonType(typeThen, typeElse);
                 var convertedThen = ConvertTo(typedThen, common);
                 var convertedElse = ConvertTo(typedElse, common);
-                return new Expression.ConditionalExpression(typedCond, convertedThen, convertedElse, common);
-            case Expression.FunctionCallExpression functionCallExpression:
-                var funType = symbolTable[functionCallExpression.Identifier].Type;
+                return new Expression.Conditional(typedCond, convertedThen, convertedElse, common);
+            case Expression.FunctionCall functionCall:
+                var funType = symbolTable[functionCall.Identifier].Type;
                 if (funType is not Type.FunctionType)
                     throw new Exception("Type Error: Variable used as function name");
 
-                if (funType is Type.FunctionType functionType && functionType.Parameters.Count != functionCallExpression.Arguments.Count)
+                if (funType is Type.FunctionType functionType && functionType.Parameters.Count != functionCall.Arguments.Count)
                     throw new Exception("Type Error: Function called with the wrong number of arguments");
 
                 List<Expression> convertedArgs = [];
-                for (int i = 0; i < functionCallExpression.Arguments.Count; i++)
+                for (int i = 0; i < functionCall.Arguments.Count; i++)
                 {
-                    var typedArg = TypeCheckExpression(functionCallExpression.Arguments[i], symbolTable);
+                    var typedArg = TypeCheckExpression(functionCall.Arguments[i], symbolTable);
                     convertedArgs.Add(ConvertTo(typedArg, ((Type.FunctionType)funType).Parameters[i]));
                 }
-                return new Expression.FunctionCallExpression(functionCallExpression.Identifier, convertedArgs, ((Type.FunctionType)funType).Return);
-            case Expression.CastExpression castExpression:
-                var typedInner = TypeCheckExpression(castExpression.Expression, symbolTable);
-                return new Expression.CastExpression(castExpression.TargetType, typedInner, castExpression.TargetType);
+                return new Expression.FunctionCall(functionCall.Identifier, convertedArgs, ((Type.FunctionType)funType).Return);
+            case Expression.Cast cast:
+                var typedInner = TypeCheckExpression(cast.Expression, symbolTable);
+                return new Expression.Cast(cast.TargetType, typedInner, cast.TargetType);
             default:
                 throw new NotImplementedException();
         }
@@ -354,7 +354,7 @@ public class TypeChecker
         if (GetType(expression) == type)
             return expression;
         
-        return new Expression.CastExpression(type, expression, type);
+        return new Expression.Cast(type, expression, type);
     }
 
     private Type GetCommonType(Type type1, Type type2)
@@ -397,14 +397,14 @@ public class TypeChecker
     public static Type GetType(Expression expression)
     {
         return expression switch {
-            Expression.ConstantExpression exp => exp.Type,
-            Expression.VariableExpression exp => exp.Type,
-            Expression.UnaryExpression exp => exp.Type,
-            Expression.BinaryExpression exp => exp.Type,
-            Expression.AssignmentExpression exp => exp.Type,
-            Expression.ConditionalExpression exp => exp.Type,
-            Expression.FunctionCallExpression exp => exp.Type,
-            Expression.CastExpression exp => exp.Type,
+            Expression.Constant exp => exp.Type,
+            Expression.Variable exp => exp.Type,
+            Expression.Unary exp => exp.Type,
+            Expression.Binary exp => exp.Type,
+            Expression.Assignment exp => exp.Type,
+            Expression.Conditional exp => exp.Type,
+            Expression.FunctionCall exp => exp.Type,
+            Expression.Cast exp => exp.Type,
             _ => throw new NotImplementedException()
         };
     }

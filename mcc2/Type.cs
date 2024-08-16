@@ -9,6 +9,7 @@ public abstract record Type
     public record ULong() : Type;
     public record Double() : Type;
     public record FunctionType(List<Type> Parameters, Type Return) : Type;
+    public record Pointer(Type Referenced) : Type;
 
     public static Type None => new Null();
     private Type() { }

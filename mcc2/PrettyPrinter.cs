@@ -158,67 +158,67 @@ public class PrettyPrinter
     {
         switch (expression)
         {
-            case Expression.ConstantExpression c:
+            case Expression.Constant constant:
                 PrintLine($"Constant(", indent);
-                PrintLine($"value=\"{c.Value}\"", indent + 1);
+                PrintLine($"value=\"{constant.Value}\"", indent + 1);
                 PrintLine(")", indent);
                 break;
-            case Expression.UnaryExpression unaryExpression:
+            case Expression.Unary unary:
                 PrintLine($"Unary(", indent);
-                PrintLine($"{unaryExpression.Operator}(", indent + 1);
-                PrintExpression(unaryExpression.Expression, source, indent + 2);
+                PrintLine($"{unary.Operator}(", indent + 1);
+                PrintExpression(unary.Expression, source, indent + 2);
                 PrintLine($")", indent + 1);
                 break;
-            case Expression.BinaryExpression binaryExpression:
+            case Expression.Binary binary:
                 PrintLine($"Binary(", indent);
-                PrintExpression(binaryExpression.ExpressionLeft, source, indent + 2);
-                PrintLine($"operator=\"{binaryExpression.Operator}\"", indent + 1);
-                PrintExpression(binaryExpression.ExpressionRight, source, indent + 2);
+                PrintExpression(binary.ExpressionLeft, source, indent + 2);
+                PrintLine($"operator=\"{binary.Operator}\"", indent + 1);
+                PrintExpression(binary.ExpressionRight, source, indent + 2);
                 PrintLine($")", indent + 1);
                 PrintLine(")", indent);
                 break;
-            case Expression.VariableExpression variableExpression:
+            case Expression.Variable variable:
                 PrintLine($"Var(", indent);
-                PrintLine($"name=\"{variableExpression.Identifier}\"", indent + 1);
+                PrintLine($"name=\"{variable.Identifier}\"", indent + 1);
                 PrintLine(")", indent);
                 break;
-            case Expression.AssignmentExpression assignmentExpression:
+            case Expression.Assignment assignment:
                 PrintLine($"Assign(", indent);
-                PrintExpression(assignmentExpression.ExpressionLeft, source, indent + 1);
+                PrintExpression(assignment.ExpressionLeft, source, indent + 1);
                 PrintLine($"Equals(", indent + 1);
-                PrintExpression(assignmentExpression.ExpressionRight, source, indent + 2);
+                PrintExpression(assignment.ExpressionRight, source, indent + 2);
                 PrintLine(")", indent + 1);
                 PrintLine(")", indent);
                 break;
-            case Expression.ConditionalExpression conditionalExpression:
+            case Expression.Conditional conditional:
                 PrintLine($"Conditional(", indent);
-                PrintExpression(conditionalExpression.Condition, source, indent + 1);
+                PrintExpression(conditional.Condition, source, indent + 1);
                 PrintLine($"Then(", indent + 1);
-                PrintExpression(conditionalExpression.Then, source, indent + 2);
+                PrintExpression(conditional.Then, source, indent + 2);
                 PrintLine(")", indent + 1);
-                if (conditionalExpression.Else != null)
+                if (conditional.Else != null)
                 {
                     PrintLine($"Else(", indent + 1);
-                    PrintExpression(conditionalExpression.Else, source, indent + 2);
+                    PrintExpression(conditional.Else, source, indent + 2);
                     PrintLine(")", indent + 1);
                 }
                 PrintLine(")", indent);
                 break;
-            case Expression.FunctionCallExpression functionCallExpression:
+            case Expression.FunctionCall functionCall:
                 PrintLine($"Call(", indent);
-                PrintLine($"name=\"{functionCallExpression.Identifier}\",", indent + 1);
+                PrintLine($"name=\"{functionCall.Identifier}\",", indent + 1);
                 PrintLine($"args=(", indent + 1);
-                foreach (var arg in functionCallExpression.Arguments)
+                foreach (var arg in functionCall.Arguments)
                 {
                     PrintExpression(arg, source, indent + 2);
                 }
                 PrintLine(")", indent + 1);
                 PrintLine(")", indent);
                 break;
-            case Expression.CastExpression castExpression:
+            case Expression.Cast cast:
                 PrintLine($"Cast(", indent);
-                PrintLine($"target=\"{castExpression.TargetType}\"", indent + 1);
-                PrintExpression(castExpression.Expression, source, indent + 1);
+                PrintLine($"target=\"{cast.TargetType}\"", indent + 1);
+                PrintExpression(cast.Expression, source, indent + 1);
                 PrintLine(")", indent);
                 break;
         }
