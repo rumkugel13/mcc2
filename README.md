@@ -34,7 +34,7 @@ The current goal is to output assembly for the following ISA's:
 - [ ] Part II: Types beyond int
   - [X] 11: Long Integers
   - [X] 12: Unsigned Integers
-  - [ ] 13: Floating-Point Numbers
+  - [X] 13: Floating-Point Numbers
     - [ ] Extra: NaN
   - [ ] 14: Pointers
   - [ ] 15: Arrays and Pointer Arithmetic
