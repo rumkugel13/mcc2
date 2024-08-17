@@ -5,6 +5,7 @@ public abstract record Declarator
     public record IdentifierDeclarator(string Identifier) : Declarator;
     public record PointerDeclarator(Declarator Declarator) : Declarator;
     public record FunctionDeclarator(List<ParameterInfo> Parameters, Declarator Declarator) : Declarator;
+    public record ArrayDeclarator(Declarator Declarator, int Size) : Declarator;
 
     private Declarator() { }
 }

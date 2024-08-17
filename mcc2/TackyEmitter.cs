@@ -84,8 +84,8 @@ public class TackyEmitter
             case Declaration.VariableDeclaration declaration:
                 if (declaration.Initializer != null && declaration.StorageClass == null)
                 {
-                    var result = EmitTackyAndConvert(declaration.Initializer, instructions);
-                    instructions.Add(new Instruction.Copy(ToVal(result), new Val.Variable(declaration.Identifier)));
+                    // var result = EmitTackyAndConvert(declaration.Initializer, instructions);
+                    // instructions.Add(new Instruction.Copy(ToVal(result), new Val.Variable(declaration.Identifier)));
                 }
                 break;
             case Statement.ExpressionStatement expressionStatement:
@@ -198,10 +198,10 @@ public class TackyEmitter
 
                         if (binary.Operator == Expression.BinaryOperator.And)
                         {
-                            var v1 = EmitTackyAndConvert(binary.ExpressionLeft, instructions);
+                            var v1 = EmitTackyAndConvert(binary.Left, instructions);
                             var falseLabel = MakeLabel();
                             instructions.Add(new Instruction.JumpIfZero(ToVal(v1), falseLabel));
-                            var v2 = EmitTackyAndConvert(binary.ExpressionRight, instructions);
+                            var v2 = EmitTackyAndConvert(binary.Right, instructions);
                             instructions.Add(new Instruction.JumpIfZero(ToVal(v2), falseLabel));
                             instructions.Add(new Instruction.Copy(new Val.Constant(new Const.ConstInt(1)), dstAndOr));
                             var endLabel = MakeLabel();
@@ -212,10 +212,10 @@ public class TackyEmitter
                         }
                         else
                         {
-                            var v1 = EmitTackyAndConvert(binary.ExpressionLeft, instructions);
+                            var v1 = EmitTackyAndConvert(binary.Left, instructions);
                             var trueLabel = MakeLabel();
                             instructions.Add(new Instruction.JumpIfNotZero(ToVal(v1), trueLabel));
-                            var v2 = EmitTackyAndConvert(binary.ExpressionRight, instructions);
+                            var v2 = EmitTackyAndConvert(binary.Right, instructions);
                             instructions.Add(new Instruction.JumpIfNotZero(ToVal(v2), trueLabel));
                             instructions.Add(new Instruction.Copy(new Val.Constant(new Const.ConstInt(0)), dstAndOr));
                             var endLabel = MakeLabel();
@@ -228,8 +228,8 @@ public class TackyEmitter
                     }
                     else
                     {
-                        var v1 = EmitTackyAndConvert(binary.ExpressionLeft, instructions);
-                        var v2 = EmitTackyAndConvert(binary.ExpressionRight, instructions);
+                        var v1 = EmitTackyAndConvert(binary.Left, instructions);
+                        var v2 = EmitTackyAndConvert(binary.Right, instructions);
                         var dst = MakeTackyVariable(binary.Type);
                         instructions.Add(new Instruction.Binary(binary.Operator, ToVal(v1), ToVal(v2), dst));
                         return new ExpResult.PlainOperand(dst);
@@ -239,8 +239,8 @@ public class TackyEmitter
                 return new ExpResult.PlainOperand(new Val.Variable(variable.Identifier));
             case Expression.Assignment assignment:
                 {
-                    var lval = EmitTacky(assignment.ExpressionLeft, instructions);
-                    var rval = EmitTackyAndConvert(assignment.ExpressionRight, instructions);
+                    var lval = EmitTacky(assignment.Left, instructions);
+                    var rval = EmitTackyAndConvert(assignment.Right, instructions);
                     switch (lval)
                     {
                         case ExpResult.PlainOperand operand:

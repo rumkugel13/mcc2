@@ -63,13 +63,29 @@ public class PrettyPrinter
                 PrintLine($"name=\"{declaration.Identifier}\",", indent + 1);
                 if (declaration.Initializer != null){
                     PrintLine("init=(", indent + 1);
-                    PrintExpression(declaration.Initializer, source, indent + 2);
+                    PrintInitializer(declaration.Initializer, source, indent + 2);
                     PrintLine(")", indent + 1);
                 }
                 PrintLine(")", indent);
                 break;
             case Declaration.FunctionDeclaration fun:
                 PrintFunctionDefinition(fun, source, indent);
+                break;
+        }
+    }
+
+    private void PrintInitializer(Initializer initializer, string source, int indent)
+    {
+        switch (initializer)
+        {
+            case Initializer.SingleInitializer single:
+                PrintExpression(single.Expression, source, indent);
+                break;
+            case Initializer.CompoundInitializer compound:
+                PrintLine("{", indent);
+                foreach (var init in compound.Initializers)
+                    PrintInitializer(init, source, indent + 1);
+                PrintLine("}", indent);
                 break;
         }
     }
@@ -176,9 +192,9 @@ public class PrettyPrinter
                 break;
             case Expression.Binary binary:
                 PrintLine($"Binary(", indent);
-                PrintExpression(binary.ExpressionLeft, source, indent + 2);
+                PrintExpression(binary.Left, source, indent + 2);
                 PrintLine($"operator=\"{binary.Operator}\"", indent + 1);
-                PrintExpression(binary.ExpressionRight, source, indent + 2);
+                PrintExpression(binary.Right, source, indent + 2);
                 PrintLine($")", indent + 1);
                 PrintLine(")", indent);
                 break;
@@ -189,9 +205,9 @@ public class PrettyPrinter
                 break;
             case Expression.Assignment assignment:
                 PrintLine($"Assign(", indent);
-                PrintExpression(assignment.ExpressionLeft, source, indent + 1);
+                PrintExpression(assignment.Left, source, indent + 1);
                 PrintLine($"Equals(", indent + 1);
-                PrintExpression(assignment.ExpressionRight, source, indent + 2);
+                PrintExpression(assignment.Right, source, indent + 2);
                 PrintLine(")", indent + 1);
                 PrintLine(")", indent);
                 break;

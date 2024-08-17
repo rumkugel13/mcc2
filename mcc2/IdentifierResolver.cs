@@ -165,8 +165,8 @@ public class IdentifierResolver
         {
             case Expression.Assignment assignment:
                 {
-                    var left = ResolveExpression(assignment.ExpressionLeft, identifierMap);
-                    var right = ResolveExpression(assignment.ExpressionRight, identifierMap);
+                    var left = ResolveExpression(assignment.Left, identifierMap);
+                    var right = ResolveExpression(assignment.Right, identifierMap);
                     return new Expression.Assignment(left, right, assignment.Type);
                 }
             case Expression.Variable variable:
@@ -181,8 +181,8 @@ public class IdentifierResolver
                 }
             case Expression.Binary binary:
                 {
-                    var left = ResolveExpression(binary.ExpressionLeft, identifierMap);
-                    var right = ResolveExpression(binary.ExpressionRight, identifierMap);
+                    var left = ResolveExpression(binary.Left, identifierMap);
+                    var right = ResolveExpression(binary.Right, identifierMap);
                     return new Expression.Binary(binary.Operator, left, right, binary.Type);
                 }
             case Expression.Constant constant:
@@ -243,8 +243,24 @@ public class IdentifierResolver
         identifierMap[declaration.Identifier] = new MapEntry() { NewName = uniqueName, FromCurrentScope = true, HasLinkage = false };
         var init = declaration.Initializer;
         if (init != null)
-            init = ResolveExpression(init, identifierMap);
+            init = ResolveInitializer(init, identifierMap);
         return new Declaration.VariableDeclaration(uniqueName, init, declaration.VariableType, declaration.StorageClass);
+    }
+
+    private Initializer ResolveInitializer(Initializer initializer, Dictionary<string, MapEntry> identifierMap)
+    {
+        switch (initializer)
+        {
+            case Initializer.SingleInitializer single:
+                return new Initializer.SingleInitializer(ResolveExpression(single.Expression, identifierMap), single.Type);
+            case Initializer.CompoundInitializer compound:
+                List<Initializer> initializers = [];
+                foreach (var init in compound.Initializers)
+                    initializers.Add(ResolveInitializer(init, identifierMap));
+                return new Initializer.CompoundInitializer(initializers, compound.Type);
+            default:
+                throw new NotImplementedException();
+        }
     }
 
     private Dictionary<string, MapEntry> CopyIdentifierMap(Dictionary<string, MapEntry> identifierMap)

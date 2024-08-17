@@ -163,16 +163,38 @@ public class Parser
         }
         else
         {
-            Expression? expression = null;
+            Initializer? initializer = null;
             if (Peek(tokens).Type == Lexer.TokenType.Equals)
             {
                 TakeToken(tokens);
-                expression = ParseExpression(tokens);
+                initializer = ParseInitializer(tokens);
             }
 
             Expect(Lexer.TokenType.Semicolon, tokens);
-            return new Declaration.VariableDeclaration(name, expression, declType, storageClass);
+            return new Declaration.VariableDeclaration(name, initializer, declType, storageClass);
         }
+    }
+
+    private Initializer ParseInitializer(List<Token> tokens)
+    {
+        if (Peek(tokens).Type == Lexer.TokenType.OpenBrace)
+        {
+            TakeToken(tokens);
+            List<Initializer> initializers = [];
+            initializers.Add(ParseInitializer(tokens));
+            if (Peek(tokens).Type == Lexer.TokenType.Comma)
+                    TakeToken(tokens);
+            while (Peek(tokens).Type != Lexer.TokenType.CloseBrace)
+            {
+                initializers.Add(ParseInitializer(tokens));
+                if (Peek(tokens).Type == Lexer.TokenType.Comma)
+                    TakeToken(tokens);
+            }
+            Expect(Lexer.TokenType.CloseBrace, tokens);
+            return new Initializer.CompoundInitializer(initializers, Type.None);
+        }
+        else
+            return new Initializer.SingleInitializer(ParseExpression(tokens), Type.None);
     }
 
     private Declarator ParseDeclarator(List<Token> tokens)
@@ -191,9 +213,10 @@ public class Parser
     private Declarator ParseDirectDeclarator(List<Token> tokens)
     {
         var simple = ParseSimpleDeclarator(tokens);
-        
+
         List<Declarator> parameterDeclarators = [];
         List<Type> parameterTypes = [];
+        // optional declarator suffix
         if (Peek(tokens).Type == Lexer.TokenType.OpenParenthesis)
         {
             ParseParameterList(tokens, parameterDeclarators, parameterTypes);
@@ -205,8 +228,47 @@ public class Parser
 
             return new Declarator.FunctionDeclarator(paramInfos, simple);
         }
+        else if (Peek(tokens).Type == Lexer.TokenType.OpenBracket)
+        {
+            Declarator result = simple;
+            do
+            {
+                TakeToken(tokens);
+                var constant = ParseConstant(tokens);
+                if (constant is Const.ConstDouble)
+                    throw new Exception("Parsing Error: Cannot declare array dimension with constant of type double");
+                Expect(Lexer.TokenType.CloseBracket, tokens);
+                result = new Declarator.ArrayDeclarator(result, GetValue(constant));
+            }
+            while (Peek(tokens).Type == Lexer.TokenType.OpenBracket);
+
+            return result;
+        }
         else
             return simple;
+    }
+
+    private Const ParseConstant(List<Token> tokens)
+    {
+        if (IsConstant(Peek(tokens)))
+        {
+            var constant = TakeToken(tokens);
+            return GetConstant(constant, this.source);
+        }
+        else
+            throw new Exception("Parsing Error: Expected a constant token");
+    }
+
+    private int GetValue(Const constVal)
+    {
+        return constVal switch
+        {
+            Const.ConstInt constant => (int)constant.Value,
+            Const.ConstUInt constant => (int)constant.Value,
+            Const.ConstLong constant => (int)constant.Value,
+            Const.ConstULong constant => (int)constant.Value,
+            _ => throw new NotImplementedException()
+        };
     }
 
     private Declarator ParseSimpleDeclarator(List<Token> tokens)
@@ -229,8 +291,10 @@ public class Parser
             case Declarator.IdentifierDeclarator identDecl:
                 return (identDecl.Identifier, baseType, []);
             case Declarator.PointerDeclarator pointerDecl:
-                var derivedType = new Type.Pointer(baseType);
-                return ProcessDeclarator(pointerDecl.Declarator, derivedType);
+                {
+                    var derivedType = new Type.Pointer(baseType);
+                    return ProcessDeclarator(pointerDecl.Declarator, derivedType);
+                }
             case Declarator.FunctionDeclarator funcDecl:
                 switch (funcDecl.Declarator)
                 {
@@ -251,6 +315,11 @@ public class Parser
                         return (nameDecl.Identifier, newType, paramNames);
                     default:
                         throw new Exception("Parsing Error: Can't apply additional type derivations to a function type");
+                }
+            case Declarator.ArrayDeclarator array:
+                {
+                    var derivedType = new Type.Array(baseType, array.Size);
+                    return ProcessDeclarator(array.Declarator, derivedType);
                 }
             default:
                 throw new NotImplementedException();
@@ -422,7 +491,7 @@ public class Parser
 
     private Expression ParseExpression(List<Token> tokens, int minPrecedence = 0)
     {
-        var left = ParseFactor(tokens);
+        var left = ParseUnaryExpression(tokens);
         var nextToken = Peek(tokens);
         while (PrecedenceLevels.TryGetValue(nextToken.Type, out int precedence) && precedence >= minPrecedence)
         {
@@ -457,7 +526,62 @@ public class Parser
         return exp;
     }
 
-    private Expression ParseFactor(List<Token> tokens)
+    private Expression ParseUnaryExpression(List<Token> tokens)
+    {
+        var nextToken = Peek(tokens);
+        if (!IsUnaryExpression(nextToken))
+            throw new Exception($"Parsing Error: Unsupported Token '{nextToken.Type}'");
+
+        if (IsUnaryOperator(nextToken))
+        {
+            var op = ParseUnaryOperator(nextToken, tokens);
+            var innerExpression = ParseUnaryExpression(tokens);
+            if (op is Expression.UnaryOperator.Dereference)
+                return new Expression.Dereference(innerExpression, Type.None);
+            else if (op is Expression.UnaryOperator.AddressOf)
+                return new Expression.AddressOf(innerExpression, Type.None);
+            return new Expression.Unary(op, innerExpression, Type.None);
+        }
+        else if (nextToken.Type == Lexer.TokenType.OpenParenthesis && IsTypeSpecifier(PeekAhead(tokens, 1).Type))
+        {
+            TakeToken(tokens);
+            var type = ParseType(ParseTypeSpecifiers(tokens));
+            // optional abstract declarator
+            nextToken = Peek(tokens);
+            if (nextToken.Type is Lexer.TokenType.Asterisk or Lexer.TokenType.OpenParenthesis or Lexer.TokenType.OpenBracket)
+            {
+                AbstractDeclarator abstractDeclarator = ParseAbstractDeclarator(tokens);
+                var derivedType = ProcessAbstractDeclarator(abstractDeclarator, type);
+                type = derivedType;
+            }
+            Expect(Lexer.TokenType.CloseParenthesis, tokens);
+            var unaryExp = ParseUnaryExpression(tokens);
+            return new Expression.Cast(type, unaryExp, Type.None);
+        }
+        else
+            return ParsePostfixExpression(tokens);
+    }
+
+    private bool IsUnaryExpression(Token token)
+    {
+        return IsUnaryOperator(token) || token.Type == Lexer.TokenType.OpenParenthesis ||
+            IsConstant(token) || token.Type == Lexer.TokenType.Identifier;
+    }
+
+    private Expression ParsePostfixExpression(List<Token> tokens)
+    {
+        var primary = ParsePrimaryExpression(tokens);
+        while (Peek(tokens).Type == Lexer.TokenType.OpenBracket)
+        {
+            TakeToken(tokens);
+            var exp = ParseExpression(tokens);
+            Expect(Lexer.TokenType.CloseBracket, tokens);
+            primary = new Expression.Subscript(primary, exp, Type.None);
+        }
+        return primary;
+    }
+
+    private Expression ParsePrimaryExpression(List<Token> tokens)
     {
         var nextToken = Peek(tokens);
 
@@ -466,42 +590,12 @@ public class Parser
             var constant = TakeToken(tokens);
             return new Expression.Constant(GetConstant(constant, this.source), Type.None);
         }
-        else if (IsUnaryOperator(nextToken))
-        {
-            var op = ParseUnaryOperator(nextToken, tokens);
-            var innerExpression = ParseFactor(tokens);
-            if (op is Expression.UnaryOperator.Dereference)
-                return new Expression.Dereference(innerExpression, Type.None);
-            else if (op is Expression.UnaryOperator.AddressOf)
-                return new Expression.AddressOf(innerExpression, Type.None);
-            return new Expression.Unary(op, innerExpression, Type.None);
-        }
         else if (nextToken.Type == Lexer.TokenType.OpenParenthesis)
         {
             TakeToken(tokens);
-
-            nextToken = Peek(tokens);
-            if (IsTypeSpecifier(nextToken.Type))
-            {
-                var type = ParseType(ParseTypeSpecifiers(tokens));
-                // optional abstract declarator
-                nextToken = Peek(tokens);
-                if (nextToken.Type is Lexer.TokenType.Asterisk or Lexer.TokenType.OpenParenthesis)
-                {
-                    AbstractDeclarator abstractDeclarator = ParseAbstractDeclarator(tokens);
-                    var derivedType = ProcessAbstractDeclarator(abstractDeclarator, type);
-                    type = derivedType;
-                }
-                Expect(Lexer.TokenType.CloseParenthesis, tokens);
-                var factor = ParseFactor(tokens);
-                return new Expression.Cast(type, factor, Type.None);
-            }
-            else
-            {
-                var innerExpression = ParseExpression(tokens);
-                Expect(Lexer.TokenType.CloseParenthesis, tokens);
-                return innerExpression;
-            }
+            var innerExpression = ParseExpression(tokens);
+            Expect(Lexer.TokenType.CloseParenthesis, tokens);
+            return innerExpression;
         }
         else if (nextToken.Type == Lexer.TokenType.Identifier)
         {
@@ -542,15 +636,53 @@ public class Parser
             TakeToken(tokens);
             return new AbstractDeclarator.AbstractPointer(ParseAbstractDeclarator(tokens));
         }
-        else if (nextToken.Type == Lexer.TokenType.OpenParenthesis)
+        else if (nextToken.Type == Lexer.TokenType.OpenParenthesis || nextToken.Type == Lexer.TokenType.OpenBracket)
+        {
+            return ParseDirectAbstractDeclarator(tokens);
+        }
+        else
+            return new AbstractDeclarator.AbstractBase();
+    }
+
+    private AbstractDeclarator ParseDirectAbstractDeclarator(List<Token> tokens)
+    {
+        var nextToken = Peek(tokens);
+        if (nextToken.Type == Lexer.TokenType.OpenParenthesis)
         {
             TakeToken(tokens);
             var inner = ParseAbstractDeclarator(tokens);
             Expect(Lexer.TokenType.CloseParenthesis, tokens);
+            while (Peek(tokens).Type == Lexer.TokenType.OpenBracket)
+            {
+                TakeToken(tokens);
+                var constant = ParseConstant(tokens);
+                if (constant is Const.ConstDouble)
+                    throw new Exception("Parsing Error: Cannot declare array dimension with constant of type double");
+                Expect(Lexer.TokenType.CloseBracket, tokens);
+                inner = new AbstractDeclarator.AbstractArray(inner, GetValue(constant));
+            }
             return inner;
         }
         else
-            return new AbstractDeclarator.AbstractBase();
+        {
+            TakeToken(tokens);
+            var constant = ParseConstant(tokens);
+            if (constant is Const.ConstDouble)
+                throw new Exception("Parsing Error: Cannot declare array dimension with constant of type double");
+            Expect(Lexer.TokenType.CloseBracket, tokens);
+            var inner = new AbstractDeclarator.AbstractBase();
+            var outer = new AbstractDeclarator.AbstractArray(inner, GetValue(constant));
+            while (Peek(tokens).Type == Lexer.TokenType.OpenBracket)
+            {
+                TakeToken(tokens);
+                constant = ParseConstant(tokens);
+                if (constant is Const.ConstDouble)
+                    throw new Exception("Parsing Error: Cannot declare array dimension with constant of type double");
+                Expect(Lexer.TokenType.CloseBracket, tokens);
+                outer = new AbstractDeclarator.AbstractArray(outer, GetValue(constant));
+            }
+            return outer;
+        }
     }
 
     private Type ProcessAbstractDeclarator(AbstractDeclarator abstractDeclarator, Type baseType)
@@ -560,8 +692,15 @@ public class Parser
             case AbstractDeclarator.AbstractBase:
                 return baseType;
             case AbstractDeclarator.AbstractPointer abstractPointer:
-                var derivedType = ProcessAbstractDeclarator(abstractPointer.AbstractDeclarator, baseType);
-                return new Type.Pointer(derivedType);
+                {
+                    var derivedType = ProcessAbstractDeclarator(abstractPointer.AbstractDeclarator, baseType);
+                    return new Type.Pointer(derivedType);
+                }
+            case AbstractDeclarator.AbstractArray abstractArray:
+                { 
+                    var derivedType = ProcessAbstractDeclarator(abstractArray.AbstractDeclarator, baseType);
+                    return new Type.Array(derivedType, abstractArray.Size);
+                }
             default:
                 throw new NotImplementedException();
         }
@@ -605,10 +744,10 @@ public class Parser
 
     private bool IsUnaryOperator(Token token)
     {
-        return token.Type == Lexer.TokenType.Hyphen || 
-        token.Type == Lexer.TokenType.Tilde || 
+        return token.Type == Lexer.TokenType.Hyphen ||
+        token.Type == Lexer.TokenType.Tilde ||
         token.Type == Lexer.TokenType.Exclamation ||
-        token.Type == Lexer.TokenType.Asterisk || 
+        token.Type == Lexer.TokenType.Asterisk ||
         token.Type == Lexer.TokenType.Ampersand;
     }
 
@@ -634,10 +773,10 @@ public class Parser
 
     private bool IsConstant(Token token)
     {
-        return token.Type == Lexer.TokenType.IntConstant || 
+        return token.Type == Lexer.TokenType.IntConstant ||
             token.Type == Lexer.TokenType.LongConstant ||
-            token.Type == Lexer.TokenType.UnsignedIntConstant || 
-            token.Type == Lexer.TokenType.UnsignedLongConstant||
+            token.Type == Lexer.TokenType.UnsignedIntConstant ||
+            token.Type == Lexer.TokenType.UnsignedLongConstant ||
             token.Type == Lexer.TokenType.DoubleConstant;
     }
 

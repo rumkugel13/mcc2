@@ -31,13 +31,14 @@ public abstract record Expression
     public record Constant(Const Value, Type Type) : Expression;
     public record Variable(string Identifier, Type Type) : Expression;
     public record Unary(UnaryOperator Operator, Expression Expression, Type Type) : Expression;
-    public record Binary(BinaryOperator Operator, Expression ExpressionLeft, Expression ExpressionRight, Type Type) : Expression;
-    public record Assignment(Expression ExpressionLeft, Expression ExpressionRight, Type Type) : Expression;
+    public record Binary(BinaryOperator Operator, Expression Left, Expression Right, Type Type) : Expression;
+    public record Assignment(Expression Left, Expression Right, Type Type) : Expression;
     public record Conditional(Expression Condition, Expression Then, Expression Else, Type Type) : Expression;
     public record FunctionCall(string Identifier, List<Expression> Arguments, Type Type) : Expression;
     public record Cast(Type TargetType, Expression Expression, Type Type) : Expression;
     public record Dereference(Expression Expression, Type Type) : Expression;
     public record AddressOf(Expression Expression, Type Type) : Expression;
+    public record Subscript(Expression Pointer, Expression Index, Type Type) : Expression;
 
     private Expression() { }
 }

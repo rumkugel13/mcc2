@@ -94,41 +94,41 @@ public class TypeChecker
 
     private Declaration.VariableDeclaration TypeCheckFileScopeVariableDeclaration(Declaration.VariableDeclaration variableDeclaration, Dictionary<string, SymbolEntry> symbolTable)
     {
-        InitialValue initialValue;
-        if (variableDeclaration.Initializer is Expression.Constant constant)
-            initialValue = new InitialValue.Initial(ConvertConstantToInit(variableDeclaration.VariableType, constant.Value));
-        else if (variableDeclaration.Initializer == null)
-        {
-            if (variableDeclaration.StorageClass == Declaration.StorageClasses.Extern)
-                initialValue = new InitialValue.NoInitializer();
-            else
-                initialValue = new InitialValue.Tentative();
-        }
-        else
-            throw new Exception("Type Error: Non-Constant initializer");
+        // InitialValue initialValue;
+        // if (variableDeclaration.Initializer is Expression.Constant constant)
+        //     initialValue = new InitialValue.Initial(ConvertConstantToInit(variableDeclaration.VariableType, constant.Value));
+        // else if (variableDeclaration.Initializer == null)
+        // {
+        //     if (variableDeclaration.StorageClass == Declaration.StorageClasses.Extern)
+        //         initialValue = new InitialValue.NoInitializer();
+        //     else
+        //         initialValue = new InitialValue.Tentative();
+        // }
+        // else
+        //     throw new Exception("Type Error: Non-Constant initializer");
 
         var global = variableDeclaration.StorageClass != Declaration.StorageClasses.Static;
 
-        if (symbolTable.TryGetValue(variableDeclaration.Identifier, out SymbolEntry prevEntry))
-        {
-            var attributes = (IdentifierAttributes.Static)prevEntry.IdentifierAttributes;
-            if (prevEntry.Type != variableDeclaration.VariableType)
-                throw new Exception("Type Error: Function redeclared as variable");
-            if (variableDeclaration.StorageClass == Declaration.StorageClasses.Extern)
-                global = attributes.Global;
-            else if (attributes.Global != global)
-                throw new Exception("Type Error: Conflicting variable linkage");
+        // if (symbolTable.TryGetValue(variableDeclaration.Identifier, out SymbolEntry prevEntry))
+        // {
+        //     var attributes = (IdentifierAttributes.Static)prevEntry.IdentifierAttributes;
+        //     if (prevEntry.Type != variableDeclaration.VariableType)
+        //         throw new Exception("Type Error: Function redeclared as variable");
+        //     if (variableDeclaration.StorageClass == Declaration.StorageClasses.Extern)
+        //         global = attributes.Global;
+        //     else if (attributes.Global != global)
+        //         throw new Exception("Type Error: Conflicting variable linkage");
 
-            if (attributes.InitialValue is InitialValue.Initial)
-                if (initialValue is InitialValue.Initial)
-                    throw new Exception("Type Error: Conflicting file scope variable definitions");
-                else
-                    initialValue = attributes.InitialValue;
-            else if (initialValue is not InitialValue.Initial && attributes.InitialValue is InitialValue.Tentative)
-                initialValue = new InitialValue.Tentative();
-        }
+        //     if (attributes.InitialValue is InitialValue.Initial)
+        //         if (initialValue is InitialValue.Initial)
+        //             throw new Exception("Type Error: Conflicting file scope variable definitions");
+        //         else
+        //             initialValue = attributes.InitialValue;
+        //     else if (initialValue is not InitialValue.Initial && attributes.InitialValue is InitialValue.Tentative)
+        //         initialValue = new InitialValue.Tentative();
+        // }
 
-        symbolTable[variableDeclaration.Identifier] = new SymbolEntry() { Type = variableDeclaration.VariableType, IdentifierAttributes = new IdentifierAttributes.Static(initialValue, global) };
+        // symbolTable[variableDeclaration.Identifier] = new SymbolEntry() { Type = variableDeclaration.VariableType, IdentifierAttributes = new IdentifierAttributes.Static(initialValue, global) };
         return variableDeclaration;
     }
 
@@ -149,21 +149,37 @@ public class TypeChecker
         else if (variableDeclaration.StorageClass == Declaration.StorageClasses.Static)
         {
             InitialValue initialValue;
-            if (variableDeclaration.Initializer is Expression.Constant constant)
-                initialValue = new InitialValue.Initial(ConvertConstantToInit(variableDeclaration.VariableType, constant.Value));
-            else if (variableDeclaration.Initializer == null)
-                initialValue = new InitialValue.Initial(ConvertConstantToInit(variableDeclaration.VariableType, new Const.ConstInt(0)));
-            else
-                throw new Exception("Type Error: Non-constant initializer on local static variable");
-            symbolTable[variableDeclaration.Identifier] = new SymbolEntry() { Type = variableDeclaration.VariableType, IdentifierAttributes = new IdentifierAttributes.Static(initialValue, false) };
+            // if (variableDeclaration.Initializer is Expression.Constant constant)
+            //     initialValue = new InitialValue.Initial(ConvertConstantToInit(variableDeclaration.VariableType, constant.Value));
+            // else if (variableDeclaration.Initializer == null)
+            //     initialValue = new InitialValue.Initial(ConvertConstantToInit(variableDeclaration.VariableType, new Const.ConstInt(0)));
+            // else
+            //     throw new Exception("Type Error: Non-constant initializer on local static variable");
+            // symbolTable[variableDeclaration.Identifier] = new SymbolEntry() { Type = variableDeclaration.VariableType, IdentifierAttributes = new IdentifierAttributes.Static(initialValue, false) };
         }
         else
         {
             symbolTable[variableDeclaration.Identifier] = new SymbolEntry() { Type = variableDeclaration.VariableType, IdentifierAttributes = new IdentifierAttributes.Local() };
-            if (variableDeclaration.Initializer != null)
-                return new Declaration.VariableDeclaration(variableDeclaration.Identifier, ConvertByAssignment(TypeCheckExpression(variableDeclaration.Initializer, symbolTable), variableDeclaration.VariableType), variableDeclaration.VariableType, variableDeclaration.StorageClass);
+            // if (variableDeclaration.Initializer != null)
+            //     return new Declaration.VariableDeclaration(variableDeclaration.Identifier, ConvertByAssignment(TypeCheckInitializer(variableDeclaration.Initializer, symbolTable), variableDeclaration.VariableType), variableDeclaration.VariableType, variableDeclaration.StorageClass);
         }
         return variableDeclaration;
+    }
+
+    private Initializer TypeCheckInitializer(Initializer initializer, Dictionary<string, SymbolEntry> symbolTable)
+    {
+        switch (initializer)
+        {
+            case Initializer.SingleInitializer single:
+                return new Initializer.SingleInitializer(TypeCheckExpression(single.Expression, symbolTable), single.Type);
+            case Initializer.CompoundInitializer compound:
+                List<Initializer> initializers = [];
+                foreach (var init in compound.Initializers)
+                    initializers.Add(TypeCheckInitializer(init, symbolTable));
+                return new Initializer.CompoundInitializer(initializers, compound.Type);
+            default:
+                throw new NotImplementedException();
+        }
     }
 
     private Expression TypeCheckExpression(Expression expression, Dictionary<string, SymbolEntry> symbolTable)
@@ -171,8 +187,8 @@ public class TypeChecker
         switch (expression)
         {
             case Expression.Assignment assignment:
-                var typedLeft = TypeCheckExpression(assignment.ExpressionLeft, symbolTable);
-                var typedRight = TypeCheckExpression(assignment.ExpressionRight, symbolTable);
+                var typedLeft = TypeCheckExpression(assignment.Left, symbolTable);
+                var typedRight = TypeCheckExpression(assignment.Right, symbolTable);
                 var leftType = GetType(typedLeft);
                 var convertedRight = ConvertByAssignment(typedRight, leftType);
                 return new Expression.Assignment(typedLeft, convertedRight, leftType);
@@ -195,8 +211,8 @@ public class TypeChecker
                     _ => GetType(unaryInner)
                 });
             case Expression.Binary binary:
-                var typedE1 = TypeCheckExpression(binary.ExpressionLeft, symbolTable);
-                var typedE2 = TypeCheckExpression(binary.ExpressionRight, symbolTable);
+                var typedE1 = TypeCheckExpression(binary.Left, symbolTable);
+                var typedE2 = TypeCheckExpression(binary.Right, symbolTable);
                 if (binary.Operator is Expression.BinaryOperator.And or Expression.BinaryOperator.Or)
                 {
                     return new Expression.Binary(binary.Operator, typedE1, typedE2, new Type.Int());
