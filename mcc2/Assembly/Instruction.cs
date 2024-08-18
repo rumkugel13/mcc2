@@ -34,13 +34,6 @@ public abstract record Instruction
         BE,
     }
 
-    public enum AssemblyType
-    {
-        Longword,
-        Quadword,
-        Double,
-    }
-
     public record Mov(AssemblyType Type, Operand Src, Operand Dst) : Instruction;
     public record Movsx(Operand Src, Operand Dst) : Instruction;
     public record MovZeroExtend(Operand Src, Operand Dst) : Instruction;

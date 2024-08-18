@@ -82,7 +82,7 @@ public class AssemblyGenerator
 
         foreach (var cons in staticConstants)
         {
-            AsmSymbolTable[cons.Key] = new AsmSymbolTableEntry.ObjectEntry(Instruction.AssemblyType.Double, true, true);
+            AsmSymbolTable[cons.Key] = new AsmSymbolTableEntry.ObjectEntry(new AssemblyType.Double(), true, true);
         }
 
         PseudoReplacer stackAllocator = new PseudoReplacer();
@@ -91,7 +91,7 @@ public class AssemblyGenerator
         // note: chapter 9 says we should store this per function in symboltable or ast
         // in order to round it up but we can do that here as well
         bytesToAllocate = AlignTo(bytesToAllocate, 16);
-        fn.Instructions.Insert(0, new Instruction.Binary(Instruction.BinaryOperator.Sub, Instruction.AssemblyType.Quadword,
+        fn.Instructions.Insert(0, new Instruction.Binary(Instruction.BinaryOperator.Sub, new AssemblyType.Quadword(),
             new Operand.Imm((ulong)bytesToAllocate), new Operand.Reg(Operand.RegisterName.SP)));
 
         InstructionFixer instructionFixer = new InstructionFixer();
@@ -116,7 +116,7 @@ public class AssemblyGenerator
         for (int i = 0; i < doubleRegArgs.Count; i++)
         {
             var arg = doubleRegArgs[i];
-            instructions.Add(new Instruction.Mov(Instruction.AssemblyType.Double, new Operand.Reg(ABIFloatRegisters[i]), arg));
+            instructions.Add(new Instruction.Mov(new AssemblyType.Double(), new Operand.Reg(ABIFloatRegisters[i]), arg));
         }
 
         for (int i = 0; i < stackArgs.Count; i++)
@@ -132,9 +132,9 @@ public class AssemblyGenerator
     }
 
     private void ClassifyParameters(List<TAC.Val> parameters,
-        out List<(Instruction.AssemblyType, Operand)> intRegArgs,
+        out List<(AssemblyType, Operand)> intRegArgs,
         out List<Operand> doubleRegArgs,
-        out List<(Instruction.AssemblyType, Operand)> stackArgs)
+        out List<(AssemblyType, Operand)> stackArgs)
     {
         intRegArgs = [];
         doubleRegArgs = [];
@@ -142,10 +142,10 @@ public class AssemblyGenerator
 
         for (int i = 0; i < parameters.Count; i++)
         {
-            Instruction.AssemblyType assemblyType = GetAssemblyType(parameters[i]);
+            AssemblyType assemblyType = GetAssemblyType(parameters[i]);
             var operand = GenerateOperand(parameters[i]);
             var typedOperand = (assemblyType, operand);
-            if (assemblyType is Instruction.AssemblyType.Double)
+            if (assemblyType is AssemblyType.Double)
             {
                 if (doubleRegArgs.Count < ABIFloatRegisters.Length)
                     doubleRegArgs.Add(operand);
@@ -169,7 +169,7 @@ public class AssemblyGenerator
         var stackPadding = stackArgs.Count % 2 != 0 ? 8 : 0;
 
         if (stackPadding != 0)
-            instructions.Add(new Instruction.Binary(Instruction.BinaryOperator.Sub, Instruction.AssemblyType.Quadword,
+            instructions.Add(new Instruction.Binary(Instruction.BinaryOperator.Sub, new AssemblyType.Quadword(),
                 new Operand.Imm((ulong)stackPadding), new Operand.Reg(Operand.RegisterName.SP)));
 
         // pass args on registers
@@ -185,7 +185,7 @@ public class AssemblyGenerator
         foreach (var assemblyArg in doubleRegArgs)
         {
             var reg = ABIFloatRegisters[regIndex];
-            instructions.Add(new Instruction.Mov(Instruction.AssemblyType.Double, assemblyArg, new Operand.Reg(reg)));
+            instructions.Add(new Instruction.Mov(new AssemblyType.Double(), assemblyArg, new Operand.Reg(reg)));
             regIndex++;
         }
 
@@ -193,7 +193,7 @@ public class AssemblyGenerator
         for (int i = stackArgs.Count - 1; i >= 0; i--)
         {
             var tackyArg = stackArgs[i];
-            if (tackyArg.Item2 is Operand.Reg or Operand.Imm || tackyArg.Item1 is Instruction.AssemblyType.Quadword or Instruction.AssemblyType.Double)
+            if (tackyArg.Item2 is Operand.Reg or Operand.Imm || tackyArg.Item1 is AssemblyType.Quadword or AssemblyType.Double)
                 instructions.Add(new Instruction.Push(tackyArg.Item2));
             else
             {
@@ -206,13 +206,13 @@ public class AssemblyGenerator
 
         var bytesToRemove = 8 * stackArgs.Count + stackPadding;
         if (bytesToRemove != 0)
-            instructions.Add(new Instruction.Binary(Instruction.BinaryOperator.Add, Instruction.AssemblyType.Quadword,
+            instructions.Add(new Instruction.Binary(Instruction.BinaryOperator.Add, new AssemblyType.Quadword(),
                 new Operand.Imm((ulong)bytesToRemove), new Operand.Reg(Operand.RegisterName.SP)));
 
         var assemblyDst = GenerateOperand(functionCall.Dst);
         var returnType = GetAssemblyType(functionCall.Dst);
-        if (returnType is Instruction.AssemblyType.Double)
-            instructions.Add(new Instruction.Mov(Instruction.AssemblyType.Double, new Operand.Reg(Operand.RegisterName.XMM0), assemblyDst));
+        if (returnType is AssemblyType.Double)
+            instructions.Add(new Instruction.Mov(new AssemblyType.Double(), new Operand.Reg(Operand.RegisterName.XMM0), assemblyDst));
         else
             instructions.Add(new Instruction.Mov(returnType, new Operand.Reg(Operand.RegisterName.AX), assemblyDst));
     }
@@ -224,8 +224,8 @@ public class AssemblyGenerator
             switch (inst)
             {
                 case TAC.Instruction.Return ret:
-                    if (GetAssemblyType(ret.Value) is Instruction.AssemblyType.Double)
-                        instructions.Add(new Instruction.Mov(Instruction.AssemblyType.Double, GenerateOperand(ret.Value), new Operand.Reg(Operand.RegisterName.XMM0)));
+                    if (GetAssemblyType(ret.Value) is AssemblyType.Double)
+                        instructions.Add(new Instruction.Mov(new AssemblyType.Double(), GenerateOperand(ret.Value), new Operand.Reg(Operand.RegisterName.XMM0)));
                     else
                         instructions.Add(new Instruction.Mov(GetAssemblyType(ret.Value), GenerateOperand(ret.Value), new Operand.Reg(Operand.RegisterName.AX)));
                     instructions.Add(new Instruction.Ret());
@@ -233,10 +233,10 @@ public class AssemblyGenerator
                 case TAC.Instruction.Unary unary:
                     if (unary.UnaryOperator == AST.Expression.UnaryOperator.Not)
                     {
-                        if (GetAssemblyType(unary.src) is Instruction.AssemblyType.Double)
+                        if (GetAssemblyType(unary.src) is AssemblyType.Double)
                         {
-                            instructions.Add(new Instruction.Binary(Instruction.BinaryOperator.Xor, Instruction.AssemblyType.Double, new Operand.Reg(Operand.RegisterName.XMM0), new Operand.Reg(Operand.RegisterName.XMM0)));
-                            instructions.Add(new Instruction.Cmp(Instruction.AssemblyType.Double, GenerateOperand(unary.src), new Operand.Reg(Operand.RegisterName.XMM0)));
+                            instructions.Add(new Instruction.Binary(Instruction.BinaryOperator.Xor, new AssemblyType.Double(), new Operand.Reg(Operand.RegisterName.XMM0), new Operand.Reg(Operand.RegisterName.XMM0)));
+                            instructions.Add(new Instruction.Cmp(new AssemblyType.Double(), GenerateOperand(unary.src), new Operand.Reg(Operand.RegisterName.XMM0)));
                             instructions.Add(new Instruction.Mov(GetAssemblyType(unary.dst), new Operand.Imm(0), GenerateOperand(unary.dst)));
                             instructions.Add(new Instruction.SetCC(Instruction.ConditionCode.E, GenerateOperand(unary.dst)));
                         }
@@ -247,11 +247,11 @@ public class AssemblyGenerator
                             instructions.Add(new Instruction.SetCC(Instruction.ConditionCode.E, GenerateOperand(unary.dst)));
                         }
                     }
-                    else if (unary.UnaryOperator == AST.Expression.UnaryOperator.Negate && GetAssemblyType(unary.src) is Instruction.AssemblyType.Double)
+                    else if (unary.UnaryOperator == AST.Expression.UnaryOperator.Negate && GetAssemblyType(unary.src) is AssemblyType.Double)
                     {
-                        instructions.Add(new Instruction.Mov(Instruction.AssemblyType.Double, GenerateOperand(unary.src), GenerateOperand(unary.dst)));
+                        instructions.Add(new Instruction.Mov(new AssemblyType.Double(), GenerateOperand(unary.src), GenerateOperand(unary.dst)));
                         var constLabel = GenerateStaticConstant(new AST.Const.ConstDouble(-0.0), 16);
-                        instructions.Add(new Instruction.Binary(Instruction.BinaryOperator.Xor, Instruction.AssemblyType.Double, new Operand.Data(constLabel), GenerateOperand(unary.dst)));
+                        instructions.Add(new Instruction.Binary(Instruction.BinaryOperator.Xor, new AssemblyType.Double(), new Operand.Data(constLabel), GenerateOperand(unary.dst)));
                     }
                     else
                     {
@@ -260,7 +260,7 @@ public class AssemblyGenerator
                     }
                     break;
                 case TAC.Instruction.Binary binary:
-                    if (binary.Operator == AST.Expression.BinaryOperator.Divide && GetAssemblyType(binary.Src1) is not Instruction.AssemblyType.Double ||
+                    if (binary.Operator == AST.Expression.BinaryOperator.Divide && GetAssemblyType(binary.Src1) is not AssemblyType.Double ||
                         binary.Operator == AST.Expression.BinaryOperator.Remainder)
                     {
                         instructions.Add(new Instruction.Mov(GetAssemblyType(binary.Src1), GenerateOperand(binary.Src1), new Operand.Reg(Operand.RegisterName.AX)));
@@ -284,7 +284,7 @@ public class AssemblyGenerator
                         binary.Operator == AST.Expression.BinaryOperator.LessThan ||
                         binary.Operator == AST.Expression.BinaryOperator.LessOrEqual)
                     {
-                        if (GetAssemblyType(binary.Src1) is Instruction.AssemblyType.Double)
+                        if (GetAssemblyType(binary.Src1) is AssemblyType.Double)
                         {
                             instructions.Add(new Instruction.Cmp(GetAssemblyType(binary.Src1), GenerateOperand(binary.Src2), GenerateOperand(binary.Src1)));
                             instructions.Add(new Instruction.Mov(GetAssemblyType(binary.Dst), new Operand.Imm(0), GenerateOperand(binary.Dst)));
@@ -300,7 +300,7 @@ public class AssemblyGenerator
                     else
                     {
                         instructions.Add(new Instruction.Mov(GetAssemblyType(binary.Src1), GenerateOperand(binary.Src1), GenerateOperand(binary.Dst)));
-                        if (binary.Operator == AST.Expression.BinaryOperator.Divide && GetAssemblyType(binary.Src1) is Instruction.AssemblyType.Double)
+                        if (binary.Operator == AST.Expression.BinaryOperator.Divide && GetAssemblyType(binary.Src1) is AssemblyType.Double)
                             instructions.Add(new Instruction.Binary(Instruction.BinaryOperator.DivDouble, GetAssemblyType(binary.Src1), GenerateOperand(binary.Src2), GenerateOperand(binary.Dst)));
                         else
                             instructions.Add(new Instruction.Binary(ConvertBinary(binary.Operator), GetAssemblyType(binary.Src1), GenerateOperand(binary.Src2), GenerateOperand(binary.Dst)));
@@ -310,10 +310,10 @@ public class AssemblyGenerator
                     instructions.Add(new Instruction.Jmp(jump.Target));
                     break;
                 case TAC.Instruction.JumpIfZero jumpZ:
-                    if (GetAssemblyType(jumpZ.Condition) is Instruction.AssemblyType.Double)
+                    if (GetAssemblyType(jumpZ.Condition) is AssemblyType.Double)
                     {
-                        instructions.Add(new Instruction.Binary(Instruction.BinaryOperator.Xor, Instruction.AssemblyType.Double, new Operand.Reg(Operand.RegisterName.XMM0), new Operand.Reg(Operand.RegisterName.XMM0)));
-                        instructions.Add(new Instruction.Cmp(Instruction.AssemblyType.Double, GenerateOperand(jumpZ.Condition), new Operand.Reg(Operand.RegisterName.XMM0)));
+                        instructions.Add(new Instruction.Binary(Instruction.BinaryOperator.Xor, new AssemblyType.Double(), new Operand.Reg(Operand.RegisterName.XMM0), new Operand.Reg(Operand.RegisterName.XMM0)));
+                        instructions.Add(new Instruction.Cmp(new AssemblyType.Double(), GenerateOperand(jumpZ.Condition), new Operand.Reg(Operand.RegisterName.XMM0)));
                         instructions.Add(new Instruction.JmpCC(Instruction.ConditionCode.E, jumpZ.Target));
                     }
                     else
@@ -323,10 +323,10 @@ public class AssemblyGenerator
                     }
                     break;
                 case TAC.Instruction.JumpIfNotZero jumpNZ:
-                    if (GetAssemblyType(jumpNZ.Condition) is Instruction.AssemblyType.Double)
+                    if (GetAssemblyType(jumpNZ.Condition) is AssemblyType.Double)
                     {
-                        instructions.Add(new Instruction.Binary(Instruction.BinaryOperator.Xor, Instruction.AssemblyType.Double, new Operand.Reg(Operand.RegisterName.XMM0), new Operand.Reg(Operand.RegisterName.XMM0)));
-                        instructions.Add(new Instruction.Cmp(Instruction.AssemblyType.Double, GenerateOperand(jumpNZ.Condition), new Operand.Reg(Operand.RegisterName.XMM0)));
+                        instructions.Add(new Instruction.Binary(Instruction.BinaryOperator.Xor, new AssemblyType.Double(), new Operand.Reg(Operand.RegisterName.XMM0), new Operand.Reg(Operand.RegisterName.XMM0)));
+                        instructions.Add(new Instruction.Cmp(new AssemblyType.Double(), GenerateOperand(jumpNZ.Condition), new Operand.Reg(Operand.RegisterName.XMM0)));
                         instructions.Add(new Instruction.JmpCC(Instruction.ConditionCode.NE, jumpNZ.Target));
                     }
                     else
@@ -348,7 +348,7 @@ public class AssemblyGenerator
                     instructions.Add(new Instruction.Movsx(GenerateOperand(signExtend.Src), GenerateOperand(signExtend.Dst)));
                     break;
                 case TAC.Instruction.Truncate truncate:
-                    instructions.Add(new Instruction.Mov(Instruction.AssemblyType.Longword, GenerateOperand(truncate.Src), GenerateOperand(truncate.Dst)));
+                    instructions.Add(new Instruction.Mov(new AssemblyType.Longword(), GenerateOperand(truncate.Src), GenerateOperand(truncate.Dst)));
                     break;
                 case TAC.Instruction.ZeroExtend zeroExtend:
                     instructions.Add(new Instruction.MovZeroExtend(GenerateOperand(zeroExtend.Src), GenerateOperand(zeroExtend.Dst)));
@@ -357,26 +357,26 @@ public class AssemblyGenerator
                     instructions.Add(new Instruction.Cvttsd2si(GetAssemblyType(doubleToInt.Dst), GenerateOperand(doubleToInt.Src), GenerateOperand(doubleToInt.Dst)));
                     break;
                 case TAC.Instruction.DoubleToUInt doubleToUInt:
-                    if (GetAssemblyType(doubleToUInt.Dst) == Instruction.AssemblyType.Longword)
+                    if (GetAssemblyType(doubleToUInt.Dst) is AssemblyType.Longword)
                     {
-                        instructions.Add(new Instruction.Cvttsd2si(Instruction.AssemblyType.Quadword, GenerateOperand(doubleToUInt.Src), new Operand.Reg(Operand.RegisterName.AX)));
-                        instructions.Add(new Instruction.Mov(Instruction.AssemblyType.Longword, new Operand.Reg(Operand.RegisterName.AX), GenerateOperand(doubleToUInt.Dst)));
+                        instructions.Add(new Instruction.Cvttsd2si(new AssemblyType.Quadword(), GenerateOperand(doubleToUInt.Src), new Operand.Reg(Operand.RegisterName.AX)));
+                        instructions.Add(new Instruction.Mov(new AssemblyType.Longword(), new Operand.Reg(Operand.RegisterName.AX), GenerateOperand(doubleToUInt.Dst)));
                     }
                     else
                     {
                         var upperBoundLabel = GenerateStaticConstant(new AST.Const.ConstDouble(9223372036854775808.0), 8);
-                        instructions.Add(new Instruction.Cmp(Instruction.AssemblyType.Double, new Operand.Data(upperBoundLabel), GenerateOperand(doubleToUInt.Src)));
+                        instructions.Add(new Instruction.Cmp(new AssemblyType.Double(), new Operand.Data(upperBoundLabel), GenerateOperand(doubleToUInt.Src)));
                         var outOfRangeLabel = $".L_outOfRange.{counter}";
                         instructions.Add(new Instruction.JmpCC(Instruction.ConditionCode.AE, outOfRangeLabel));
-                        instructions.Add(new Instruction.Cvttsd2si(Instruction.AssemblyType.Quadword, GenerateOperand(doubleToUInt.Src), GenerateOperand(doubleToUInt.Dst)));
+                        instructions.Add(new Instruction.Cvttsd2si(new AssemblyType.Quadword(), GenerateOperand(doubleToUInt.Src), GenerateOperand(doubleToUInt.Dst)));
                         var endLabel = $".L_outOfRange_end.{counter++}";
                         instructions.Add(new Instruction.Jmp(endLabel));
                         instructions.Add(new Instruction.Label(outOfRangeLabel));
-                        instructions.Add(new Instruction.Mov(Instruction.AssemblyType.Double, GenerateOperand(doubleToUInt.Src), new Operand.Reg(Operand.RegisterName.XMM1)));
-                        instructions.Add(new Instruction.Binary(Instruction.BinaryOperator.Sub, Instruction.AssemblyType.Double, new Operand.Data(upperBoundLabel), new Operand.Reg(Operand.RegisterName.XMM1)));
-                        instructions.Add(new Instruction.Cvttsd2si(Instruction.AssemblyType.Quadword, new Operand.Reg(Operand.RegisterName.XMM1), GenerateOperand(doubleToUInt.Dst)));
-                        instructions.Add(new Instruction.Mov(Instruction.AssemblyType.Quadword, new Operand.Imm(9223372036854775808), new Operand.Reg(Operand.RegisterName.DX)));
-                        instructions.Add(new Instruction.Binary(Instruction.BinaryOperator.Add, Instruction.AssemblyType.Quadword, new Operand.Reg(Operand.RegisterName.DX), GenerateOperand(doubleToUInt.Dst)));
+                        instructions.Add(new Instruction.Mov(new AssemblyType.Double(), GenerateOperand(doubleToUInt.Src), new Operand.Reg(Operand.RegisterName.XMM1)));
+                        instructions.Add(new Instruction.Binary(Instruction.BinaryOperator.Sub, new AssemblyType.Double(), new Operand.Data(upperBoundLabel), new Operand.Reg(Operand.RegisterName.XMM1)));
+                        instructions.Add(new Instruction.Cvttsd2si(new AssemblyType.Quadword(), new Operand.Reg(Operand.RegisterName.XMM1), GenerateOperand(doubleToUInt.Dst)));
+                        instructions.Add(new Instruction.Mov(new AssemblyType.Quadword(), new Operand.Imm(9223372036854775808), new Operand.Reg(Operand.RegisterName.DX)));
+                        instructions.Add(new Instruction.Binary(Instruction.BinaryOperator.Add, new AssemblyType.Quadword(), new Operand.Reg(Operand.RegisterName.DX), GenerateOperand(doubleToUInt.Dst)));
                         instructions.Add(new Instruction.Label(endLabel));
                     }
                     break;
@@ -384,36 +384,36 @@ public class AssemblyGenerator
                     instructions.Add(new Instruction.Cvtsi2sd(GetAssemblyType(intToDouble.Src), GenerateOperand(intToDouble.Src), GenerateOperand(intToDouble.Dst)));
                     break;
                 case TAC.Instruction.UIntToDouble uintToDouble:
-                    if (GetAssemblyType(uintToDouble.Src) == Instruction.AssemblyType.Longword)
+                    if (GetAssemblyType(uintToDouble.Src) is AssemblyType.Longword)
                     {
                         instructions.Add(new Instruction.MovZeroExtend(GenerateOperand(uintToDouble.Src), new Operand.Reg(Operand.RegisterName.AX)));
-                        instructions.Add(new Instruction.Cvtsi2sd(Instruction.AssemblyType.Quadword, new Operand.Reg(Operand.RegisterName.AX), GenerateOperand(uintToDouble.Dst)));
+                        instructions.Add(new Instruction.Cvtsi2sd(new AssemblyType.Quadword(), new Operand.Reg(Operand.RegisterName.AX), GenerateOperand(uintToDouble.Dst)));
                     }
                     else
                     {
-                        instructions.Add(new Instruction.Cmp(Instruction.AssemblyType.Quadword, new Operand.Imm(0), GenerateOperand(uintToDouble.Src)));
+                        instructions.Add(new Instruction.Cmp(new AssemblyType.Quadword(), new Operand.Imm(0), GenerateOperand(uintToDouble.Src)));
                         var outOfRangeLabel = $".L_outOfRange.{counter}";
                         instructions.Add(new Instruction.JmpCC(Instruction.ConditionCode.L, outOfRangeLabel));
-                        instructions.Add(new Instruction.Cvtsi2sd(Instruction.AssemblyType.Quadword, GenerateOperand(uintToDouble.Src), GenerateOperand(uintToDouble.Dst)));
+                        instructions.Add(new Instruction.Cvtsi2sd(new AssemblyType.Quadword(), GenerateOperand(uintToDouble.Src), GenerateOperand(uintToDouble.Dst)));
                         var endLabel = $".L_outOfRange_end.{counter++}";
                         instructions.Add(new Instruction.Jmp(endLabel));
                         instructions.Add(new Instruction.Label(outOfRangeLabel));
-                        instructions.Add(new Instruction.Mov(Instruction.AssemblyType.Quadword, GenerateOperand(uintToDouble.Src), new Operand.Reg(Operand.RegisterName.AX)));
-                        instructions.Add(new Instruction.Mov(Instruction.AssemblyType.Quadword, new Operand.Reg(Operand.RegisterName.AX), new Operand.Reg(Operand.RegisterName.DX)));
-                        instructions.Add(new Instruction.Unary(Instruction.UnaryOperator.Shr, Instruction.AssemblyType.Quadword, new Operand.Reg(Operand.RegisterName.DX)));
-                        instructions.Add(new Instruction.Binary(Instruction.BinaryOperator.And, Instruction.AssemblyType.Quadword, new Operand.Imm(1), new Operand.Reg(Operand.RegisterName.AX)));
-                        instructions.Add(new Instruction.Binary(Instruction.BinaryOperator.Or, Instruction.AssemblyType.Quadword, new Operand.Reg(Operand.RegisterName.AX), new Operand.Reg(Operand.RegisterName.DX)));
-                        instructions.Add(new Instruction.Cvtsi2sd(Instruction.AssemblyType.Quadword, new Operand.Reg(Operand.RegisterName.DX), GenerateOperand(uintToDouble.Dst)));
-                        instructions.Add(new Instruction.Binary(Instruction.BinaryOperator.Add, Instruction.AssemblyType.Double, GenerateOperand(uintToDouble.Dst), GenerateOperand(uintToDouble.Dst)));
+                        instructions.Add(new Instruction.Mov(new AssemblyType.Quadword(), GenerateOperand(uintToDouble.Src), new Operand.Reg(Operand.RegisterName.AX)));
+                        instructions.Add(new Instruction.Mov(new AssemblyType.Quadword(), new Operand.Reg(Operand.RegisterName.AX), new Operand.Reg(Operand.RegisterName.DX)));
+                        instructions.Add(new Instruction.Unary(Instruction.UnaryOperator.Shr, new AssemblyType.Quadword(), new Operand.Reg(Operand.RegisterName.DX)));
+                        instructions.Add(new Instruction.Binary(Instruction.BinaryOperator.And, new AssemblyType.Quadword(), new Operand.Imm(1), new Operand.Reg(Operand.RegisterName.AX)));
+                        instructions.Add(new Instruction.Binary(Instruction.BinaryOperator.Or, new AssemblyType.Quadword(), new Operand.Reg(Operand.RegisterName.AX), new Operand.Reg(Operand.RegisterName.DX)));
+                        instructions.Add(new Instruction.Cvtsi2sd(new AssemblyType.Quadword(), new Operand.Reg(Operand.RegisterName.DX), GenerateOperand(uintToDouble.Dst)));
+                        instructions.Add(new Instruction.Binary(Instruction.BinaryOperator.Add, new AssemblyType.Double(), GenerateOperand(uintToDouble.Dst), GenerateOperand(uintToDouble.Dst)));
                         instructions.Add(new Instruction.Label(endLabel));
                     }
                     break;
                 case TAC.Instruction.Load load:
-                    instructions.Add(new Instruction.Mov(Instruction.AssemblyType.Quadword, GenerateOperand(load.SrcPtr), new Operand.Reg(Operand.RegisterName.AX)));
+                    instructions.Add(new Instruction.Mov(new AssemblyType.Quadword(), GenerateOperand(load.SrcPtr), new Operand.Reg(Operand.RegisterName.AX)));
                     instructions.Add(new Instruction.Mov(GetAssemblyType(load.Dst), new Operand.Memory(Operand.RegisterName.AX, 0), GenerateOperand(load.Dst)));
                     break;
                 case TAC.Instruction.Store store:
-                    instructions.Add(new Instruction.Mov(Instruction.AssemblyType.Quadword, GenerateOperand(store.DstPtr), new Operand.Reg(Operand.RegisterName.AX)));
+                    instructions.Add(new Instruction.Mov(new AssemblyType.Quadword(), GenerateOperand(store.DstPtr), new Operand.Reg(Operand.RegisterName.AX)));
                     instructions.Add(new Instruction.Mov(GetAssemblyType(store.Src), GenerateOperand(store.Src), new Operand.Memory(Operand.RegisterName.AX, 0)));
                     break;
                 case TAC.Instruction.GetAddress getAddress:
@@ -437,26 +437,26 @@ public class AssemblyGenerator
         };
     }
 
-    public static Instruction.AssemblyType GetAssemblyType(Type type)
+    public static AssemblyType GetAssemblyType(Type type)
     {
         return type switch
         {
-            Type.Int or Type.UInt => Instruction.AssemblyType.Longword,
-            Type.Long or Type.ULong or Type.Pointer => Instruction.AssemblyType.Quadword,
-            Type.Double => Instruction.AssemblyType.Double,
+            Type.Int or Type.UInt => new AssemblyType.Longword(),
+            Type.Long or Type.ULong or Type.Pointer => new AssemblyType.Quadword(),
+            Type.Double => new AssemblyType.Double(),
             _ => throw new NotImplementedException()
         };
     }
 
-    private Instruction.AssemblyType GetAssemblyType(TAC.Val val)
+    private AssemblyType GetAssemblyType(TAC.Val val)
     {
         return val switch
         {
             TAC.Val.Constant constant => constant.Value switch
             {
-                AST.Const.ConstInt or AST.Const.ConstUInt => Instruction.AssemblyType.Longword,
-                AST.Const.ConstLong or AST.Const.ConstULong => Instruction.AssemblyType.Quadword,
-                AST.Const.ConstDouble => Instruction.AssemblyType.Double,
+                AST.Const.ConstInt or AST.Const.ConstUInt => new AssemblyType.Longword(),
+                AST.Const.ConstLong or AST.Const.ConstULong => new AssemblyType.Quadword(),
+                AST.Const.ConstDouble => new AssemblyType.Double(),
                 _ => throw new NotImplementedException()
             },
             TAC.Val.Variable var => GetAssemblyType(symbolTable[var.Name].Type),

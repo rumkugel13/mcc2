@@ -99,7 +99,7 @@ public class CodeEmitter
                 builder.AppendLine($"\tmov{EmitTypeSuffix(mov.Type)} {EmitOperand(mov.Src, mov.Type)}, {EmitOperand(mov.Dst, mov.Type)}");
                 break;
             case Instruction.Movsx movsx:
-                builder.AppendLine($"\tmovslq {EmitOperand(movsx.Src, Instruction.AssemblyType.Longword)}, {EmitOperand(movsx.Dst, Instruction.AssemblyType.Quadword)}");
+                builder.AppendLine($"\tmovslq {EmitOperand(movsx.Src, new AssemblyType.Longword())}, {EmitOperand(movsx.Dst, new AssemblyType.Quadword())}");
                 break;
             case Instruction.Ret:
                 builder.AppendLine($"\tmovq %rbp, %rsp");
@@ -110,7 +110,7 @@ public class CodeEmitter
                 builder.AppendLine($"\t{EmitUnaryOperator(unary.Operator)}{EmitTypeSuffix(unary.Type)} {EmitOperand(unary.Operand, unary.Type)}");
                 break;
             case Instruction.Binary binary:
-                if (binary.Type == Instruction.AssemblyType.Double && binary.Operator is Instruction.BinaryOperator.Xor or Instruction.BinaryOperator.Mult)
+                if (binary.Type is AssemblyType.Double && binary.Operator is Instruction.BinaryOperator.Xor or Instruction.BinaryOperator.Mult)
                 {
                     if (binary.Operator == Instruction.BinaryOperator.Xor)
                         builder.AppendLine($"\txorpd {EmitOperand(binary.SrcOperand, binary.Type)}, {EmitOperand(binary.DstOperand, binary.Type)}");
@@ -127,13 +127,13 @@ public class CodeEmitter
                 builder.AppendLine($"\tdiv{EmitTypeSuffix(div.Type)} {EmitOperand(div.Operand, div.Type)}");
                 break;
             case Instruction.Cdq cdq:
-                if (cdq.Type == Instruction.AssemblyType.Longword)
+                if (cdq.Type is AssemblyType.Longword)
                     builder.AppendLine("\tcdq");
                 else
                     builder.AppendLine("\tcqo");
                 break;
             case Instruction.Cmp cmp:
-                if (cmp.Type == Instruction.AssemblyType.Double)
+                if (cmp.Type is AssemblyType.Double)
                     builder.AppendLine($"\tcomisd {EmitOperand(cmp.OperandA, cmp.Type)}, {EmitOperand(cmp.OperandB, cmp.Type)}");
                 else
                     builder.AppendLine($"\tcmp{EmitTypeSuffix(cmp.Type)} {EmitOperand(cmp.OperandA, cmp.Type)}, {EmitOperand(cmp.OperandB, cmp.Type)}");
@@ -151,32 +151,32 @@ public class CodeEmitter
                 builder.AppendLine($".L{label.Identifier}:");
                 break;
             case Instruction.Push push:
-                builder.AppendLine($"\tpushq {EmitOperand(push.Operand, Instruction.AssemblyType.Quadword)}");
+                builder.AppendLine($"\tpushq {EmitOperand(push.Operand, new AssemblyType.Quadword())}");
                 break;
             case Instruction.Call call:
                 builder.AppendLine($"\tcall {call.Identifier}{(!((AsmSymbolTableEntry.FunctionEntry)AssemblyGenerator.AsmSymbolTable[call.Identifier]).Defined && OperatingSystem.IsLinux() ? "@PLT" : "")}");
                 break;
             case Instruction.Cvtsi2sd cvtsi2sd:
-                builder.AppendLine($"\tcvtsi2sd{EmitTypeSuffix(cvtsi2sd.SrcType)} {EmitOperand(cvtsi2sd.Src, cvtsi2sd.SrcType)}, {EmitOperand(cvtsi2sd.Dst, Instruction.AssemblyType.Double)}");
+                builder.AppendLine($"\tcvtsi2sd{EmitTypeSuffix(cvtsi2sd.SrcType)} {EmitOperand(cvtsi2sd.Src, cvtsi2sd.SrcType)}, {EmitOperand(cvtsi2sd.Dst, new AssemblyType.Double())}");
                 break;
             case Instruction.Cvttsd2si cvttsd2si:
-                builder.AppendLine($"\tcvttsd2si{EmitTypeSuffix(cvttsd2si.DstType)} {EmitOperand(cvttsd2si.Src, Instruction.AssemblyType.Double)}, {EmitOperand(cvttsd2si.Dst, cvttsd2si.DstType)}");
+                builder.AppendLine($"\tcvttsd2si{EmitTypeSuffix(cvttsd2si.DstType)} {EmitOperand(cvttsd2si.Src, new AssemblyType.Double())}, {EmitOperand(cvttsd2si.Dst, cvttsd2si.DstType)}");
                 break;
             case Instruction.Lea lea:
-                builder.AppendLine($"\tleaq {EmitOperand(lea.Src, Instruction.AssemblyType.Quadword)}, {EmitOperand(lea.Dst, Instruction.AssemblyType.Quadword)}");
+                builder.AppendLine($"\tleaq {EmitOperand(lea.Src, new AssemblyType.Quadword())}, {EmitOperand(lea.Dst, new AssemblyType.Quadword())}");
                 break;
             default:
                 throw new NotImplementedException();
         }
     }
 
-    private string EmitTypeSuffix(Instruction.AssemblyType assemblyType)
+    private string EmitTypeSuffix(AssemblyType assemblyType)
     {
         return assemblyType switch
         {
-            Instruction.AssemblyType.Longword => "l",
-            Instruction.AssemblyType.Quadword => "q",
-            Instruction.AssemblyType.Double => "sd",
+            AssemblyType.Longword => "l",
+            AssemblyType.Quadword => "q",
+            AssemblyType.Double => "sd",
             _ => throw new NotImplementedException()
         };
     }
@@ -236,13 +236,13 @@ public class CodeEmitter
         };
     }
 
-    private string EmitOperand(Operand operand, Instruction.AssemblyType assemblyType)
+    private string EmitOperand(Operand operand, AssemblyType assemblyType)
     {
         return operand switch
         {
             Operand.Reg reg => EmitRegister(reg.Register, assemblyType),
             Operand.Imm imm => $"${imm.Value}",
-            Operand.Memory memory => $"{memory.Offset}({EmitRegister(memory.Register, Instruction.AssemblyType.Quadword)})",
+            Operand.Memory memory => $"{memory.Offset}({EmitRegister(memory.Register, new AssemblyType.Quadword())})",
             Operand.Data data => $"{data.Identifier}(%rip)",
             _ => throw new NotImplementedException()
         };
@@ -265,13 +265,13 @@ public class CodeEmitter
         };
     }
 
-    private string EmitRegister(Operand.RegisterName reg, Instruction.AssemblyType assemblyType)
+    private string EmitRegister(Operand.RegisterName reg, AssemblyType assemblyType)
     {
         return assemblyType switch
         {
-            Instruction.AssemblyType.Longword => fourByteRegs[(int)reg],
-            Instruction.AssemblyType.Quadword => eightByteRegs[(int)reg],
-            Instruction.AssemblyType.Double => floatRegs[(int)(reg - byteRegs.Length)],
+            AssemblyType.Longword => fourByteRegs[(int)reg],
+            AssemblyType.Quadword => eightByteRegs[(int)reg],
+            AssemblyType.Double => floatRegs[(int)(reg - byteRegs.Length)],
             _ => throw new NotImplementedException()
         };
     }

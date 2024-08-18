@@ -182,9 +182,9 @@ public class PseudoReplacer
         }
 
         var align = ((AsmSymbolTableEntry.ObjectEntry)AssemblyGenerator.AsmSymbolTable[name]).AssemblyType switch {
-            Instruction.AssemblyType.Longword => 4,
-            Instruction.AssemblyType.Quadword => 8,
-            Instruction.AssemblyType.Double => 8,
+            AssemblyType.Longword => 4,
+            AssemblyType.Quadword => 8,
+            AssemblyType.Double => 8,
             _ => throw new NotImplementedException()
         };
 
