@@ -41,7 +41,7 @@ public class AssemblyGenerator
                 functionDefinitions.Add(GenerateFunction(fun));
             else if (def is TAC.TopLevel.StaticVariable staticVariable)
                 functionDefinitions.Add(new TopLevel.StaticVariable(staticVariable.Identifier, staticVariable.Global,
-                    GetAlignment(staticVariable.Type), staticVariable.Init));
+                    GetAlignment(staticVariable.Type), staticVariable.Inits[0]));
         }
 
         foreach (var cons in staticConstants)

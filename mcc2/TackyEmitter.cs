@@ -32,10 +32,10 @@ public class TackyEmitter
                     switch (stat.InitialValue)
                     {
                         case InitialValue.Initial init:
-                            instructions.Add(new TopLevel.StaticVariable(entry.Key, stat.Global, entry.Value.Type, init.Inits[0]));
+                            instructions.Add(new TopLevel.StaticVariable(entry.Key, stat.Global, entry.Value.Type, init.Inits));
                             break;
                         case InitialValue.Tentative:
-                            instructions.Add(new TopLevel.StaticVariable(entry.Key, stat.Global, entry.Value.Type, TypeChecker.ConvertConstantToInit(entry.Value.Type, new Const.ConstInt(0))));
+                            instructions.Add(new TopLevel.StaticVariable(entry.Key, stat.Global, entry.Value.Type, [TypeChecker.ConvertConstantToInit(entry.Value.Type, new Const.ConstInt(0))]));
                             break;
                         case InitialValue.NoInitializer:
                             break;
@@ -71,6 +71,39 @@ public class TackyEmitter
             functionDefinition.Parameters, instructions);
     }
 
+    private void EmitVarDeclaration(Declaration.VariableDeclaration variableDeclaration, List<Instruction> instructions)
+    {
+        switch (variableDeclaration.Initializer)
+        {
+            case Initializer.SingleInitializer single:
+                var result = EmitTackyAndConvert(single.Expression, instructions);
+                instructions.Add(new Instruction.Copy(ToVal(result), new Val.Variable(variableDeclaration.Identifier)));
+                break;
+            case Initializer.CompoundInitializer compound:
+                EmitCompoundInit(compound, 0, variableDeclaration.Identifier, instructions);
+                break;
+        }
+    }
+
+    private void EmitCompoundInit(Initializer initializer, int offset, string name, List<Instruction> instructions)
+    {
+        switch (initializer)
+        {
+            case Initializer.SingleInitializer single:
+                var result = EmitTackyAndConvert(single.Expression, instructions);
+                instructions.Add(new Instruction.CopyToOffset(ToVal(result), name, offset));
+                break;
+            case Initializer.CompoundInitializer compound:
+                for (int i = 0; i < compound.Initializers.Count; i++)
+                {
+                    Initializer? init = compound.Initializers[i];
+                    var newOffset = offset + (i * TypeChecker.GetTypeSize(compound.Type));
+                    EmitCompoundInit(init, newOffset, name, instructions);
+                }
+                break;
+        }
+    }
+
     private void EmitInstruction(BlockItem blockItem, List<Instruction> instructions)
     {
         switch (blockItem)
@@ -84,8 +117,7 @@ public class TackyEmitter
             case Declaration.VariableDeclaration declaration:
                 if (declaration.Initializer != null && declaration.StorageClass == null)
                 {
-                    // var result = EmitTackyAndConvert(declaration.Initializer, instructions);
-                    // instructions.Add(new Instruction.Copy(ToVal(result), new Val.Variable(declaration.Identifier)));
+                    EmitVarDeclaration(declaration, instructions);
                 }
                 break;
             case Statement.ExpressionStatement expressionStatement:
@@ -226,6 +258,39 @@ public class TackyEmitter
                         }
                         return new ExpResult.PlainOperand(dstAndOr);
                     }
+                    else if (binary.Operator == Expression.BinaryOperator.Add && GetType(binary.Left) is Type.Pointer || GetType(binary.Right) is Type.Pointer)
+                    {
+                        var pointer = GetType(binary.Left) is Type.Pointer ? binary.Left : binary.Right;
+                        var integer = GetType(binary.Left) is Type.Pointer ? binary.Right : binary.Left;
+                        var pointerVal = EmitTackyAndConvert(pointer, instructions);
+                        var integerVal = EmitTackyAndConvert(integer, instructions);
+                        var dst = MakeTackyVariable(binary.Type);
+                        instructions.Add(new Instruction.AddPointer(ToVal(pointerVal), ToVal(integerVal), TypeChecker.GetTypeSize(binary.Type), dst));
+                        return new ExpResult.PlainOperand(dst);
+                    }
+                    else if (binary.Operator == Expression.BinaryOperator.Subtract && GetType(binary.Left) is Type.Pointer || GetType(binary.Right) is Type.Pointer)
+                    {
+                        if (GetType(binary.Left) is Type.Pointer && GetType(binary.Right) is Type.Pointer)
+                        {
+                            var p1 = EmitTackyAndConvert(binary.Left, instructions);
+                            var p2 = EmitTackyAndConvert(binary.Right, instructions);
+                            var diffDst = MakeTackyVariable(binary.Type);
+                            instructions.Add(new Instruction.Binary(Expression.BinaryOperator.Subtract, ToVal(p1), ToVal(p2), diffDst));
+                            var result = MakeTackyVariable(binary.Type);
+                            instructions.Add(new Instruction.Binary(Expression.BinaryOperator.Divide, diffDst, new Val.Constant(new Const.ConstLong(TypeChecker.GetTypeSize(GetType(binary.Left)))), result));
+                            return new ExpResult.PlainOperand(result);
+                        }
+
+                        var pointer = GetType(binary.Left) is Type.Pointer ? binary.Left : binary.Right;
+                        var integer = GetType(binary.Left) is Type.Pointer ? binary.Right : binary.Left;
+                        var pointerVal = EmitTackyAndConvert(pointer, instructions);
+                        var integerVal = EmitTackyAndConvert(integer, instructions);
+                        var negatedDst = MakeTackyVariable(binary.Type);
+                        instructions.Add(new Instruction.Unary(Expression.UnaryOperator.Negate, ToVal(integerVal), negatedDst));
+                        var dst = MakeTackyVariable(binary.Type);
+                        instructions.Add(new Instruction.AddPointer(ToVal(pointerVal), negatedDst, TypeChecker.GetTypeSize(binary.Type), dst));
+                        return new ExpResult.PlainOperand(dst);
+                    }
                     else
                     {
                         var v1 = EmitTackyAndConvert(binary.Left, instructions);
@@ -334,6 +399,11 @@ public class TackyEmitter
                         default:
                             throw new NotImplementedException();
                     }
+                }
+            case Expression.Subscript subscript:
+                {
+                    var result = EmitTackyAndConvert(new Expression.Binary(Expression.BinaryOperator.Add, subscript.Left, subscript.Right, subscript.Type), instructions);
+                    return new ExpResult.DereferencedPointer(ToVal(result));
                 }
             default:
                 throw new NotImplementedException();
