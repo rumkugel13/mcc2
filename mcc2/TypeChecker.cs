@@ -683,6 +683,7 @@ public class TypeChecker
             Type.ULong => new StaticInit.ULongInit((ulong)value),
             Type.Double => new StaticInit.DoubleInit((double)value),
             Type.Pointer => new StaticInit.ULongInit(value),
+            Type.Array array => new StaticInit.ZeroInit(array.Size * GetTypeSize(array.Element)),
             _ => throw new NotImplementedException()
         };
     }
@@ -719,7 +720,7 @@ public class TypeChecker
         return type switch
         {
             Type.Int or Type.UInt => 4,
-            Type.Long or Type.ULong or Type.Pointer => 8,
+            Type.Long or Type.ULong or Type.Pointer or Type.Double => 8,
             Type.Array array => GetTypeSize(array.Element) * array.Size,
             _ => throw new NotImplementedException()
         };
