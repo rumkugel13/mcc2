@@ -18,11 +18,11 @@ public class PseudoReplacer
                     {
                         var src = mov.Src;
                         var dst = mov.Dst;
-                        if (src is Operand.Pseudo pseudoSrc)
-                            src = ReplacePseudo(pseudoSrc.Identifier);
+                        if (src is Operand.Pseudo or Operand.PseudoMemory)
+                            src = ReplacePseudo(src);
 
-                        if (dst is Operand.Pseudo pseudoDst)
-                            dst = ReplacePseudo(pseudoDst.Identifier);
+                        if (dst is Operand.Pseudo or Operand.PseudoMemory)
+                            dst = ReplacePseudo(dst);
 
                         instructions[i] = new Instruction.Mov(mov.Type, src, dst);
                         break;
@@ -30,8 +30,8 @@ public class PseudoReplacer
                 case Instruction.Unary unary:
                     {
                         var op = unary.Operand;
-                        if (op is Operand.Pseudo pseudoOp)
-                            op = ReplacePseudo(pseudoOp.Identifier);
+                        if (op is Operand.Pseudo or Operand.PseudoMemory)
+                            op = ReplacePseudo(op);
 
                         instructions[i] = new Instruction.Unary(unary.Operator, unary.Type, op);
                         break;
@@ -40,11 +40,11 @@ public class PseudoReplacer
                     {
                         var src = binary.SrcOperand;
                         var dst = binary.DstOperand;
-                        if (src is Operand.Pseudo pseudoSrc)
-                            src = ReplacePseudo(pseudoSrc.Identifier);
+                        if (src is Operand.Pseudo or Operand.PseudoMemory)
+                            src = ReplacePseudo(src);
 
-                        if (dst is Operand.Pseudo pseudoDst)
-                            dst = ReplacePseudo(pseudoDst.Identifier);
+                        if (dst is Operand.Pseudo or Operand.PseudoMemory)
+                            dst = ReplacePseudo(dst);
 
                         instructions[i] = new Instruction.Binary(binary.Operator, binary.Type, src, dst);
                         break;
@@ -52,8 +52,8 @@ public class PseudoReplacer
                 case Instruction.Idiv idiv:
                     {
                         var op = idiv.Operand;
-                        if (op is Operand.Pseudo pseudo)
-                            op = ReplacePseudo(pseudo.Identifier);
+                        if (op is Operand.Pseudo or Operand.PseudoMemory)
+                            op = ReplacePseudo(op);
 
                         instructions[i] = new Instruction.Idiv(idiv.Type, op);
                         break;
@@ -61,8 +61,8 @@ public class PseudoReplacer
                 case Instruction.Div div:
                     {
                         var op = div.Operand;
-                        if (op is Operand.Pseudo pseudo)
-                            op = ReplacePseudo(pseudo.Identifier);
+                        if (op is Operand.Pseudo or Operand.PseudoMemory)
+                            op = ReplacePseudo(op);
 
                         instructions[i] = new Instruction.Div(div.Type, op);
                         break;
@@ -71,11 +71,11 @@ public class PseudoReplacer
                     {
                         var opA = cmp.OperandA;
                         var opB = cmp.OperandB;
-                        if (opA is Operand.Pseudo pseudoA)
-                            opA = ReplacePseudo(pseudoA.Identifier);
+                        if (opA is Operand.Pseudo or Operand.PseudoMemory)
+                            opA = ReplacePseudo(opA);
 
-                        if (opB is Operand.Pseudo pseudoB)
-                            opB = ReplacePseudo(pseudoB.Identifier);
+                        if (opB is Operand.Pseudo or Operand.PseudoMemory)
+                            opB = ReplacePseudo(opB);
 
                         instructions[i] = new Instruction.Cmp(cmp.Type, opA, opB);
                         break;
@@ -83,17 +83,17 @@ public class PseudoReplacer
                 case Instruction.SetCC setCC:
                     {
                         var op = setCC.Operand;
-                        if (op is Operand.Pseudo pseudo)
-                            op = ReplacePseudo(pseudo.Identifier);
-                        
+                        if (op is Operand.Pseudo or Operand.PseudoMemory)
+                            op = ReplacePseudo(op);
+
                         instructions[i] = new Instruction.SetCC(setCC.Condition, op);
                         break;
                     }
                 case Instruction.Push push:
                     {
                         var op = push.Operand;
-                        if (op is Operand.Pseudo pseudo)
-                            op = ReplacePseudo(pseudo.Identifier);
+                        if (op is Operand.Pseudo or Operand.PseudoMemory)
+                            op = ReplacePseudo(op);
 
                         instructions[i] = new Instruction.Push(op);
                         break;
@@ -102,11 +102,11 @@ public class PseudoReplacer
                     {
                         var src = movsx.Src;
                         var dst = movsx.Dst;
-                        if (src is Operand.Pseudo pseudoSrc)
-                            src = ReplacePseudo(pseudoSrc.Identifier);
+                        if (src is Operand.Pseudo or Operand.PseudoMemory)
+                            src = ReplacePseudo(src);
 
-                        if (dst is Operand.Pseudo pseudoDst)
-                            dst = ReplacePseudo(pseudoDst.Identifier);
+                        if (dst is Operand.Pseudo or Operand.PseudoMemory)
+                            dst = ReplacePseudo(dst);
 
                         instructions[i] = new Instruction.Movsx(src, dst);
                         break;
@@ -115,11 +115,11 @@ public class PseudoReplacer
                     {
                         var src = movzx.Src;
                         var dst = movzx.Dst;
-                        if (src is Operand.Pseudo pseudoSrc)
-                            src = ReplacePseudo(pseudoSrc.Identifier);
+                        if (src is Operand.Pseudo or Operand.PseudoMemory)
+                            src = ReplacePseudo(src);
 
-                        if (dst is Operand.Pseudo pseudoDst)
-                            dst = ReplacePseudo(pseudoDst.Identifier);
+                        if (dst is Operand.Pseudo or Operand.PseudoMemory)
+                            dst = ReplacePseudo(dst);
 
                         instructions[i] = new Instruction.MovZeroExtend(src, dst);
                         break;
@@ -128,11 +128,11 @@ public class PseudoReplacer
                     {
                         var src = cvttsd2si.Src;
                         var dst = cvttsd2si.Dst;
-                        if (src is Operand.Pseudo pseudoSrc)
-                            src = ReplacePseudo(pseudoSrc.Identifier);
+                        if (src is Operand.Pseudo or Operand.PseudoMemory)
+                            src = ReplacePseudo(src);
 
-                        if (dst is Operand.Pseudo pseudoDst)
-                            dst = ReplacePseudo(pseudoDst.Identifier);
+                        if (dst is Operand.Pseudo or Operand.PseudoMemory)
+                            dst = ReplacePseudo(dst);
 
                         instructions[i] = new Instruction.Cvttsd2si(cvttsd2si.DstType, src, dst);
                     }
@@ -141,11 +141,11 @@ public class PseudoReplacer
                     {
                         var src = cvtsi2sd.Src;
                         var dst = cvtsi2sd.Dst;
-                        if (src is Operand.Pseudo pseudoSrc)
-                            src = ReplacePseudo(pseudoSrc.Identifier);
+                        if (src is Operand.Pseudo or Operand.PseudoMemory)
+                            src = ReplacePseudo(src);
 
-                        if (dst is Operand.Pseudo pseudoDst)
-                            dst = ReplacePseudo(pseudoDst.Identifier);
+                        if (dst is Operand.Pseudo or Operand.PseudoMemory)
+                            dst = ReplacePseudo(dst);
 
                         instructions[i] = new Instruction.Cvtsi2sd(cvtsi2sd.SrcType, src, dst);
                     }
@@ -154,11 +154,11 @@ public class PseudoReplacer
                     {
                         var src = lea.Src;
                         var dst = lea.Dst;
-                        if (src is Operand.Pseudo pseudoSrc)
-                            src = ReplacePseudo(pseudoSrc.Identifier);
+                        if (src is Operand.Pseudo or Operand.PseudoMemory)
+                            src = ReplacePseudo(src);
 
-                        if (dst is Operand.Pseudo pseudoDst)
-                            dst = ReplacePseudo(pseudoDst.Identifier);
+                        if (dst is Operand.Pseudo or Operand.PseudoMemory)
+                            dst = ReplacePseudo(dst);
 
                         instructions[i] = new Instruction.Lea(src, dst);
                     }
@@ -169,26 +169,44 @@ public class PseudoReplacer
         return currentOffset;
     }
 
-    private Operand ReplacePseudo(string name)
+    private Operand ReplacePseudo(Operand operand)
     {
+        string name;
+        int offset = 0;
+        bool isMemory = false;
+        if (operand is Operand.Pseudo pseudo)
+            name = pseudo.Identifier;
+        else if (operand is Operand.PseudoMemory pseudoMemory)
+        {
+            name = pseudoMemory.Identifier;
+            offset = pseudoMemory.Offset;
+            isMemory = true;
+        }
+        else
+            return operand;
+
         if (OffsetMap.TryGetValue(name, out int val))
         {
+            if (isMemory)
+                val += offset;
             return new Operand.Memory(Operand.RegisterName.BP, val);
         }
 
         if ((AsmSymbolTableEntry.ObjectEntry)AssemblyGenerator.AsmSymbolTable[name] is AsmSymbolTableEntry.ObjectEntry objEntry && objEntry.IsStatic)
-        { 
-            return new Operand.Data(name); 
+        {
+            return new Operand.Data(name);
         }
 
-        var align = ((AsmSymbolTableEntry.ObjectEntry)AssemblyGenerator.AsmSymbolTable[name]).AssemblyType switch {
-            AssemblyType.Longword => 4,
-            AssemblyType.Quadword => 8,
-            AssemblyType.Double => 8,
+        var (size, align) = ((AsmSymbolTableEntry.ObjectEntry)AssemblyGenerator.AsmSymbolTable[name]).AssemblyType switch
+        {
+            AssemblyType.Longword => (4, 4),
+            AssemblyType.Quadword => (8, 8),
+            AssemblyType.Double => (8, 8),
+            AssemblyType.ByteArray array => (array.Size, array.Alignment),
             _ => throw new NotImplementedException()
         };
 
-        currentOffset = AssemblyGenerator.AlignTo(currentOffset + align, align);
+        currentOffset = AssemblyGenerator.AlignTo(currentOffset + size, align);
         OffsetMap[name] = -currentOffset;
         return new Operand.Memory(Operand.RegisterName.BP, -currentOffset);
     }

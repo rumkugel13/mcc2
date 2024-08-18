@@ -32,6 +32,8 @@ public abstract record Operand
     public record Reg(RegisterName Register) : Operand;
     public record Memory(RegisterName Register, int Offset) : Operand;
     public record Data(string Identifier) : Operand;
+    public record Indexed(RegisterName Base, RegisterName Index, int Scale) : Operand;
+    public record PseudoMemory(string Identifier, int Offset) : Operand;
 
     private Operand() { }
 }

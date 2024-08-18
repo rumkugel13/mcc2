@@ -18,7 +18,7 @@ public class InstructionFixer
             {
                 case Instruction.Mov mov:
                     {
-                        if (mov.Src is Operand.Memory or Operand.Data && mov.Dst is Operand.Memory or Operand.Data)
+                        if (IsMemory(mov.Src) && IsMemory(mov.Dst))
                         {
                             var regUsed = srcReg;
                             if (mov.Type is AssemblyType.Double)
@@ -27,8 +27,7 @@ public class InstructionFixer
                             instructions[i] = new Instruction.Mov(mov.Type, regUsed, mov.Dst);
                             instructions.Insert(i, moveBefore);
                         }
-                        else if (mov.Type is AssemblyType.Quadword && mov.Src is Operand.Imm immSrc && mov.Dst is Operand.Memory or Operand.Data &&
-                            (immSrc.Value > int.MaxValue || (long)immSrc.Value < int.MinValue))
+                        else if (mov.Type is AssemblyType.Quadword && mov.Src is Operand.Imm immSrc && IsMemory(mov.Dst) && IsLargeInt(immSrc))
                         {
                             Instruction.Mov moveBefore = new Instruction.Mov(new AssemblyType.Quadword(), mov.Src, srcReg);
                             instructions[i] = new Instruction.Mov(new AssemblyType.Quadword(), srcReg, mov.Dst);
@@ -51,21 +50,19 @@ public class InstructionFixer
                             instructions[i] = new Instruction.Cmp(new AssemblyType.Double(), cmp.OperandA, dstFloatReg);
                             instructions.Insert(i, moveDst);
                         }
-                        else if (cmp.OperandA is Operand.Memory or Operand.Data && cmp.OperandB is Operand.Memory or Operand.Data)
+                        else if (IsMemory(cmp.OperandA) && IsMemory(cmp.OperandB))
                         {
                             Instruction.Mov moveBefore = new Instruction.Mov(cmp.Type, cmp.OperandA, srcReg);
                             instructions[i] = new Instruction.Cmp(cmp.Type, srcReg, cmp.OperandB);
                             instructions.Insert(i, moveBefore);
                         }
-                        else if (cmp.Type is AssemblyType.Quadword && cmp.OperandA is Operand.Imm immA && cmp.OperandB is not Operand.Imm &&
-                            (immA.Value > int.MaxValue || (long)immA.Value < int.MinValue))
+                        else if (cmp.Type is AssemblyType.Quadword && cmp.OperandA is Operand.Imm immA && cmp.OperandB is not Operand.Imm && IsLargeInt(immA))
                         {
                             Instruction.Mov moveBefore = new Instruction.Mov(new AssemblyType.Quadword(), cmp.OperandA, srcReg);
                             instructions[i] = new Instruction.Cmp(new AssemblyType.Quadword(), srcReg, cmp.OperandB);
                             instructions.Insert(i, moveBefore);
                         }
-                        else if (cmp.Type is AssemblyType.Quadword && cmp.OperandA is Operand.Imm immA2 && cmp.OperandB is Operand.Imm &&
-                            (immA2.Value > int.MaxValue || (long)immA2.Value < int.MinValue))
+                        else if (cmp.Type is AssemblyType.Quadword && cmp.OperandA is Operand.Imm immA2 && cmp.OperandB is Operand.Imm && IsLargeInt(immA2))
                         {
                             Instruction.Mov moveSrc = new Instruction.Mov(new AssemblyType.Quadword(), cmp.OperandA, srcReg);
                             Instruction.Mov moveDst = new Instruction.Mov(new AssemblyType.Quadword(), cmp.OperandB, dstReg);
@@ -120,14 +117,13 @@ public class InstructionFixer
                         else if (binary.Operator == Instruction.BinaryOperator.Add || binary.Operator == Instruction.BinaryOperator.Sub ||
                             binary.Operator == Instruction.BinaryOperator.And || binary.Operator == Instruction.BinaryOperator.Or)
                         {
-                            if (binary.SrcOperand is Operand.Memory or Operand.Data && binary.DstOperand is Operand.Memory or Operand.Data)
+                            if (IsMemory(binary.SrcOperand) && IsMemory(binary.DstOperand))
                             {
                                 Instruction.Mov moveBefore = new Instruction.Mov(binary.Type, binary.SrcOperand, srcReg);
                                 instructions[i] = new Instruction.Binary(binary.Operator, binary.Type, srcReg, binary.DstOperand);
                                 instructions.Insert(i, moveBefore);
                             }
-                            else if (binary.SrcOperand is Operand.Imm immSrc &&
-                                (immSrc.Value > int.MaxValue || (long)immSrc.Value < int.MinValue))
+                            else if (binary.SrcOperand is Operand.Imm immSrc && IsLargeInt(immSrc))
                             {
                                 Instruction.Mov moveBefore = new Instruction.Mov(new AssemblyType.Quadword(), binary.SrcOperand, srcReg);
                                 instructions[i] = new Instruction.Binary(binary.Operator, new AssemblyType.Quadword(), srcReg, binary.DstOperand);
@@ -136,8 +132,7 @@ public class InstructionFixer
                         }
                         else if (binary.Operator == Instruction.BinaryOperator.Mult)
                         {
-                            if (binary.SrcOperand is Operand.Imm immSrc && binary.DstOperand is Operand.Memory or Operand.Data &&
-                                (immSrc.Value > int.MaxValue || (long)immSrc.Value < int.MinValue))
+                            if (binary.SrcOperand is Operand.Imm immSrc && IsMemory(binary.DstOperand) && IsLargeInt(immSrc))
                             {
                                 Instruction.Mov moveSrc = new Instruction.Mov(new AssemblyType.Quadword(), binary.SrcOperand, srcReg);
                                 Instruction.Mov moveDst = new Instruction.Mov(new AssemblyType.Quadword(), binary.DstOperand, dstReg);
@@ -147,14 +142,13 @@ public class InstructionFixer
                                 instructions.Insert(i, moveDst);
                                 instructions.Insert(i, moveSrc);
                             }
-                            else if (binary.SrcOperand is Operand.Imm immSrc2 &&
-                                (immSrc2.Value > int.MaxValue || (long)immSrc2.Value < int.MinValue))
+                            else if (binary.SrcOperand is Operand.Imm immSrc2 && IsLargeInt(immSrc2))
                             {
                                 Instruction.Mov moveBefore = new Instruction.Mov(new AssemblyType.Quadword(), binary.SrcOperand, srcReg);
                                 instructions[i] = new Instruction.Binary(binary.Operator, new AssemblyType.Quadword(), srcReg, binary.DstOperand);
                                 instructions.Insert(i, moveBefore);
                             }
-                            else if (binary.DstOperand is Operand.Memory or Operand.Data)
+                            else if (IsMemory(binary.DstOperand))
                             {
                                 Instruction.Mov moveBefore = new Instruction.Mov(binary.Type, binary.DstOperand, dstReg);
                                 instructions[i] = new Instruction.Binary(binary.Operator, binary.Type, binary.SrcOperand, dstReg);
@@ -169,7 +163,7 @@ public class InstructionFixer
 
                 case Instruction.Movsx movsx:
                     {
-                        if (movsx.Src is Operand.Imm && movsx.Dst is Operand.Memory or Operand.Data)
+                        if (movsx.Src is Operand.Imm && IsMemory(movsx.Dst))
                         {
                             Instruction.Mov moveBefore = new Instruction.Mov(new AssemblyType.Longword(), movsx.Src, srcReg);
                             instructions[i] = new Instruction.Movsx(srcReg, dstReg);
@@ -183,7 +177,7 @@ public class InstructionFixer
                             instructions[i] = new Instruction.Movsx(srcReg, movsx.Dst);
                             instructions.Insert(i, moveBefore);
                         }
-                        else if (movsx.Dst is Operand.Memory or Operand.Data)
+                        else if (IsMemory(movsx.Dst))
                         {
                             Instruction.Mov moveAfter = new Instruction.Mov(new AssemblyType.Quadword(), dstReg, movsx.Dst);
                             instructions[i] = new Instruction.Movsx(movsx.Src, dstReg);
@@ -195,7 +189,7 @@ public class InstructionFixer
 
                 case Instruction.Push push:
                     {
-                        if (push.Operand is Operand.Imm immA && (immA.Value > int.MaxValue || (long)immA.Value < int.MinValue))
+                        if (push.Operand is Operand.Imm immA && IsLargeInt(immA))
                         {
                             Instruction.Mov moveBefore = new Instruction.Mov(new AssemblyType.Quadword(), push.Operand, srcReg);
                             instructions[i] = new Instruction.Push(srcReg);
@@ -217,7 +211,7 @@ public class InstructionFixer
                         {
                             instructions[i] = new Instruction.Mov(new AssemblyType.Longword(), movzx.Src, movzx.Dst);
                         }
-                        else if (movzx.Dst is Operand.Memory or Operand.Data)
+                        else if (movzx.Dst is Operand.Memory or Operand.Data or Operand.Indexed)
                         {
                             Instruction.Mov moveBefore = new Instruction.Mov(new AssemblyType.Longword(), movzx.Src, dstReg);
                             instructions[i] = new Instruction.Mov(new AssemblyType.Quadword(), dstReg, movzx.Dst);
@@ -273,5 +267,15 @@ public class InstructionFixer
                 }
             }
         }
+    }
+
+    private bool IsMemory(Operand operand)
+    {
+        return operand is Operand.Memory or Operand.Data or Operand.Indexed;
+    }
+
+    private bool IsLargeInt(Operand.Imm imm)
+    {
+        return imm.Value > int.MaxValue || (long)imm.Value < int.MinValue;
     }
 }

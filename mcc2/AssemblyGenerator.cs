@@ -1,6 +1,7 @@
 namespace mcc2;
 
 using mcc2.Assembly;
+using mcc2.AST;
 
 public class AssemblyGenerator
 {
@@ -41,7 +42,7 @@ public class AssemblyGenerator
                 functionDefinitions.Add(GenerateFunction(fun));
             else if (def is TAC.TopLevel.StaticVariable staticVariable)
                 functionDefinitions.Add(new TopLevel.StaticVariable(staticVariable.Identifier, staticVariable.Global,
-                    GetAlignment(staticVariable.Type), staticVariable.Inits[0]));
+                    GetAlignment(staticVariable.Type), staticVariable.Inits));
         }
 
         foreach (var cons in staticConstants)
@@ -419,6 +420,29 @@ public class AssemblyGenerator
                 case TAC.Instruction.GetAddress getAddress:
                     instructions.Add(new Instruction.Lea(GenerateOperand(getAddress.Src), GenerateOperand(getAddress.Dst)));
                     break;
+                case TAC.Instruction.CopyToOffset copyToOffset:
+                    instructions.Add(new Instruction.Mov(GetAssemblyType(copyToOffset.Src), GenerateOperand(copyToOffset.Src), new Operand.PseudoMemory(copyToOffset.Dst, copyToOffset.Offset)));
+                    break;
+                case TAC.Instruction.AddPointer addPointer:
+                    if (addPointer.Index is TAC.Val.Constant constant)
+                    {
+                        instructions.Add(new Instruction.Mov(new AssemblyType.Quadword(), GenerateOperand(addPointer.Pointer), new Operand.Reg(Operand.RegisterName.AX)));
+                        instructions.Add(new Instruction.Lea(new Operand.Memory(Operand.RegisterName.AX, (int)GetValue(constant.Value) * addPointer.Scale), GenerateOperand(addPointer.Dst)));
+                    }
+                    else if (addPointer.Scale is 1 or 2 or 4 or 8)
+                    {
+                        instructions.Add(new Instruction.Mov(new AssemblyType.Quadword(), GenerateOperand(addPointer.Pointer), new Operand.Reg(Operand.RegisterName.AX)));
+                        instructions.Add(new Instruction.Mov(new AssemblyType.Quadword(), GenerateOperand(addPointer.Index), new Operand.Reg(Operand.RegisterName.DX)));
+                        instructions.Add(new Instruction.Lea(new Operand.Indexed(Operand.RegisterName.AX, Operand.RegisterName.DX, addPointer.Scale), GenerateOperand(addPointer.Dst)));
+                    }
+                    else
+                    {
+                        instructions.Add(new Instruction.Mov(new AssemblyType.Quadword(), GenerateOperand(addPointer.Pointer), new Operand.Reg(Operand.RegisterName.AX)));
+                        instructions.Add(new Instruction.Mov(new AssemblyType.Quadword(), GenerateOperand(addPointer.Index), new Operand.Reg(Operand.RegisterName.DX)));
+                        instructions.Add(new Instruction.Binary(Instruction.BinaryOperator.Mult, new AssemblyType.Quadword(), new Operand.Imm((ulong)addPointer.Scale), new Operand.Reg(Operand.RegisterName.DX)));
+                        instructions.Add(new Instruction.Lea(new Operand.Indexed(Operand.RegisterName.AX, Operand.RegisterName.DX, 1), GenerateOperand(addPointer.Dst)));
+                    }
+                    break;
                 default:
                     throw new NotImplementedException();
             }
@@ -433,6 +457,7 @@ public class AssemblyGenerator
         {
             Type.Int or Type.UInt => 4,
             Type.Long or Type.ULong or Type.Double or Type.Pointer => 8,
+            Type.Array array => TypeChecker.GetTypeSize(array) >= 16 ? 16 : GetAlignment(array.Element),
             _ => throw new NotImplementedException()
         };
     }
@@ -444,6 +469,7 @@ public class AssemblyGenerator
             Type.Int or Type.UInt => new AssemblyType.Longword(),
             Type.Long or Type.ULong or Type.Pointer => new AssemblyType.Quadword(),
             Type.Double => new AssemblyType.Double(),
+            Type.Array array => new AssemblyType.ByteArray(TypeChecker.GetTypeSize(array.Element) * array.Size, GetAlignment(array)),
             _ => throw new NotImplementedException()
         };
     }
@@ -484,12 +510,28 @@ public class AssemblyGenerator
         };
     }
 
+    private ulong GetValue(Const value)
+    {
+        return value switch
+        {
+            AST.Const.ConstInt constInt => (ulong)constInt.Value,
+            AST.Const.ConstLong constLong => (ulong)constLong.Value,
+            AST.Const.ConstUInt constUInt => (ulong)constUInt.Value,
+            AST.Const.ConstULong constULong => (ulong)constULong.Value,
+            _ => throw new NotImplementedException()
+        };
+    }
+
     private Operand GenerateOperand(TAC.Val val)
     {
         if (val is TAC.Val.Constant constant && constant.Value is AST.Const.ConstDouble constDouble)
         {
             var constLabel = GenerateStaticConstant(constDouble, 8);
             return new Operand.Pseudo(constLabel);
+        }
+        if (val is TAC.Val.Variable var && symbolTable.TryGetValue(var.Name, out var symbol) && symbol.Type is Type.Array)
+        {
+            return new Operand.PseudoMemory(var.Name, 0);
         }
 
         return val switch

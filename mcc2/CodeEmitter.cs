@@ -45,7 +45,7 @@ public class CodeEmitter
         if (staticVariable.Global)
             builder.AppendLine($"\t.globl {staticVariable.Identifier}");
 
-        var isZero = GetValue(staticVariable.Init) == 0 && staticVariable.Init is not StaticInit.DoubleInit;
+        var isZero = GetValue(staticVariable.Inits[0]) == 0 && staticVariable.Inits[0] is not StaticInit.DoubleInit;
         builder.AppendLine($"\t.{(isZero ? "bss" : "data")}");
         builder.AppendLine($"\t.{(OperatingSystem.IsLinux() ? "align" : "balign")} {staticVariable.Alignment}");
         builder.AppendLine($"{staticVariable.Identifier}:");
@@ -53,7 +53,7 @@ public class CodeEmitter
         if (isZero)
             builder.AppendLine($"\t.zero {staticVariable.Alignment}");
         else
-            builder.AppendLine($"\t.{EmitAssemblerType(staticVariable.Init)} {GetValue(staticVariable.Init)}");
+            builder.AppendLine($"\t.{EmitAssemblerType(staticVariable.Inits[0])} {GetValue(staticVariable.Inits[0])}");
     }
 
     private void EmitStaticConstant(TopLevel.StaticConstant statConst, StringBuilder builder)
