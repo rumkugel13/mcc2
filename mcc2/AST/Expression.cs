@@ -38,7 +38,7 @@ public abstract record Expression
     public record Cast(Type TargetType, Expression Expression, Type Type) : Expression;
     public record Dereference(Expression Expression, Type Type) : Expression;
     public record AddressOf(Expression Expression, Type Type) : Expression;
-    public record Subscript(Expression Pointer, Expression Index, Type Type) : Expression;
+    public record Subscript(Expression Left, Expression Right, Type Type) : Expression;
 
     private Expression() { }
 }

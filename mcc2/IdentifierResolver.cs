@@ -219,6 +219,12 @@ public class IdentifierResolver
                     var exp = ResolveExpression(addressOf.Expression, identifierMap);
                     return new Expression.AddressOf(exp, addressOf.Type);
                 }
+            case Expression.Subscript subscript:
+                {
+                    var left = ResolveExpression(subscript.Left, identifierMap);
+                    var right = ResolveExpression(subscript.Right, identifierMap);
+                    return new Expression.Subscript(left, right, subscript.Type);
+                }
             default:
                 throw new NotImplementedException();
         }
