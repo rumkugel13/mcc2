@@ -633,8 +633,12 @@ public class Parser
         var nextToken = Peek(tokens);
         if (nextToken.Type == Lexer.TokenType.Asterisk)
         {
-            TakeToken(tokens);
-            return new AbstractDeclarator.AbstractPointer(ParseAbstractDeclarator(tokens));
+            TakeToken(tokens);            
+            if (Peek(tokens).Type is Lexer.TokenType.Asterisk or Lexer.TokenType.OpenParenthesis or Lexer.TokenType.OpenBracket)
+            {
+                return new AbstractDeclarator.AbstractPointer(ParseAbstractDeclarator(tokens));
+            }
+            return new AbstractDeclarator.AbstractPointer(new AbstractDeclarator.AbstractBase());
         }
         else if (nextToken.Type == Lexer.TokenType.OpenParenthesis || nextToken.Type == Lexer.TokenType.OpenBracket)
         {
@@ -693,13 +697,13 @@ public class Parser
                 return baseType;
             case AbstractDeclarator.AbstractPointer abstractPointer:
                 {
-                    var derivedType = ProcessAbstractDeclarator(abstractPointer.AbstractDeclarator, baseType);
-                    return new Type.Pointer(derivedType);
+                    var derivedType = new Type.Pointer(baseType);
+                    return ProcessAbstractDeclarator(abstractPointer.AbstractDeclarator, derivedType);
                 }
             case AbstractDeclarator.AbstractArray abstractArray:
-                { 
-                    var derivedType = ProcessAbstractDeclarator(abstractArray.AbstractDeclarator, baseType);
-                    return new Type.Array(derivedType, abstractArray.Size);
+                {
+                    var derivedType = new Type.Array(baseType, abstractArray.Size);
+                    return ProcessAbstractDeclarator(abstractArray.AbstractDeclarator, derivedType);
                 }
             default:
                 throw new NotImplementedException();
