@@ -551,7 +551,7 @@ public class AssemblyGenerator
 
     private string GenerateStaticConstant(AST.Const.ConstDouble constDouble, int alignment)
     {
-        var constLabel = $".Lconst{alignment}_0x{BitConverter.DoubleToUInt64Bits(constDouble.Value)}";
+        var constLabel = $".Lconst{alignment}_0x{BitConverter.DoubleToUInt64Bits(constDouble.Value).ToString("X")}";
         var staticConst = new TopLevel.StaticConstant(constLabel, alignment, new StaticInit.DoubleInit(constDouble.Value));
         staticConstants[constLabel] = staticConst;
         return constLabel;
