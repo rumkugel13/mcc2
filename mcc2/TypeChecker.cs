@@ -171,7 +171,7 @@ public class TypeChecker
             if (variableDeclaration.Initializer != null)
                 initialValue = new InitialValue.Initial(ConvertToStaticInit(variableDeclaration.VariableType, variableDeclaration.Initializer));
             else if (variableDeclaration.Initializer == null)
-                initialValue = new InitialValue.Initial(ConvertToStaticInit(variableDeclaration.VariableType, ZeroInitializer(variableDeclaration.VariableType)));
+                initialValue = new InitialValue.Initial([new StaticInit.ZeroInit(GetTypeSize(variableDeclaration.VariableType))]);
             else
                 throw new Exception("Type Error: Non-constant initializer on local static variable");
             symbolTable[variableDeclaration.Identifier] = new SymbolEntry() { Type = variableDeclaration.VariableType, IdentifierAttributes = new IdentifierAttributes.Static(initialValue, false) };
