@@ -195,15 +195,14 @@ public class TypeChecker
                 if (compound.Initializers.Count > array.Size)
                     throw new Exception("Type Error: Wrong number of values in initializer");
 
-                List<StaticInit> padding = [];
+                List<StaticInit> typeCheckedInits = [];
                 foreach (var init in compound.Initializers)
                 {
                     var typecheckedElem = ConvertToStaticInit(array.Element, init);
-                    padding.AddRange(typecheckedElem);
+                    typeCheckedInits.AddRange(typecheckedElem);
                 }
-                while (padding.Count < array.Size)
-                    padding.Add(new StaticInit.ZeroInit(GetTypeSize(array.Element) * (array.Size - compound.Initializers.Count)));
-                staticInits.AddRange(padding);
+                typeCheckedInits.Add(new StaticInit.ZeroInit(GetTypeSize(array.Element) * (array.Size - compound.Initializers.Count)));
+                staticInits.AddRange(typeCheckedInits);
                 break;
             case (Type.Array, Initializer.SingleInitializer):
                 throw new Exception("Type Error: Can't initialize array from scalar value");
