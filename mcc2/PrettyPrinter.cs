@@ -255,6 +255,15 @@ public class PrettyPrinter
                 PrintExpression(addressOf.Expression, source, indent + 1);
                 PrintLine(")", indent);
                 break;
+            case Expression.Subscript subscript:
+                PrintLine($"Subscript(", indent);
+                PrintLine($"target=", indent + 1);
+                PrintExpression(subscript.Left, source, indent + 2);
+                PrintLine($"index=", indent + 1);
+                PrintExpression(subscript.Right, source, indent + 2);
+                PrintLine(")", indent + 1);
+                PrintLine(")", indent);
+                break;
         }
     }
 
