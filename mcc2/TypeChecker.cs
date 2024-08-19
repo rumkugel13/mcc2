@@ -201,7 +201,8 @@ public class TypeChecker
                     var typecheckedElem = ConvertToStaticInit(array.Element, init);
                     typeCheckedInits.AddRange(typecheckedElem);
                 }
-                typeCheckedInits.Add(new StaticInit.ZeroInit(GetTypeSize(array.Element) * (array.Size - compound.Initializers.Count)));
+                if ((array.Size - compound.Initializers.Count) > 0)
+                    typeCheckedInits.Add(new StaticInit.ZeroInit(GetTypeSize(array.Element) * (array.Size - compound.Initializers.Count)));
                 staticInits.AddRange(typeCheckedInits);
                 break;
             case (Type.Array, Initializer.SingleInitializer):
