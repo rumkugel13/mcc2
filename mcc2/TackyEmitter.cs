@@ -258,7 +258,7 @@ public class TackyEmitter
                         }
                         return new ExpResult.PlainOperand(dstAndOr);
                     }
-                    else if (binary.Operator == Expression.BinaryOperator.Add && GetType(binary.Left) is Type.Pointer || GetType(binary.Right) is Type.Pointer)
+                    else if (binary.Operator == Expression.BinaryOperator.Add && (GetType(binary.Left) is Type.Pointer || GetType(binary.Right) is Type.Pointer))
                     {
                         var pointer = GetType(binary.Left) is Type.Pointer ? binary.Left : binary.Right;
                         var integer = GetType(binary.Left) is Type.Pointer ? binary.Right : binary.Left;
@@ -268,7 +268,7 @@ public class TackyEmitter
                         instructions.Add(new Instruction.AddPointer(ToVal(pointerVal), ToVal(integerVal), TypeChecker.GetTypeSize(binary.Type), dst));
                         return new ExpResult.PlainOperand(dst);
                     }
-                    else if (binary.Operator == Expression.BinaryOperator.Subtract && GetType(binary.Left) is Type.Pointer || GetType(binary.Right) is Type.Pointer)
+                    else if (binary.Operator == Expression.BinaryOperator.Subtract && (GetType(binary.Left) is Type.Pointer || GetType(binary.Right) is Type.Pointer))
                     {
                         if (GetType(binary.Left) is Type.Pointer && GetType(binary.Right) is Type.Pointer)
                         {
