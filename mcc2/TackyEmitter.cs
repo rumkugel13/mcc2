@@ -265,7 +265,7 @@ public class TackyEmitter
                         var pointerVal = EmitTackyAndConvert(pointer, instructions);
                         var integerVal = EmitTackyAndConvert(integer, instructions);
                         var dst = MakeTackyVariable(binary.Type);
-                        instructions.Add(new Instruction.AddPointer(ToVal(pointerVal), ToVal(integerVal), TypeChecker.GetTypeSize(binary.Type), dst));
+                        instructions.Add(new Instruction.AddPointer(ToVal(pointerVal), ToVal(integerVal), TypeChecker.GetTypeSize(((Type.Pointer)GetType(pointer)).Referenced), dst));
                         return new ExpResult.PlainOperand(dst);
                     }
                     else if (binary.Operator == Expression.BinaryOperator.Subtract && (GetType(binary.Left) is Type.Pointer || GetType(binary.Right) is Type.Pointer))
@@ -277,7 +277,7 @@ public class TackyEmitter
                             var diffDst = MakeTackyVariable(binary.Type);
                             instructions.Add(new Instruction.Binary(Expression.BinaryOperator.Subtract, ToVal(p1), ToVal(p2), diffDst));
                             var result = MakeTackyVariable(binary.Type);
-                            instructions.Add(new Instruction.Binary(Expression.BinaryOperator.Divide, diffDst, new Val.Constant(new Const.ConstLong(TypeChecker.GetTypeSize(GetType(binary.Left)))), result));
+                            instructions.Add(new Instruction.Binary(Expression.BinaryOperator.Divide, diffDst, new Val.Constant(new Const.ConstLong(TypeChecker.GetTypeSize(((Type.Pointer)GetType(binary.Left)).Referenced))), result));
                             return new ExpResult.PlainOperand(result);
                         }
 
@@ -288,7 +288,7 @@ public class TackyEmitter
                         var negatedDst = MakeTackyVariable(binary.Type);
                         instructions.Add(new Instruction.Unary(Expression.UnaryOperator.Negate, ToVal(integerVal), negatedDst));
                         var dst = MakeTackyVariable(binary.Type);
-                        instructions.Add(new Instruction.AddPointer(ToVal(pointerVal), negatedDst, TypeChecker.GetTypeSize(binary.Type), dst));
+                        instructions.Add(new Instruction.AddPointer(ToVal(pointerVal), negatedDst, TypeChecker.GetTypeSize(((Type.Pointer)GetType(pointer)).Referenced), dst));
                         return new ExpResult.PlainOperand(dst);
                     }
                     else
@@ -402,7 +402,7 @@ public class TackyEmitter
                 }
             case Expression.Subscript subscript:
                 {
-                    var result = EmitTackyAndConvert(new Expression.Binary(Expression.BinaryOperator.Add, subscript.Left, subscript.Right, subscript.Type), instructions);
+                    var result = EmitTackyAndConvert(new Expression.Binary(Expression.BinaryOperator.Add, subscript.Left, subscript.Right, new Type.Pointer(subscript.Type)), instructions);
                     return new ExpResult.DereferencedPointer(ToVal(result));
                 }
             default:
