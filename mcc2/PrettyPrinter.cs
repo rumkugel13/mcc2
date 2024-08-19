@@ -4,6 +4,13 @@ namespace mcc2;
 
 public class PrettyPrinter
 {
+    Dictionary<string, SemanticAnalyzer.SymbolEntry> symbolTable;
+
+    public PrettyPrinter(Dictionary<string, SemanticAnalyzer.SymbolEntry> symbolTable)
+    {
+        this.symbolTable = symbolTable;
+    }
+
     public void Print(ASTProgram program, string source)
     {
         PrintProgram(program, source, 0);
@@ -15,6 +22,16 @@ public class PrettyPrinter
         PrintLine("Program(", indent);
         foreach (var fun in program.Declarations)
             PrintDeclaration(fun, source, indent + 1);
+        foreach (var entry in symbolTable)
+        {
+            PrintLine("Symbols(", indent + 1);
+            PrintLine($"key=\"{entry.Key}\"", indent + 2);
+            PrintLine($"value=(", indent + 2);
+            PrintLine($"attributes={entry.Value.IdentifierAttributes}", indent + 3);
+            PrintLine($"type={entry.Value.Type}", indent + 3);
+            PrintLine(")", indent + 2);
+            PrintLine(")", indent + 1);
+        }
         PrintLine(")", indent);
     }
 
@@ -33,16 +50,20 @@ public class PrettyPrinter
 
     private void PrintFunctionDefinition(Declaration.FunctionDeclaration functionDefinition, string source, int indent)
     {
+        
+        Type.FunctionType funcType = (Type.FunctionType)symbolTable[functionDefinition.Identifier].Type;
+
         PrintLine("Function(", indent++);
         PrintLine($"name=\"{functionDefinition.Identifier}\",", indent);
         PrintLine($"parameters=(", indent);
         if (functionDefinition.Parameters.Count == 0)
             PrintLine($"void", indent + 1);
-        foreach (var param in functionDefinition.Parameters)
+        for (int i = 0; i < functionDefinition.Parameters.Count; i++)
         {
-            PrintLine($"\"{param}\",", indent + 1);
+            PrintLine($"name=\"{functionDefinition.Parameters[i]}\", type={funcType.Parameters[i]}", indent + 1);
         }
         PrintLine(")", indent);
+        PrintLine($"returnType={funcType.Return}", indent);
         PrintLine($"body=(", indent);
         if (functionDefinition.Body != null)
             foreach (var item in functionDefinition.Body.BlockItems)
