@@ -11,6 +11,9 @@ public abstract record Type
     public record FunctionType(List<Type> Parameters, Type Return) : Type;
     public record Pointer(Type Referenced) : Type;
     public record Array(Type Element, int Size) : Type;
+    public record Char() : Type;
+    public record SChar() : Type;
+    public record UChar() : Type;
 
     public static Type None => new Null();
     private Type() { }

@@ -101,6 +101,15 @@ public class Parser
         if (types.Count > 1 && types.Contains(Lexer.TokenType.DoubleKeyword))
             throw new Exception($"Parsing Error: Can't combine 'double' with other type specifiers");
 
+        if (types.Count == 1 && types[0] == Lexer.TokenType.CharKeyword)
+            return new Type.Char();
+        if (types.Count == 2 && types.Contains(Lexer.TokenType.CharKeyword) && types.Contains(Lexer.TokenType.SignedKeyword))
+            return new Type.SChar();
+        if (types.Count == 2 && types.Contains(Lexer.TokenType.CharKeyword) && types.Contains(Lexer.TokenType.UnsignedKeyword))
+            return new Type.UChar();
+        if (types.Contains(Lexer.TokenType.CharKeyword))
+            throw new Exception("Parsing Error: Cannot combine other types with char");
+
         if (types.Contains(Lexer.TokenType.UnsignedKeyword) && types.Contains(Lexer.TokenType.LongKeyword))
             return new Type.ULong();
         if (types.Contains(Lexer.TokenType.LongKeyword))
@@ -529,7 +538,7 @@ public class Parser
     private Expression ParseUnaryExpression(List<Token> tokens)
     {
         var nextToken = Peek(tokens);
-        if (!IsUnaryExpression(nextToken))
+        if (!IsUnaryOrPrimaryExpression(nextToken))
             throw new Exception($"Parsing Error: Unsupported Token '{nextToken.Type}'");
 
         if (IsUnaryOperator(nextToken))
@@ -562,10 +571,10 @@ public class Parser
             return ParsePostfixExpression(tokens);
     }
 
-    private bool IsUnaryExpression(Token token)
+    private bool IsUnaryOrPrimaryExpression(Token token)
     {
         return IsUnaryOperator(token) || token.Type == Lexer.TokenType.OpenParenthesis ||
-            IsConstant(token) || token.Type == Lexer.TokenType.Identifier;
+            IsConstant(token) || token.Type == Lexer.TokenType.Identifier || token.Type == Lexer.TokenType.StringLiteral;
     }
 
     private Expression ParsePostfixExpression(List<Token> tokens)
@@ -622,10 +631,31 @@ public class Parser
 
             return new Expression.Variable(GetIdentifier(id, this.source), Type.None);
         }
+        else if (nextToken.Type == Lexer.TokenType.StringLiteral)
+        {
+            return ParseStringLiteral(tokens);
+        }
         else
         {
             throw new Exception($"Parsing Error: Unsupported Token '{nextToken.Type}'");
         }
+    }
+
+    private Expression.String ParseStringLiteral(List<Token> tokens)
+    {
+        Token token = TakeToken(tokens);
+        Regex regex = new("""
+            "([^"\\\n]|\\['"\\?abfnrtv])*"
+            """);
+        Match match = regex.Match(source, token.Position);
+        string result = match.Value;
+        while (Peek(tokens).Type == Lexer.TokenType.StringLiteral)
+        {
+            token = TakeToken(tokens);
+            match = regex.Match(source, token.Position);
+            result = string.Concat(result, match.Value);
+        }
+        return new Expression.String(result);
     }
 
     private AbstractDeclarator ParseAbstractDeclarator(List<Token> tokens)
@@ -757,11 +787,7 @@ public class Parser
 
     private bool IsSpecifier(Token token)
     {
-        return token.Type == Lexer.TokenType.IntKeyword ||
-            token.Type == Lexer.TokenType.LongKeyword ||
-            token.Type == Lexer.TokenType.SignedKeyword ||
-            token.Type == Lexer.TokenType.UnsignedKeyword ||
-            token.Type == Lexer.TokenType.DoubleKeyword ||
+        return IsTypeSpecifier(token.Type) ||
             token.Type == Lexer.TokenType.StaticKeyword ||
             token.Type == Lexer.TokenType.ExternKeyword;
     }
@@ -772,7 +798,8 @@ public class Parser
             tokenType == Lexer.TokenType.LongKeyword ||
             tokenType == Lexer.TokenType.SignedKeyword ||
             tokenType == Lexer.TokenType.UnsignedKeyword ||
-            tokenType == Lexer.TokenType.DoubleKeyword;
+            tokenType == Lexer.TokenType.DoubleKeyword ||
+            tokenType == Lexer.TokenType.CharKeyword;
     }
 
     private bool IsConstant(Token token)
@@ -781,7 +808,8 @@ public class Parser
             token.Type == Lexer.TokenType.LongConstant ||
             token.Type == Lexer.TokenType.UnsignedIntConstant ||
             token.Type == Lexer.TokenType.UnsignedLongConstant ||
-            token.Type == Lexer.TokenType.DoubleConstant;
+            token.Type == Lexer.TokenType.DoubleConstant ||
+            token.Type == Lexer.TokenType.CharacterConstant;
     }
 
     private Token Peek(List<Token> tokens)
@@ -827,6 +855,15 @@ public class Parser
 
     private Const GetConstant(Token token, string source)
     {
+        if (token.Type == Lexer.TokenType.CharacterConstant)
+        {
+            Regex regex = new("""
+            '([^'\\\n]|\\['"?\\abfnrtv])'
+            """);
+            Match match = regex.Match(source, token.Position);
+            return new Const.ConstInt(Convert.ToInt32(match.Value[0]));
+        }
+
         if (token.Type == Lexer.TokenType.DoubleConstant)
         {
             Regex regex = new(@"(([0-9]*\.[0-9]+|[0-9]+\.?)[Ee][+-]?[0-9]+|[0-9]*\.[0-9]+|[0-9]+\.)[^\w.]");
