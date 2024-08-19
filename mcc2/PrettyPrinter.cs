@@ -61,6 +61,7 @@ public class PrettyPrinter
             case Declaration.VariableDeclaration declaration:
                 PrintLine($"Declare(", indent);
                 PrintLine($"name=\"{declaration.Identifier}\",", indent + 1);
+                PrintLine($"type=({declaration.VariableType})", indent + 1);
                 if (declaration.Initializer != null){
                     PrintLine("init=(", indent + 1);
                     PrintInitializer(declaration.Initializer, source, indent + 2);
@@ -82,7 +83,7 @@ public class PrettyPrinter
                 PrintExpression(single.Expression, source, indent);
                 break;
             case Initializer.CompoundInitializer compound:
-                PrintLine("{", indent);
+                PrintLine("Compound{", indent);
                 foreach (var init in compound.Initializers)
                     PrintInitializer(init, source, indent + 1);
                 PrintLine("}", indent);
@@ -189,6 +190,7 @@ public class PrettyPrinter
                 PrintLine($"{unary.Operator}(", indent + 1);
                 PrintExpression(unary.Expression, source, indent + 2);
                 PrintLine($")", indent + 1);
+                PrintLine($")", indent);
                 break;
             case Expression.Binary binary:
                 PrintLine($"Binary(", indent);
@@ -201,6 +203,7 @@ public class PrettyPrinter
             case Expression.Variable variable:
                 PrintLine($"Var(", indent);
                 PrintLine($"name=\"{variable.Identifier}\"", indent + 1);
+                PrintLine($"type=({variable.Type})", indent + 1);
                 PrintLine(")", indent);
                 break;
             case Expression.Assignment assignment:
