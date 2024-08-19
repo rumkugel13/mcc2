@@ -97,7 +97,7 @@ public class TackyEmitter
                 for (int i = 0; i < compound.Initializers.Count; i++)
                 {
                     Initializer? init = compound.Initializers[i];
-                    var newOffset = offset + (i * TypeChecker.GetTypeSize(compound.Type));
+                    var newOffset = offset + (i * TypeChecker.GetTypeSize(((Type.Array)compound.Type).Element));
                     EmitCompoundInit(init, newOffset, name, instructions);
                 }
                 break;
