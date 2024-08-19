@@ -45,7 +45,7 @@ public class CodeEmitter
         if (staticVariable.Global)
             builder.AppendLine($"\t.globl {staticVariable.Identifier}");
 
-        var isZero = GetValue(staticVariable.Inits[0]) == 0 && staticVariable.Inits[0] is not StaticInit.DoubleInit;
+        var isZero = staticVariable.Inits.Count == 1 && GetValue(staticVariable.Inits[0]) == 0 && staticVariable.Inits[0] is not StaticInit.DoubleInit;
         builder.AppendLine($"\t.{(isZero ? "bss" : "data")}");
         builder.AppendLine($"\t.{(OperatingSystem.IsLinux() ? "align" : "balign")} {staticVariable.Alignment}");
         builder.AppendLine($"{staticVariable.Identifier}:");
@@ -53,7 +53,10 @@ public class CodeEmitter
         if (isZero)
             builder.AppendLine($"\t.zero {staticVariable.Alignment}");
         else
-            builder.AppendLine($"\t.{EmitAssemblerType(staticVariable.Inits[0])} {GetValue(staticVariable.Inits[0])}");
+        {
+            foreach (var init in staticVariable.Inits)
+                builder.AppendLine($"\t.{EmitAssemblerType(init)} {GetValue(init)}");
+        }
     }
 
     private void EmitStaticConstant(TopLevel.StaticConstant statConst, StringBuilder builder)
@@ -78,6 +81,7 @@ public class CodeEmitter
             StaticInit.UIntInit init => (ulong)init.Value,
             StaticInit.ULongInit init => (ulong)init.Value,
             StaticInit.DoubleInit init => BitConverter.DoubleToUInt64Bits(init.Value),
+            StaticInit.ZeroInit init => (ulong)init.Bytes,
             _ => throw new NotImplementedException()
         };
     }
@@ -87,6 +91,7 @@ public class CodeEmitter
         return staticInit switch {
             StaticInit.IntInit or StaticInit.UIntInit => "long",
             StaticInit.LongInit or StaticInit.ULongInit or StaticInit.DoubleInit => "quad",
+            StaticInit.ZeroInit => "zero",
             _ => throw new NotImplementedException()
         };
     }
@@ -232,6 +237,7 @@ public class CodeEmitter
             Operand.Imm imm => $"${imm.Value}",
             Operand.Memory memory => $"{memory.Offset}({EmitRegister(memory.Register, 8)})",
             Operand.Data data => $"{data.Identifier}(%rip)",
+            Operand.Indexed indexed => $"({EmitRegister(indexed.Base, new AssemblyType.Quadword())}, {EmitRegister(indexed.Index, new AssemblyType.Quadword())}, {indexed.Scale})",
             _ => throw new NotImplementedException()
         };
     }
@@ -244,6 +250,7 @@ public class CodeEmitter
             Operand.Imm imm => $"${imm.Value}",
             Operand.Memory memory => $"{memory.Offset}({EmitRegister(memory.Register, new AssemblyType.Quadword())})",
             Operand.Data data => $"{data.Identifier}(%rip)",
+            Operand.Indexed indexed => $"({EmitRegister(indexed.Base, new AssemblyType.Quadword())}, {EmitRegister(indexed.Index, new AssemblyType.Quadword())}, {indexed.Scale})",
             _ => throw new NotImplementedException()
         };
     }
