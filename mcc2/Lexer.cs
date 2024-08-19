@@ -18,6 +18,8 @@ namespace mcc2
             UnsignedIntConstant,
             UnsignedLongConstant,
             DoubleConstant,
+            CharacterConstant,
+            StringLiteral,
             IntKeyword,
             VoidKeyword,
             ReturnKeyword,
@@ -34,6 +36,7 @@ namespace mcc2
             SignedKeyword,
             UnsignedKeyword,
             DoubleKeyword,
+            CharKeyword,
             DoubleHyphen,
             DoubleAmpersand,
             DoubleVertical,
@@ -72,6 +75,12 @@ namespace mcc2
             @"([0-9]+[uU])[^\w.]",
             @"([0-9]+([lL][uU]|[uU][lL]))[^\w.]",
             @"(([0-9]*\.[0-9]+|[0-9]+\.?)[Ee][+-]?[0-9]+|[0-9]*\.[0-9]+|[0-9]+\.)[^\w.]",
+            """
+            '([^'\\\n]|\\['"?\\abfnrtv])'
+            """,
+            """
+            "([^"\\\n]|\\['"\\?abfnrtv])*"
+            """,
             "int\\b",
             "void\\b",
             "return\\b",
@@ -88,6 +97,7 @@ namespace mcc2
             "signed\\b",
             "unsigned\\b",
             "double\\b",
+            "char\\b",
             "--",
             "&&",
             "\\|\\|",
@@ -143,7 +153,7 @@ namespace mcc2
                     Match match = regex.Match(source, pos);
                     if (match.Success)
                     {
-                        if (match.Groups.Count > 1)
+                        if (match.Groups.Count > 1 && (i is not (int)TokenType.CharacterConstant and not (int)TokenType.StringLiteral))
                         {
                             if (match.Groups[1].Length >= longest)
                             {
