@@ -234,11 +234,11 @@ public class InstructionFixer
                             instructions[i] = new Instruction.MovZeroExtend(new AssemblyType.Byte(), movzx.DstType, movzx.Src, dstReg);
                             instructions.Insert(i + 1, moveAfter);
                         }
-                        else if (movzx.Dst is Operand.Reg reg)
+                        else if (movzx.Dst is Operand.Reg reg && movzx.SrcType is AssemblyType.Longword)
                         {
                             instructions[i] = new Instruction.Mov(new AssemblyType.Longword(), movzx.Src, movzx.Dst);
                         }
-                        else if (IsMemory(movzx.Dst))
+                        else if (IsMemory(movzx.Dst) && movzx.SrcType is AssemblyType.Longword)
                         {
                             Instruction.Mov moveBefore = new Instruction.Mov(new AssemblyType.Longword(), movzx.Src, dstReg);
                             instructions[i] = new Instruction.Mov(movzx.DstType, dstReg, movzx.Dst);
