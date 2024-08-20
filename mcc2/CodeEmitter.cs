@@ -42,6 +42,12 @@ public class CodeEmitter
 
     private void EmitStaticVariable(TopLevel.StaticVariable staticVariable, StringBuilder builder)
     {
+        if (staticVariable.Inits.Count == 1 && staticVariable.Inits[0] is StaticInit.StringInit)
+        {
+            EmitStaticConstant(new TopLevel.StaticConstant(staticVariable.Identifier, staticVariable.Alignment, staticVariable.Inits[0]), builder);
+            return;
+        }
+
         if (staticVariable.Global)
             builder.AppendLine($"\t.globl {staticVariable.Identifier}");
 
@@ -55,8 +61,28 @@ public class CodeEmitter
         else
         {
             foreach (var init in staticVariable.Inits)
-                builder.AppendLine($"\t.{EmitAssemblerType(init)} {GetValue(init)}");
+            {
+                if (init is StaticInit.PointerInit pointer)
+                {
+                    builder.AppendLine($"\t.quad {pointer.Name}");
+                }
+                else if (init is StaticInit.StringInit stringInit)
+                {
+                    EmitStringConstant(stringInit, builder);
+                }
+                else
+                {
+                    builder.AppendLine($"\t.{EmitAssemblerType(init)} {GetValue(init)}");
+                }
+            }   
         }
+    }
+
+    private void EmitStringConstant(StaticInit.StringInit stringInit, StringBuilder builder)
+    {
+        builder.AppendLine($"\t.asci{(stringInit.NullTerminated ? "z" : "i")} \"{System.Text.RegularExpressions.Regex.Escape(stringInit.Value).
+                        Replace("\'", "\\'").Replace("\"", "\\\"").Replace("\n", "\\n").Replace("\a", "\\007").Replace("\b", "\\b").Replace("\f", "\\f")
+                        .Replace("\r", "\\r").Replace("\t", "\\t").Replace("\v", "\\v")}\"");
     }
 
     private void EmitStaticConstant(TopLevel.StaticConstant statConst, StringBuilder builder)
@@ -64,13 +90,24 @@ public class CodeEmitter
         if (OperatingSystem.IsLinux())
             builder.AppendLine($".section .rodata");
         if (OperatingSystem.IsMacOS())
-            builder.AppendLine($".literal{statConst.Alignment}");
+            builder.AppendLine($".{(statConst.Init is StaticInit.StringInit ? "cstring" : $"literal{statConst.Alignment}")}");
 
         builder.AppendLine($"\t.{(OperatingSystem.IsLinux() ? "align" : "balign")} {statConst.Alignment}");
         builder.AppendLine($"{statConst.Identifier}:");
-        builder.AppendLine($"\t.{EmitAssemblerType(statConst.Init)} {GetValue(statConst.Init)}");
-        if (OperatingSystem.IsMacOS() && statConst.Alignment == 16)
-            builder.AppendLine($"\t.quad 0");
+        if (statConst.Init is StaticInit.PointerInit pointer)
+        {
+            builder.AppendLine($"\t.quad {pointer.Name}");
+        }
+        else if (statConst.Init is StaticInit.StringInit stringInit)
+        {
+            EmitStringConstant(stringInit, builder);
+        }
+        else
+        {
+            builder.AppendLine($"\t.{EmitAssemblerType(statConst.Init)} {GetValue(statConst.Init)}");
+            if (OperatingSystem.IsMacOS() && statConst.Alignment == 16)
+                builder.AppendLine($"\t.quad 0");
+        }
     }
 
     private ulong GetValue(StaticInit staticInit)
@@ -82,6 +119,8 @@ public class CodeEmitter
             StaticInit.ULongInit init => (ulong)init.Value,
             StaticInit.DoubleInit init => BitConverter.DoubleToUInt64Bits(init.Value),
             StaticInit.ZeroInit init => (ulong)init.Bytes,
+            StaticInit.CharInit init => (ulong)init.Value,
+            StaticInit.UCharInit init => (ulong)init.Value,
             _ => throw new NotImplementedException()
         };
     }
@@ -90,8 +129,9 @@ public class CodeEmitter
     {
         return staticInit switch {
             StaticInit.IntInit or StaticInit.UIntInit => "long",
-            StaticInit.LongInit or StaticInit.ULongInit or StaticInit.DoubleInit => "quad",
+            StaticInit.LongInit or StaticInit.ULongInit or StaticInit.DoubleInit or StaticInit.PointerInit => "quad",
             StaticInit.ZeroInit => "zero",
+            StaticInit.CharInit or StaticInit.UCharInit => "byte",
             _ => throw new NotImplementedException()
         };
     }
@@ -104,7 +144,10 @@ public class CodeEmitter
                 builder.AppendLine($"\tmov{EmitTypeSuffix(mov.Type)} {EmitOperand(mov.Src, mov.Type)}, {EmitOperand(mov.Dst, mov.Type)}");
                 break;
             case Instruction.Movsx movsx:
-                builder.AppendLine($"\tmovslq {EmitOperand(movsx.Src, new AssemblyType.Longword())}, {EmitOperand(movsx.Dst, new AssemblyType.Quadword())}");
+                builder.AppendLine($"\tmovs{EmitTypeSuffix(movsx.SrcType)}{EmitTypeSuffix(movsx.DstType)} {EmitOperand(movsx.Src, movsx.SrcType)}, {EmitOperand(movsx.Dst, movsx.DstType)}");
+                break;
+            case Instruction.MovZeroExtend movzx:
+                builder.AppendLine($"\tmovz{EmitTypeSuffix(movzx.SrcType)}{EmitTypeSuffix(movzx.DstType)} {EmitOperand(movzx.Src, movzx.SrcType)}, {EmitOperand(movzx.Dst, movzx.DstType)}");
                 break;
             case Instruction.Ret:
                 builder.AppendLine($"\tmovq %rbp, %rsp");
@@ -150,7 +193,7 @@ public class CodeEmitter
                 builder.AppendLine($"\tj{EmitConditionCode(jmpCC.Condition)} .L{jmpCC.Identifier}");
                 break;
             case Instruction.SetCC setCC:
-                builder.AppendLine($"\tset{EmitConditionCode(setCC.Condition)} {EmitOperand(setCC.Operand, 1)}");
+                builder.AppendLine($"\tset{EmitConditionCode(setCC.Condition)} {EmitOperand(setCC.Operand, new AssemblyType.Byte())}");
                 break;
             case Instruction.Label label:
                 builder.AppendLine($".L{label.Identifier}:");
@@ -179,6 +222,7 @@ public class CodeEmitter
     {
         return assemblyType switch
         {
+            AssemblyType.Byte => "b",
             AssemblyType.Longword => "l",
             AssemblyType.Quadword => "q",
             AssemblyType.Double => "sd",
@@ -229,19 +273,6 @@ public class CodeEmitter
         };
     }
 
-    private string EmitOperand(Operand operand, int bytes)
-    {
-        return operand switch
-        {
-            Operand.Reg reg => EmitRegister(reg.Register, bytes),
-            Operand.Imm imm => $"${imm.Value}",
-            Operand.Memory memory => $"{memory.Offset}({EmitRegister(memory.Register, 8)})",
-            Operand.Data data => $"{data.Identifier}(%rip)",
-            Operand.Indexed indexed => $"({EmitRegister(indexed.Base, new AssemblyType.Quadword())}, {EmitRegister(indexed.Index, new AssemblyType.Quadword())}, {indexed.Scale})",
-            _ => throw new NotImplementedException()
-        };
-    }
-
     private string EmitOperand(Operand operand, AssemblyType assemblyType)
     {
         return operand switch
@@ -261,21 +292,11 @@ public class CodeEmitter
     readonly string[] eightByteRegs = ["%rax", "%rcx", "%rdx", "%rdi", "%rsi", "%r8", "%r9", "%r10", "%r11", "%rsp", "%rbp"];
     readonly string[] floatRegs = ["%xmm0", "%xmm1", "%xmm2", "%xmm3", "%xmm4", "%xmm5", "%xmm6", "%xmm7", "%xmm14", "%xmm15"];
 
-    private string EmitRegister(Operand.RegisterName reg, int bytes)
-    {
-        return bytes switch
-        {
-            1 => byteRegs[(int)reg],
-            4 => fourByteRegs[(int)reg],
-            8 => eightByteRegs[(int)reg],
-            _ => throw new NotImplementedException()
-        };
-    }
-
     private string EmitRegister(Operand.RegisterName reg, AssemblyType assemblyType)
     {
         return assemblyType switch
         {
+            AssemblyType.Byte => byteRegs[(int)reg],
             AssemblyType.Longword => fourByteRegs[(int)reg],
             AssemblyType.Quadword => eightByteRegs[(int)reg],
             AssemblyType.Double => floatRegs[(int)(reg - byteRegs.Length)],
