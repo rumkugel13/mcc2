@@ -222,7 +222,7 @@ public class TypeChecker
             case (Type.Pointer pointer, Initializer.SingleInitializer init):
                 if (pointer.Referenced is Type.Char && init.Expression is Expression.String strExp)
                 {
-                    var stringLabel = $".Lstring_{counter++}";
+                    var stringLabel = $".Lstring_init_{counter++}";
                     var type = new Type.Array(new Type.Char(), strExp.StringVal.Length + 1);
                     var attr = new IdentifierAttributes.Constant(new StaticInit.StringInit(strExp.StringVal, true));
                     symbolTable[stringLabel] = new SymbolEntry() { Type = type, IdentifierAttributes = attr };

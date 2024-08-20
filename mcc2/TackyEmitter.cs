@@ -1,5 +1,6 @@
 namespace mcc2;
 
+using System.Text;
 using mcc2.AST;
 using mcc2.TAC;
 
@@ -41,6 +42,16 @@ public class TackyEmitter
                             break;
                     }
                     break;
+                case IdentifierAttributes.Constant constant:
+                    switch (constant.Init)
+                    {
+                        case StaticInit.StringInit stringInit:
+                            instructions.Add(new TopLevel.StaticConstant(entry.Key, entry.Value.Type, stringInit));
+                            break;
+                        default:
+                            break;
+                    }
+                    break;
                 default:
                     break;
             }
@@ -76,6 +87,11 @@ public class TackyEmitter
         switch (variableDeclaration.Initializer)
         {
             case Initializer.SingleInitializer single:
+                if (single.Expression is Expression.String stringExp)
+                {
+                    EmitCompoundInit(single, 0, variableDeclaration.Identifier, instructions);
+                    break;
+                }
                 var result = EmitTackyAndConvert(single.Expression, instructions);
                 instructions.Add(new Instruction.Copy(ToVal(result), new Val.Variable(variableDeclaration.Identifier)));
                 break;
@@ -90,6 +106,14 @@ public class TackyEmitter
         switch (initializer)
         {
             case Initializer.SingleInitializer single:
+                if (single.Expression is Expression.String stringExp)
+                {
+                    var stringBytes = new List<byte>(Encoding.ASCII.GetBytes(stringExp.StringVal));
+                    var paddingBytes = new List<byte>(new byte[TypeChecker.GetTypeSize(single.Type) - stringExp.StringVal.Length]);
+                    stringBytes.AddRange(paddingBytes);
+                    EmitStringInit(name, offset, stringBytes, instructions);
+                    break;
+                }
                 var result = EmitTackyAndConvert(single.Expression, instructions);
                 instructions.Add(new Instruction.CopyToOffset(ToVal(result), name, offset));
                 break;
@@ -101,6 +125,31 @@ public class TackyEmitter
                     EmitCompoundInit(init, newOffset, name, instructions);
                 }
                 break;
+        }
+    }
+
+    private void EmitStringInit(string dst, int offset, List<byte> bytes, List<Instruction> instructions)
+    {
+        if (bytes.Count >= 8)
+        {
+            var value = BitConverter.ToInt64(bytes.ToArray(), 0);
+            instructions.Add(new Instruction.CopyToOffset(new Val.Constant(new Const.ConstLong(value)), dst, offset));
+            var rest = bytes[8..];
+            EmitStringInit(dst, offset + 8, rest, instructions);
+        }
+        else if (bytes.Count >= 4)
+        {
+            var value = BitConverter.ToInt32(bytes.ToArray(), 0);
+            instructions.Add(new Instruction.CopyToOffset(new Val.Constant(new Const.ConstInt(value)), dst, offset));
+            var rest = bytes[4..];
+            EmitStringInit(dst, offset + 4, rest, instructions);
+        }
+        else if (bytes.Count >= 1)
+        {
+            var value = bytes[0];
+            instructions.Add(new Instruction.CopyToOffset(new Val.Constant(new Const.ConstChar(value)), dst, offset));
+            var rest = bytes[1..];
+            EmitStringInit(dst, offset + 1, rest, instructions);
         }
     }
 
@@ -357,13 +406,13 @@ public class TackyEmitter
 
                     if (innerType is Type.Double || cast.TargetType is Type.Double)
                     {
-                        if (innerType is Type.Int or Type.Long && cast.TargetType is Type.Double)
+                        if (innerType is Type.Int or Type.Long or Type.Char or Type.SChar && cast.TargetType is Type.Double)
                             instructions.Add(new Instruction.IntToDouble(ToVal(result), dst));
-                        else if (innerType is Type.UInt or Type.ULong && cast.TargetType is Type.Double)
+                        else if (innerType is Type.UInt or Type.ULong or Type.UChar && cast.TargetType is Type.Double)
                             instructions.Add(new Instruction.UIntToDouble(ToVal(result), dst));
-                        else if (innerType is Type.Double && cast.TargetType is Type.Int or Type.Long)
+                        else if (innerType is Type.Double && cast.TargetType is Type.Int or Type.Long or Type.Char or Type.SChar)
                             instructions.Add(new Instruction.DoubleToInt(ToVal(result), dst));
-                        else if (innerType is Type.Double && cast.TargetType is Type.UInt or Type.ULong)
+                        else if (innerType is Type.Double && cast.TargetType is Type.UInt or Type.ULong or Type.UChar)
                             instructions.Add(new Instruction.DoubleToUInt(ToVal(result), dst));
                     }
                     else
@@ -404,6 +453,14 @@ public class TackyEmitter
                 {
                     var result = EmitTackyAndConvert(new Expression.Binary(Expression.BinaryOperator.Add, subscript.Left, subscript.Right, new Type.Pointer(subscript.Type)), instructions);
                     return new ExpResult.DereferencedPointer(ToVal(result));
+                }
+            case Expression.String stringExp:
+                {
+                    var stringLabel = MakeStringTemporary();
+                    symbolTable[stringLabel] = new SemanticAnalyzer.SymbolEntry() {
+                        IdentifierAttributes = new IdentifierAttributes.Constant(new StaticInit.StringInit(stringExp.StringVal, true)), 
+                        Type = new Type.Array(new Type.Char(), stringExp.StringVal.Length + 1)};
+                    return new ExpResult.PlainOperand(new Val.Variable(stringLabel));
                 }
             default:
                 throw new NotImplementedException();
@@ -446,6 +503,11 @@ public class TackyEmitter
     private Type GetType(Expression expression)
     {
         return TypeChecker.GetType(expression);
+    }
+
+    private string MakeStringTemporary()
+    {
+        return $"string.{counter++}";
     }
 
     private string MakeTemporary()
