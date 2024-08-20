@@ -225,6 +225,8 @@ public class IdentifierResolver
                     var right = ResolveExpression(subscript.Right, identifierMap);
                     return new Expression.Subscript(left, right, subscript.Type);
                 }
+            case Expression.String stringExp:
+                return stringExp;
             default:
                 throw new NotImplementedException();
         }

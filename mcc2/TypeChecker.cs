@@ -6,6 +6,7 @@ namespace mcc2;
 public class TypeChecker
 {
     private Type functionReturnType = new Type.Int();
+    private int counter;
 
     public void Check(ASTProgram program, Dictionary<string, SymbolEntry> symbolTable)
     {
@@ -115,7 +116,7 @@ public class TypeChecker
     {
         InitialValue initialValue;
         if (variableDeclaration.Initializer != null)
-            initialValue = new InitialValue.Initial(ConvertToStaticInit(variableDeclaration.VariableType, variableDeclaration.Initializer));
+            initialValue = new InitialValue.Initial(ConvertToStaticInit(variableDeclaration.VariableType, variableDeclaration.Initializer, symbolTable));
         else if (variableDeclaration.Initializer == null)
         {
             if (variableDeclaration.StorageClass == Declaration.StorageClasses.Extern)
@@ -169,7 +170,7 @@ public class TypeChecker
         {
             InitialValue initialValue;
             if (variableDeclaration.Initializer != null)
-                initialValue = new InitialValue.Initial(ConvertToStaticInit(variableDeclaration.VariableType, variableDeclaration.Initializer));
+                initialValue = new InitialValue.Initial(ConvertToStaticInit(variableDeclaration.VariableType, variableDeclaration.Initializer, symbolTable));
             else if (variableDeclaration.Initializer == null)
                 initialValue = new InitialValue.Initial([new StaticInit.ZeroInit(GetTypeSize(variableDeclaration.VariableType))]);
             else
@@ -185,7 +186,7 @@ public class TypeChecker
         return variableDeclaration;
     }
 
-    private List<StaticInit> ConvertToStaticInit(Type targetType, Initializer initializer)
+    private List<StaticInit> ConvertToStaticInit(Type targetType, Initializer initializer, Dictionary<string, SymbolEntry> symbolTable)
     {
         List<StaticInit> staticInits = [];
 
@@ -198,15 +199,39 @@ public class TypeChecker
                 List<StaticInit> typeCheckedInits = [];
                 foreach (var init in compound.Initializers)
                 {
-                    var typecheckedElem = ConvertToStaticInit(array.Element, init);
+                    var typecheckedElem = ConvertToStaticInit(array.Element, init, symbolTable);
                     typeCheckedInits.AddRange(typecheckedElem);
                 }
                 if ((array.Size - compound.Initializers.Count) > 0)
                     typeCheckedInits.Add(new StaticInit.ZeroInit(GetTypeSize(array.Element) * (array.Size - compound.Initializers.Count)));
                 staticInits.AddRange(typeCheckedInits);
                 break;
-            case (Type.Array, Initializer.SingleInitializer):
-                throw new Exception("Type Error: Can't initialize array from scalar value");
+            case (Type.Array array, Initializer.SingleInitializer init):
+                if (IsCharacterType(array.Element) && init.Expression is Expression.String stringExp)
+                {
+                    if (stringExp.StringVal.Length > array.Size)
+                        throw new Exception("Type Error: Too many characters in string literal");
+                    staticInits.Add(new StaticInit.StringInit(stringExp.StringVal, stringExp.StringVal.Length < array.Size));
+                    var diff = array.Size - stringExp.StringVal.Length;
+                    if (diff > 1)
+                        staticInits.Add(new StaticInit.ZeroInit(diff - 1));
+                    break;
+                }
+                else
+                    throw new Exception("Type Error: Can't initialize array from scalar value");
+            case (Type.Pointer pointer, Initializer.SingleInitializer init):
+                if (pointer.Referenced is Type.Char && init.Expression is Expression.String strExp)
+                {
+                    var stringLabel = $".Lstring_{counter++}";
+                    var type = new Type.Array(new Type.Char(), strExp.StringVal.Length + 1);
+                    var attr = new IdentifierAttributes.Constant(new StaticInit.StringInit(strExp.StringVal, true));
+                    symbolTable[stringLabel] = new SymbolEntry() { Type = type, IdentifierAttributes = attr };
+
+                    staticInits.Add(new StaticInit.PointerInit(stringLabel));
+                }
+                else
+                    throw new Exception("Type Error: Invalid pointer initialization");
+                break;
             case (_, Initializer.SingleInitializer single):
                 if (single.Expression is Expression.Constant constant)
                 {
@@ -229,6 +254,19 @@ public class TypeChecker
     {
         switch (targetType, initializer)
         {
+            case (Type.Array array, Initializer.SingleInitializer init):
+                {
+                    if (init.Expression is Expression.String stringExp)
+                    {
+                        if(!IsCharacterType(array.Element))
+                            throw new Exception("Type Error: Can't initialize a non-character type with a string literal");
+                        if (stringExp.StringVal.Length > array.Size)
+                            throw new Exception("Type Error: Too many characters in string literal");
+                        return new Initializer.SingleInitializer(stringExp, array);
+                    }
+                    else
+                        throw new Exception("Type Error: Cannot initialize array with scalar initializer");
+                }
             case (_, Initializer.SingleInitializer single):
                 {
                     var typecheckedExp = TypeCheckAndConvertExpression(single.Expression, symbolTable);
@@ -274,6 +312,10 @@ public class TypeChecker
                     inits.Add(ZeroInitializer(array.Element));
                 }
                 return new Initializer.CompoundInitializer(inits, element);
+            case Type.Char or Type.SChar:
+                return new Initializer.SingleInitializer(new Expression.Constant(new Const.ConstChar(0), element), element);
+            case Type.UChar:
+                return new Initializer.SingleInitializer(new Expression.Constant(new Const.ConstUChar(0), element), element);
             default:
                 throw new Exception($"Type Error: Can't zero initialize with type {element}");
         }
@@ -305,8 +347,12 @@ public class TypeChecker
                     var unaryInner = TypeCheckAndConvertExpression(unary.Expression, symbolTable);
                     if (unary.Operator is Expression.UnaryOperator.Negate && !IsArithmetic(GetType(unaryInner)))
                         throw new Exception("Type Error: Can only negate arithmetic types");
+                    if (unary.Operator is Expression.UnaryOperator.Negate && IsCharacterType(GetType(unaryInner)))
+                        unaryInner = ConvertTo(unaryInner, new Type.Int());
                     if (unary.Operator is Expression.UnaryOperator.Complement && !IsArithmetic(GetType(unaryInner)))
                         throw new Exception("Type Error: Bitwise complement only valid for integer types");
+                    if (unary.Operator is Expression.UnaryOperator.Complement && IsCharacterType(GetType(unaryInner)))
+                        unaryInner = ConvertTo(unaryInner, new Type.Int());
                     if (unary.Operator == Expression.UnaryOperator.Complement && GetType(unaryInner) is Type.Double)
                         throw new Exception("Type Error: Can't take the bitwise complement of a double");
                     return new Expression.Unary(unary.Operator, unaryInner, unary.Operator switch
@@ -502,6 +548,10 @@ public class TypeChecker
                         throw new Exception("Type Error: Subscript must have integer and pointer operands");
                     return new Expression.Subscript(typedE1, typedE2, ((Type.Pointer)pointerType).Referenced);
                 }
+            case Expression.String stringExp:
+                {
+                    return new Expression.String(stringExp.StringVal, new Type.Array(new Type.Char(), stringExp.StringVal.Length + 1));
+                }
             default:
                 throw new NotImplementedException();
         }
@@ -533,7 +583,7 @@ public class TypeChecker
     {
         return type switch
         {
-            Type.Int or Type.Long or Type.UInt or Type.ULong => true,
+            Type.Int or Type.Long or Type.UInt or Type.ULong or Type.Char or Type.SChar or Type.UChar=> true,
             _ => false
         };
     }
@@ -542,14 +592,14 @@ public class TypeChecker
     {
         return type switch
         {
-            Type.Int or Type.Long or Type.UInt or Type.ULong or Type.Double => true,
+            Type.Int or Type.Long or Type.UInt or Type.ULong or Type.Double or Type.Char or Type.SChar or Type.UChar => true,
             _ => false
         };
     }
 
     private bool IsLvalue(Expression exp)
     {
-        return exp is Expression.Variable or Expression.Dereference or Expression.Subscript;
+        return exp is Expression.Variable or Expression.Dereference or Expression.Subscript or Expression.String;
     }
 
     private bool IsZeroInteger(Const constant)
@@ -669,6 +719,8 @@ public class TypeChecker
             Const.ConstUInt constUInt => (ulong)constUInt.Value,
             Const.ConstULong constULong => (ulong)constULong.Value,
             Const.ConstDouble constDouble => (ulong)constDouble.Value,
+            Const.ConstChar constChar => (ulong)constChar.Value,
+            Const.ConstUChar constUChar => (ulong)constUChar.Value,
             _ => throw new NotImplementedException()
         };
 
@@ -684,6 +736,8 @@ public class TypeChecker
             Type.Double => new StaticInit.DoubleInit((double)value),
             Type.Pointer => new StaticInit.ULongInit(value),
             Type.Array array => new StaticInit.ZeroInit(array.Size * GetTypeSize(array.Element)),
+            Type.Char or Type.SChar => new StaticInit.CharInit((char)value),
+            Type.UChar => new StaticInit.UCharInit((byte)value),
             _ => throw new NotImplementedException()
         };
     }
@@ -698,6 +752,10 @@ public class TypeChecker
 
     private Type GetCommonType(Type type1, Type type2)
     {
+        if (IsCharacterType(type1))
+            type1 = new Type.Int();
+        if (IsCharacterType(type2))
+            type2 = new Type.Int();
         if (type1 == type2)
             return type1;
         if (type1 is Type.Double || type2 is Type.Double)
@@ -715,10 +773,16 @@ public class TypeChecker
             return type2;
     }
 
+    private bool IsCharacterType(Type type)
+    {
+        return type is Type.Char or Type.UChar or Type.SChar;
+    }
+
     public static int GetTypeSize(Type type)
     {
         return type switch
         {
+            Type.Char or Type.SChar or Type.UChar => 1,
             Type.Int or Type.UInt => 4,
             Type.Long or Type.ULong or Type.Pointer or Type.Double => 8,
             Type.Array array => GetTypeSize(array.Element) * array.Size,
@@ -730,8 +794,8 @@ public class TypeChecker
     {
         return type switch
         {
-            Type.Int or Type.Long => true,
-            Type.UInt or Type.ULong => false,
+            Type.Int or Type.Long or Type.Char or Type.SChar => true,
+            Type.UInt or Type.ULong or Type.UChar => false,
             _ => throw new NotImplementedException()
         };
     }
@@ -751,6 +815,7 @@ public class TypeChecker
             Expression.Dereference exp => exp.Type,
             Expression.AddressOf exp => exp.Type,
             Expression.Subscript exp => exp.Type,
+            Expression.String exp => exp.Type,
             _ => throw new NotImplementedException()
         };
     }
