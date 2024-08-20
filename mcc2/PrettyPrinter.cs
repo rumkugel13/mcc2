@@ -285,6 +285,11 @@ public class PrettyPrinter
                 PrintLine(")", indent + 1);
                 PrintLine(")", indent);
                 break;
+            case Expression.String str:
+                PrintLine($"String(", indent);
+                PrintLine($"value='{str.StringVal}'", indent + 1);
+                PrintLine(")", indent);
+                break;
         }
     }
 
