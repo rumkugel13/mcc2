@@ -14,6 +14,7 @@ public abstract record Type
     public record Char() : Type;
     public record SChar() : Type;
     public record UChar() : Type;
+    public record Void() : Type;
 
     public static Type None => new Null();
     private Type() { }

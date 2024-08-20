@@ -40,7 +40,7 @@ public class Parser
         Expect(Lexer.TokenType.OpenParenthesis, tokens);
 
         var nextToken = Peek(tokens);
-        if (nextToken.Type == Lexer.TokenType.VoidKeyword)
+        if (nextToken.Type == Lexer.TokenType.VoidKeyword && PeekAhead(tokens, 1).Type == Lexer.TokenType.CloseParenthesis)
         {
             TakeToken(tokens);
         }
@@ -95,6 +95,11 @@ public class Parser
             (new HashSet<Lexer.TokenType>(types).Count != types.Count) ||
             (types.Contains(Lexer.TokenType.SignedKeyword) && types.Contains(Lexer.TokenType.UnsignedKeyword)))
             throw new Exception($"Parsing Error: Invalid type specifier");
+
+        if (types.Count == 1 && types[0] == Lexer.TokenType.VoidKeyword)
+            return new Type.Void();
+        if (types.Count > 1 && types.Contains(Lexer.TokenType.VoidKeyword))
+            throw new Exception($"Parsing Error: Can't combine 'void' with other type specifiers");
 
         if (types.Count == 1 && types[0] == Lexer.TokenType.DoubleKeyword)
             return new Type.Double();
@@ -369,7 +374,9 @@ public class Parser
             case Lexer.TokenType.ReturnKeyword:
                 {
                     TakeToken(tokens);
-                    var exp = ParseExpression(tokens);
+                    Expression? exp = null;
+                    if (Peek(tokens).Type != Lexer.TokenType.Semicolon)
+                        exp = ParseExpression(tokens);
                     Expect(Lexer.TokenType.Semicolon, tokens);
                     return new Statement.ReturnStatement(exp);
                 }
@@ -500,7 +507,7 @@ public class Parser
 
     private Expression ParseExpression(List<Token> tokens, int minPrecedence = 0)
     {
-        var left = ParseUnaryExpression(tokens);
+        var left = ParseCastExpression(tokens);
         var nextToken = Peek(tokens);
         while (PrecedenceLevels.TryGetValue(nextToken.Type, out int precedence) && precedence >= minPrecedence)
         {
@@ -535,6 +542,36 @@ public class Parser
         return exp;
     }
 
+    private Expression ParseCastExpression(List<Token> tokens)
+    {
+        var nextToken = Peek(tokens);
+        if (nextToken.Type == Lexer.TokenType.OpenParenthesis && IsTypeSpecifier(PeekAhead(tokens, 1).Type))
+        {
+            TakeToken(tokens);
+            var type = ParseTypeName(tokens);
+            Expect(Lexer.TokenType.CloseParenthesis, tokens);
+            var unaryExp = ParseCastExpression(tokens);
+            return new Expression.Cast(type, unaryExp, Type.None);
+        }
+        else
+        {
+            return ParseUnaryExpression(tokens);
+        }
+    }
+
+    private Type ParseTypeName(List<Token> tokens)
+    {
+        var type = ParseType(ParseTypeSpecifiers(tokens));
+        // optional abstract declarator
+        var nextToken = Peek(tokens);
+        if (nextToken.Type is Lexer.TokenType.Asterisk or Lexer.TokenType.OpenParenthesis or Lexer.TokenType.OpenBracket)
+        {
+            AbstractDeclarator abstractDeclarator = ParseAbstractDeclarator(tokens);
+            type = ProcessAbstractDeclarator(abstractDeclarator, type);
+        }
+        return type;
+    }
+
     private Expression ParseUnaryExpression(List<Token> tokens)
     {
         var nextToken = Peek(tokens);
@@ -544,28 +581,28 @@ public class Parser
         if (IsUnaryOperator(nextToken))
         {
             var op = ParseUnaryOperator(nextToken, tokens);
-            var innerExpression = ParseUnaryExpression(tokens);
+            var innerExpression = ParseCastExpression(tokens);
             if (op is Expression.UnaryOperator.Dereference)
                 return new Expression.Dereference(innerExpression, Type.None);
             else if (op is Expression.UnaryOperator.AddressOf)
                 return new Expression.AddressOf(innerExpression, Type.None);
             return new Expression.Unary(op, innerExpression, Type.None);
         }
-        else if (nextToken.Type == Lexer.TokenType.OpenParenthesis && IsTypeSpecifier(PeekAhead(tokens, 1).Type))
+        else if (nextToken.Type == Lexer.TokenType.SizeofKeyword)
         {
             TakeToken(tokens);
-            var type = ParseType(ParseTypeSpecifiers(tokens));
-            // optional abstract declarator
-            nextToken = Peek(tokens);
-            if (nextToken.Type is Lexer.TokenType.Asterisk or Lexer.TokenType.OpenParenthesis or Lexer.TokenType.OpenBracket)
+            if (Peek(tokens).Type == Lexer.TokenType.OpenParenthesis && IsTypeSpecifier(PeekAhead(tokens, 1).Type))
             {
-                AbstractDeclarator abstractDeclarator = ParseAbstractDeclarator(tokens);
-                var derivedType = ProcessAbstractDeclarator(abstractDeclarator, type);
-                type = derivedType;
+                TakeToken(tokens);
+                var type = ParseTypeName(tokens);
+                Expect(Lexer.TokenType.CloseParenthesis, tokens);
+                return new Expression.SizeOfType(type, Type.None);
             }
-            Expect(Lexer.TokenType.CloseParenthesis, tokens);
-            var unaryExp = ParseUnaryExpression(tokens);
-            return new Expression.Cast(type, unaryExp, Type.None);
+            else
+            {
+                var unary = ParseUnaryExpression(tokens);
+                return new Expression.SizeOf(unary, Type.None);
+            }
         }
         else
             return ParsePostfixExpression(tokens);
@@ -574,7 +611,8 @@ public class Parser
     private bool IsUnaryOrPrimaryExpression(Token token)
     {
         return IsUnaryOperator(token) || token.Type == Lexer.TokenType.OpenParenthesis ||
-            IsConstant(token) || token.Type == Lexer.TokenType.Identifier || token.Type == Lexer.TokenType.StringLiteral;
+            IsConstant(token) || token.Type == Lexer.TokenType.Identifier || 
+            token.Type == Lexer.TokenType.StringLiteral || token.Type == Lexer.TokenType.SizeofKeyword;
     }
 
     private Expression ParsePostfixExpression(List<Token> tokens)
@@ -801,7 +839,8 @@ public class Parser
             tokenType == Lexer.TokenType.SignedKeyword ||
             tokenType == Lexer.TokenType.UnsignedKeyword ||
             tokenType == Lexer.TokenType.DoubleKeyword ||
-            tokenType == Lexer.TokenType.CharKeyword;
+            tokenType == Lexer.TokenType.CharKeyword ||
+            tokenType == Lexer.TokenType.VoidKeyword;
     }
 
     private bool IsConstant(Token token)

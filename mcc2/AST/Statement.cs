@@ -2,7 +2,7 @@ namespace mcc2.AST;
 
 public abstract record Statement : BlockItem
 {
-    public record ReturnStatement(Expression Expression) : Statement;
+    public record ReturnStatement(Expression? Expression) : Statement;
     public record ExpressionStatement(Expression Expression) : Statement;
     public record IfStatement(Expression Condition, Statement Then, Statement? Else) : Statement;
     public record CompoundStatement(Block Block) : Statement;

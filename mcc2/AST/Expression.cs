@@ -40,6 +40,8 @@ public abstract record Expression
     public record AddressOf(Expression Expression, Type Type) : Expression;
     public record Subscript(Expression Left, Expression Right, Type Type) : Expression;
     public record String(string StringVal, Type Type) : Expression;
+    public record SizeOf(Expression Expression, Type Type) : Expression;
+    public record SizeOfType(Type TargetType, Type Type) : Expression;
 
     private Expression() { }
 }
