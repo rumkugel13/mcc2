@@ -38,7 +38,7 @@ The current goal is to output assembly for the following ISA's:
     - [ ] Extra: NaN
   - [X] 14: Pointers
   - [X] 15: Arrays and Pointer Arithmetic
-  - [ ] 16: Characters and Strings
+  - [X] 16: Characters and Strings
   - [ ] 17: Supporting Dynamic Memory Allocation
   - [ ] 18: Structures
     - [ ] Extra: Unions
