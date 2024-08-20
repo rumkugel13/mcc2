@@ -108,7 +108,7 @@ public class PseudoReplacer
                         if (dst is Operand.Pseudo or Operand.PseudoMemory)
                             dst = ReplacePseudo(dst);
 
-                        instructions[i] = new Instruction.Movsx(src, dst);
+                        instructions[i] = new Instruction.Movsx(movsx.SrcType, movsx.DstType, src, dst);
                         break;
                     }
                 case Instruction.MovZeroExtend movzx:
@@ -121,7 +121,7 @@ public class PseudoReplacer
                         if (dst is Operand.Pseudo or Operand.PseudoMemory)
                             dst = ReplacePseudo(dst);
 
-                        instructions[i] = new Instruction.MovZeroExtend(src, dst);
+                        instructions[i] = new Instruction.MovZeroExtend(movzx.SrcType, movzx.DstType, src, dst);
                         break;
                     }
                 case Instruction.Cvttsd2si cvttsd2si:
@@ -203,6 +203,7 @@ public class PseudoReplacer
             AssemblyType.Quadword => (8, 8),
             AssemblyType.Double => (8, 8),
             AssemblyType.ByteArray array => (array.Size, array.Alignment),
+            AssemblyType.Byte => (1, 1),
             _ => throw new NotImplementedException()
         };
 

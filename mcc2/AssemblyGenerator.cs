@@ -21,6 +21,10 @@ public class AssemblyGenerator
             {
                 AsmSymbolTable[entry.Key] = new AsmSymbolTableEntry.FunctionEntry(funAttr.Defined);
             }
+            else if (entry.Value.IdentifierAttributes is IdentifierAttributes.Constant constant)
+            {
+                AsmSymbolTable[entry.Key] = new AsmSymbolTableEntry.ObjectEntry(GetAssemblyType(entry.Value.Type), true, true);
+            }
             else
             {
                 AsmSymbolTable[entry.Key] = new AsmSymbolTableEntry.ObjectEntry(GetAssemblyType(entry.Value.Type), entry.Value.IdentifierAttributes is IdentifierAttributes.Static, false);
@@ -35,22 +39,24 @@ public class AssemblyGenerator
 
     private AssemblyProgram GenerateProgram(TAC.TACProgam program)
     {
-        List<TopLevel> functionDefinitions = [];
+        List<TopLevel> topLevelDefinitions = [];
         foreach (var def in program.Definitions)
         {
             if (def is TAC.TopLevel.Function fun)
-                functionDefinitions.Add(GenerateFunction(fun));
+                topLevelDefinitions.Add(GenerateFunction(fun));
             else if (def is TAC.TopLevel.StaticVariable staticVariable)
-                functionDefinitions.Add(new TopLevel.StaticVariable(staticVariable.Identifier, staticVariable.Global,
+                topLevelDefinitions.Add(new TopLevel.StaticVariable(staticVariable.Identifier, staticVariable.Global,
                     GetAlignment(staticVariable.Type), staticVariable.Inits));
+            else if (def is TAC.TopLevel.StaticConstant staticConstant)
+                topLevelDefinitions.Add(new TopLevel.StaticConstant(staticConstant.Identifier, GetAlignment(staticConstant.Type), staticConstant.Init));
         }
 
         foreach (var cons in staticConstants)
         {
-            functionDefinitions.Add(cons.Value);
+            topLevelDefinitions.Add(cons.Value);
         }
 
-        return new AssemblyProgram(functionDefinitions);
+        return new AssemblyProgram(topLevelDefinitions);
     }
 
     private readonly Operand.RegisterName[] ABIRegisters = [
@@ -346,19 +352,30 @@ public class AssemblyGenerator
                     GenerateFunctionCall(functionCall, instructions);
                     break;
                 case TAC.Instruction.SignExtend signExtend:
-                    instructions.Add(new Instruction.Movsx(GenerateOperand(signExtend.Src), GenerateOperand(signExtend.Dst)));
+                    instructions.Add(new Instruction.Movsx(GetAssemblyType(signExtend.Src), GetAssemblyType(signExtend.Dst), GenerateOperand(signExtend.Src), GenerateOperand(signExtend.Dst)));
                     break;
                 case TAC.Instruction.Truncate truncate:
-                    instructions.Add(new Instruction.Mov(new AssemblyType.Longword(), GenerateOperand(truncate.Src), GenerateOperand(truncate.Dst)));
+                    instructions.Add(new Instruction.Mov(GetAssemblyType(truncate.Dst), GenerateOperand(truncate.Src), GenerateOperand(truncate.Dst)));
                     break;
                 case TAC.Instruction.ZeroExtend zeroExtend:
-                    instructions.Add(new Instruction.MovZeroExtend(GenerateOperand(zeroExtend.Src), GenerateOperand(zeroExtend.Dst)));
+                    instructions.Add(new Instruction.MovZeroExtend(GetAssemblyType(zeroExtend.Src), GetAssemblyType(zeroExtend.Dst), GenerateOperand(zeroExtend.Src), GenerateOperand(zeroExtend.Dst)));
                     break;
                 case TAC.Instruction.DoubleToInt doubleToInt:
-                    instructions.Add(new Instruction.Cvttsd2si(GetAssemblyType(doubleToInt.Dst), GenerateOperand(doubleToInt.Src), GenerateOperand(doubleToInt.Dst)));
+                    if (GetAssemblyType(doubleToInt.Dst) is AssemblyType.Byte)
+                    {
+                        instructions.Add(new Instruction.Cvttsd2si(new AssemblyType.Longword(), GenerateOperand(doubleToInt.Src), new Operand.Reg(Operand.RegisterName.AX)));
+                        instructions.Add(new Instruction.Mov(new AssemblyType.Byte(), new Operand.Reg(Operand.RegisterName.AX), GenerateOperand(doubleToInt.Dst)));
+                    }
+                    else
+                        instructions.Add(new Instruction.Cvttsd2si(GetAssemblyType(doubleToInt.Dst), GenerateOperand(doubleToInt.Src), GenerateOperand(doubleToInt.Dst)));
                     break;
                 case TAC.Instruction.DoubleToUInt doubleToUInt:
-                    if (GetAssemblyType(doubleToUInt.Dst) is AssemblyType.Longword)
+                    if (GetAssemblyType(doubleToUInt.Dst) is AssemblyType.Byte)
+                    {
+                        instructions.Add(new Instruction.Cvttsd2si(new AssemblyType.Longword(), GenerateOperand(doubleToUInt.Src), new Operand.Reg(Operand.RegisterName.AX)));
+                        instructions.Add(new Instruction.Mov(new AssemblyType.Byte(), new Operand.Reg(Operand.RegisterName.AX), GenerateOperand(doubleToUInt.Dst)));
+                    }
+                    else if (GetAssemblyType(doubleToUInt.Dst) is AssemblyType.Longword)
                     {
                         instructions.Add(new Instruction.Cvttsd2si(new AssemblyType.Quadword(), GenerateOperand(doubleToUInt.Src), new Operand.Reg(Operand.RegisterName.AX)));
                         instructions.Add(new Instruction.Mov(new AssemblyType.Longword(), new Operand.Reg(Operand.RegisterName.AX), GenerateOperand(doubleToUInt.Dst)));
@@ -382,12 +399,23 @@ public class AssemblyGenerator
                     }
                     break;
                 case TAC.Instruction.IntToDouble intToDouble:
-                    instructions.Add(new Instruction.Cvtsi2sd(GetAssemblyType(intToDouble.Src), GenerateOperand(intToDouble.Src), GenerateOperand(intToDouble.Dst)));
+                    if (GetAssemblyType(intToDouble.Src) is AssemblyType.Byte)
+                    {
+                        instructions.Add(new Instruction.Movsx(new AssemblyType.Byte(), new AssemblyType.Longword(), GenerateOperand(intToDouble.Src), new Operand.Reg(Operand.RegisterName.AX)));
+                        instructions.Add(new Instruction.Cvtsi2sd(new AssemblyType.Longword(), new Operand.Reg(Operand.RegisterName.AX), GenerateOperand(intToDouble.Dst)));
+                    }
+                    else
+                        instructions.Add(new Instruction.Cvtsi2sd(GetAssemblyType(intToDouble.Src), GenerateOperand(intToDouble.Src), GenerateOperand(intToDouble.Dst)));
                     break;
                 case TAC.Instruction.UIntToDouble uintToDouble:
-                    if (GetAssemblyType(uintToDouble.Src) is AssemblyType.Longword)
+                    if (GetAssemblyType(uintToDouble.Src) is AssemblyType.Byte)
                     {
-                        instructions.Add(new Instruction.MovZeroExtend(GenerateOperand(uintToDouble.Src), new Operand.Reg(Operand.RegisterName.AX)));
+                        instructions.Add(new Instruction.MovZeroExtend(new AssemblyType.Byte(), new AssemblyType.Longword(), GenerateOperand(uintToDouble.Src), new Operand.Reg(Operand.RegisterName.AX)));
+                        instructions.Add(new Instruction.Cvtsi2sd(new AssemblyType.Longword(), new Operand.Reg(Operand.RegisterName.AX), GenerateOperand(uintToDouble.Dst)));
+                    }
+                    else if (GetAssemblyType(uintToDouble.Src) is AssemblyType.Longword)
+                    {
+                        instructions.Add(new Instruction.MovZeroExtend(new AssemblyType.Longword(), new AssemblyType.Quadword(), GenerateOperand(uintToDouble.Src), new Operand.Reg(Operand.RegisterName.AX)));
                         instructions.Add(new Instruction.Cvtsi2sd(new AssemblyType.Quadword(), new Operand.Reg(Operand.RegisterName.AX), GenerateOperand(uintToDouble.Dst)));
                     }
                     else
@@ -458,6 +486,7 @@ public class AssemblyGenerator
             Type.Int or Type.UInt => 4,
             Type.Long or Type.ULong or Type.Double or Type.Pointer => 8,
             Type.Array array => TypeChecker.GetTypeSize(array) >= 16 ? 16 : GetAlignment(array.Element),
+            Type.Char or Type.SChar or Type.UChar => 1,
             _ => throw new NotImplementedException()
         };
     }
@@ -470,6 +499,7 @@ public class AssemblyGenerator
             Type.Long or Type.ULong or Type.Pointer => new AssemblyType.Quadword(),
             Type.Double => new AssemblyType.Double(),
             Type.Array array => new AssemblyType.ByteArray(TypeChecker.GetTypeSize(array.Element) * array.Size, GetAlignment(array)),
+            Type.Char or Type.SChar or Type.UChar => new AssemblyType.Byte(),
             _ => throw new NotImplementedException()
         };
     }
@@ -483,6 +513,8 @@ public class AssemblyGenerator
                 AST.Const.ConstInt or AST.Const.ConstUInt => new AssemblyType.Longword(),
                 AST.Const.ConstLong or AST.Const.ConstULong => new AssemblyType.Quadword(),
                 AST.Const.ConstDouble => new AssemblyType.Double(),
+                AST.Const.ConstChar => new AssemblyType.Byte(),
+                AST.Const.ConstUChar => new AssemblyType.Byte(),
                 _ => throw new NotImplementedException()
             },
             TAC.Val.Variable var => GetAssemblyType(symbolTable[var.Name].Type),
@@ -496,14 +528,14 @@ public class AssemblyGenerator
         {
             TAC.Val.Constant constant => constant.Value switch
             {
-                AST.Const.ConstInt or AST.Const.ConstLong => true,
-                AST.Const.ConstUInt or AST.Const.ConstULong => false,
+                AST.Const.ConstInt or AST.Const.ConstLong or AST.Const.ConstChar => true,
+                AST.Const.ConstUInt or AST.Const.ConstULong or AST.Const.ConstUChar => false,
                 _ => throw new NotImplementedException()
             },
             TAC.Val.Variable var => symbolTable[var.Name].Type switch
             {
-                Type.Int or Type.Long => true,
-                Type.UInt or Type.ULong or Type.Pointer => false,
+                Type.Int or Type.Long or Type.Char or Type.SChar => true,
+                Type.UInt or Type.ULong or Type.Pointer or Type.UChar => false,
                 _ => throw new NotImplementedException()
             },
             _ => throw new NotImplementedException()
@@ -518,6 +550,8 @@ public class AssemblyGenerator
             AST.Const.ConstLong constLong => (ulong)constLong.Value,
             AST.Const.ConstUInt constUInt => (ulong)constUInt.Value,
             AST.Const.ConstULong constULong => (ulong)constULong.Value,
+            AST.Const.ConstChar constChar => (ulong)constChar.Value,
+            AST.Const.ConstUChar constUChar => (ulong)constUChar.Value,
             _ => throw new NotImplementedException()
         };
     }
@@ -542,6 +576,8 @@ public class AssemblyGenerator
                 AST.Const.ConstLong constLong => new Operand.Imm((ulong)constLong.Value),
                 AST.Const.ConstUInt constUInt => new Operand.Imm((ulong)constUInt.Value),
                 AST.Const.ConstULong constULong => new Operand.Imm((ulong)constULong.Value),
+                AST.Const.ConstChar constChar => new Operand.Imm((ulong)constChar.Value),
+                AST.Const.ConstUChar constUChar => new Operand.Imm((ulong)constUChar.Value),
                 _ => throw new NotImplementedException()
             },
             TAC.Val.Variable v => new Operand.Pseudo(v.Name),

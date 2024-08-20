@@ -38,6 +38,10 @@ public class InstructionFixer
                         {
                             instructions[i] = new Instruction.Mov(new AssemblyType.Longword(), new Operand.Imm((uint)immSrc2.Value), mov.Dst);
                         }
+                        else if (mov.Type is AssemblyType.Byte && mov.Src is Operand.Imm immSrcb && IsLargeByte(immSrcb))
+                        {
+                            instructions[i] = new Instruction.Mov(new AssemblyType.Byte(), new Operand.Imm((byte)immSrcb.Value), mov.Dst);
+                        }
 
                         break;
                     }
@@ -166,7 +170,7 @@ public class InstructionFixer
                         if (movsx.Src is Operand.Imm && IsMemory(movsx.Dst))
                         {
                             Instruction.Mov moveBefore = new Instruction.Mov(new AssemblyType.Longword(), movsx.Src, srcReg);
-                            instructions[i] = new Instruction.Movsx(srcReg, dstReg);
+                            instructions[i] = new Instruction.Movsx(movsx.SrcType, movsx.DstType, srcReg, dstReg);
                             Instruction.Mov moveAfter = new Instruction.Mov(new AssemblyType.Quadword(), dstReg, movsx.Dst);
                             instructions.Insert(i + 1, moveAfter);
                             instructions.Insert(i, moveBefore);
@@ -174,13 +178,13 @@ public class InstructionFixer
                         else if (movsx.Src is Operand.Imm)
                         {
                             Instruction.Mov moveBefore = new Instruction.Mov(new AssemblyType.Longword(), movsx.Src, srcReg);
-                            instructions[i] = new Instruction.Movsx(srcReg, movsx.Dst);
+                            instructions[i] = new Instruction.Movsx(movsx.SrcType, movsx.DstType, srcReg, movsx.Dst);
                             instructions.Insert(i, moveBefore);
                         }
                         else if (IsMemory(movsx.Dst))
                         {
                             Instruction.Mov moveAfter = new Instruction.Mov(new AssemblyType.Quadword(), dstReg, movsx.Dst);
-                            instructions[i] = new Instruction.Movsx(movsx.Src, dstReg);
+                            instructions[i] = new Instruction.Movsx(movsx.SrcType, movsx.DstType, movsx.Src, dstReg);
                             instructions.Insert(i + 1, moveAfter);
                         }
 
@@ -207,11 +211,34 @@ public class InstructionFixer
 
                 case Instruction.MovZeroExtend movzx:
                     {
-                        if (movzx.Dst is Operand.Reg reg)
+                        if (movzx.Src is Operand.Imm imm && movzx.SrcType is AssemblyType.Byte)
+                        {
+                            if (IsMemory(movzx.Dst))
+                            {
+                                Instruction.Mov moveBefore = new Instruction.Mov(new AssemblyType.Byte(), imm, srcReg);
+                                instructions[i] = new Instruction.MovZeroExtend(new AssemblyType.Byte(), movzx.DstType, srcReg, dstReg);
+                                Instruction.Mov moveAfter = new Instruction.Mov(movzx.DstType, dstReg, movzx.Dst);
+                                instructions.Insert(i + 1, moveAfter);
+                                instructions.Insert(i, moveBefore);
+                            }
+                            else
+                            {
+                                Instruction.Mov moveBefore = new Instruction.Mov(new AssemblyType.Byte(), imm, srcReg);
+                                instructions[i] = new Instruction.MovZeroExtend(new AssemblyType.Byte(), movzx.DstType, srcReg, movzx.Dst);
+                                instructions.Insert(i, moveBefore);
+                            }
+                        }
+                        else if (IsMemory(movzx.Dst) && movzx.SrcType is AssemblyType.Byte)
+                        {
+                            Instruction.Mov moveAfter = new Instruction.Mov(movzx.DstType, dstReg, movzx.Dst);
+                            instructions[i] = new Instruction.MovZeroExtend(new AssemblyType.Byte(), movzx.DstType, movzx.Src, dstReg);
+                            instructions.Insert(i + 1, moveAfter);
+                        }
+                        else if (movzx.Dst is Operand.Reg reg)
                         {
                             instructions[i] = new Instruction.Mov(new AssemblyType.Longword(), movzx.Src, movzx.Dst);
                         }
-                        else if (movzx.Dst is Operand.Memory or Operand.Data or Operand.Indexed)
+                        else if (IsMemory(movzx.Dst))
                         {
                             Instruction.Mov moveBefore = new Instruction.Mov(new AssemblyType.Longword(), movzx.Src, dstReg);
                             instructions[i] = new Instruction.Mov(new AssemblyType.Quadword(), dstReg, movzx.Dst);
@@ -277,5 +304,10 @@ public class InstructionFixer
     private bool IsLargeInt(Operand.Imm imm)
     {
         return imm.Value > int.MaxValue || (long)imm.Value < int.MinValue;
+    }
+
+    private bool IsLargeByte(Operand.Imm imm)
+    {
+        return imm.Value > byte.MaxValue || (long)imm.Value < -128L;
     }
 }
