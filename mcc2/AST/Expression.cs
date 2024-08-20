@@ -39,7 +39,7 @@ public abstract record Expression
     public record Dereference(Expression Expression, Type Type) : Expression;
     public record AddressOf(Expression Expression, Type Type) : Expression;
     public record Subscript(Expression Left, Expression Right, Type Type) : Expression;
-    public record String(string StringVal) : Expression;
+    public record String(string StringVal, Type Type) : Expression;
 
     private Expression() { }
 }

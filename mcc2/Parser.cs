@@ -648,14 +648,16 @@ public class Parser
             "([^"\\\n]|\\['"\\?abfnrtv])*"
             """);
         Match match = regex.Match(source, token.Position);
-        string result = match.Value;
+        var unescaped = Regex.Unescape(match.Value);
+        string result = unescaped[1..^1];
         while (Peek(tokens).Type == Lexer.TokenType.StringLiteral)
         {
             token = TakeToken(tokens);
             match = regex.Match(source, token.Position);
-            result = string.Concat(result, match.Value);
+            unescaped = Regex.Unescape(match.Value);
+            result = string.Concat(result, unescaped[1..^1]);
         }
-        return new Expression.String(result);
+        return new Expression.String(result, Type.None);
     }
 
     private AbstractDeclarator ParseAbstractDeclarator(List<Token> tokens)
@@ -861,7 +863,8 @@ public class Parser
             '([^'\\\n]|\\['"?\\abfnrtv])'
             """);
             Match match = regex.Match(source, token.Position);
-            return new Const.ConstInt(Convert.ToInt32(match.Value[0]));
+            var unescaped = Regex.Unescape(match.Value);
+            return new Const.ConstInt(Convert.ToInt32(unescaped[1]));
         }
 
         if (token.Type == Lexer.TokenType.DoubleConstant)
