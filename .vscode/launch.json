@@ -11,7 +11,7 @@
             "preLaunchTask": "dotnet: build",
             "program": "${workspaceFolder}/mcc2/bin/Debug/net8.0/mcc2",
             "args": [
-                "--tacky", "--pretty", "mcc2.Tests/Source/array_init_special_chars.c"
+                "-S", "--pretty", "mcc2.Tests/Source/char_expressions.c"
             ],
             "cwd": "${workspaceFolder}",
             "stopAtEntry": false,

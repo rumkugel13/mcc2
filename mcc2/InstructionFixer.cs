@@ -169,21 +169,21 @@ public class InstructionFixer
                     {
                         if (movsx.Src is Operand.Imm && IsMemory(movsx.Dst))
                         {
-                            Instruction.Mov moveBefore = new Instruction.Mov(new AssemblyType.Longword(), movsx.Src, srcReg);
+                            Instruction.Mov moveBefore = new Instruction.Mov(movsx.SrcType, movsx.Src, srcReg);
                             instructions[i] = new Instruction.Movsx(movsx.SrcType, movsx.DstType, srcReg, dstReg);
-                            Instruction.Mov moveAfter = new Instruction.Mov(new AssemblyType.Quadword(), dstReg, movsx.Dst);
+                            Instruction.Mov moveAfter = new Instruction.Mov(movsx.DstType, dstReg, movsx.Dst);
                             instructions.Insert(i + 1, moveAfter);
                             instructions.Insert(i, moveBefore);
                         }
                         else if (movsx.Src is Operand.Imm)
                         {
-                            Instruction.Mov moveBefore = new Instruction.Mov(new AssemblyType.Longword(), movsx.Src, srcReg);
+                            Instruction.Mov moveBefore = new Instruction.Mov(movsx.SrcType, movsx.Src, srcReg);
                             instructions[i] = new Instruction.Movsx(movsx.SrcType, movsx.DstType, srcReg, movsx.Dst);
                             instructions.Insert(i, moveBefore);
                         }
                         else if (IsMemory(movsx.Dst))
                         {
-                            Instruction.Mov moveAfter = new Instruction.Mov(new AssemblyType.Quadword(), dstReg, movsx.Dst);
+                            Instruction.Mov moveAfter = new Instruction.Mov(movsx.DstType, dstReg, movsx.Dst);
                             instructions[i] = new Instruction.Movsx(movsx.SrcType, movsx.DstType, movsx.Src, dstReg);
                             instructions.Insert(i + 1, moveAfter);
                         }
@@ -241,7 +241,7 @@ public class InstructionFixer
                         else if (IsMemory(movzx.Dst))
                         {
                             Instruction.Mov moveBefore = new Instruction.Mov(new AssemblyType.Longword(), movzx.Src, dstReg);
-                            instructions[i] = new Instruction.Mov(new AssemblyType.Quadword(), dstReg, movzx.Dst);
+                            instructions[i] = new Instruction.Mov(movzx.DstType, dstReg, movzx.Dst);
                             instructions.Insert(i, moveBefore);
                         }
 
