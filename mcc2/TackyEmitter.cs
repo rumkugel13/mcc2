@@ -159,8 +159,13 @@ public class TackyEmitter
         {
             case Statement.ReturnStatement returnStatement:
                 {
-                    var val = EmitTackyAndConvert(returnStatement.Expression, instructions);
-                    instructions.Add(new Instruction.Return(ToVal(val)));
+                    if (returnStatement.Expression != null)
+                    {
+                        var val = EmitTackyAndConvert(returnStatement.Expression, instructions);
+                        instructions.Add(new Instruction.Return(ToVal(val)));
+                    }
+                    else
+                        instructions.Add(new Instruction.Return(null));
                     break;
                 }
             case Declaration.VariableDeclaration declaration:
@@ -372,16 +377,29 @@ public class TackyEmitter
                     var cond = EmitTackyAndConvert(conditional.Condition, instructions);
                     var exp2Label = MakeLabel();
                     instructions.Add(new Instruction.JumpIfZero(ToVal(cond), exp2Label));
-                    var var1 = EmitTackyAndConvert(conditional.Then, instructions);
-                    var dst = MakeTackyVariable(conditional.Type);
-                    instructions.Add(new Instruction.Copy(ToVal(var1), dst));
-                    var endLabel = MakeLabel();
-                    instructions.Add(new Instruction.Jump(endLabel));
-                    instructions.Add(new Instruction.Label(exp2Label));
-                    var var2 = EmitTackyAndConvert(conditional.Else, instructions);
-                    instructions.Add(new Instruction.Copy(ToVal(var2), dst));
-                    instructions.Add(new Instruction.Label(endLabel));
-                    return new ExpResult.PlainOperand(dst);
+                    if (GetType(conditional) is Type.Void)
+                    {
+                        EmitTackyAndConvert(conditional.Then, instructions);
+                        var endLabel = MakeLabel();
+                        instructions.Add(new Instruction.Jump(endLabel));
+                        instructions.Add(new Instruction.Label(exp2Label));
+                        EmitTackyAndConvert(conditional.Else, instructions);
+                        instructions.Add(new Instruction.Label(endLabel));
+                        return new ExpResult.PlainOperand(new Val.Variable("DUMMY"));
+                    }
+                    else
+                    {
+                        var var1 = EmitTackyAndConvert(conditional.Then, instructions);
+                        var dst = MakeTackyVariable(conditional.Type);
+                        instructions.Add(new Instruction.Copy(ToVal(var1), dst));
+                        var endLabel = MakeLabel();
+                        instructions.Add(new Instruction.Jump(endLabel));
+                        instructions.Add(new Instruction.Label(exp2Label));
+                        var var2 = EmitTackyAndConvert(conditional.Else, instructions);
+                        instructions.Add(new Instruction.Copy(ToVal(var2), dst));
+                        instructions.Add(new Instruction.Label(endLabel));
+                        return new ExpResult.PlainOperand(dst);
+                    }
                 }
             case Expression.FunctionCall functionCall:
                 {
@@ -392,14 +410,24 @@ public class TackyEmitter
                         arguments.Add(ToVal(val));
                     }
 
-                    var dst = MakeTackyVariable(functionCall.Type);
-                    instructions.Add(new Instruction.FunctionCall(functionCall.Identifier, arguments, dst));
-                    return new ExpResult.PlainOperand(dst);
+                    if (functionCall.Type is not Type.Void)
+                    {
+                        var dst = MakeTackyVariable(functionCall.Type);
+                        instructions.Add(new Instruction.FunctionCall(functionCall.Identifier, arguments, dst));
+                        return new ExpResult.PlainOperand(dst);
+                    }
+                    else
+                    {
+                        instructions.Add(new Instruction.FunctionCall(functionCall.Identifier, arguments, null));
+                        return new ExpResult.PlainOperand(new Val.Variable("DUMMY"));
+                    }
                 }
             case Expression.Cast cast:
                 {
                     var result = EmitTackyAndConvert(cast.Expression, instructions);
                     var innerType = TypeChecker.GetType(cast.Expression);
+                    if (cast.TargetType is Type.Void)
+                        return new ExpResult.PlainOperand(new Val.Variable("DUMMY"));
                     if (cast.TargetType == innerType)
                         return result;
                     var dst = MakeTackyVariable(cast.TargetType);
@@ -457,10 +485,23 @@ public class TackyEmitter
             case Expression.String stringExp:
                 {
                     var stringLabel = MakeStringTemporary();
-                    symbolTable[stringLabel] = new SemanticAnalyzer.SymbolEntry() {
-                        IdentifierAttributes = new IdentifierAttributes.Constant(new StaticInit.StringInit(stringExp.StringVal, true)), 
-                        Type = new Type.Array(new Type.Char(), stringExp.StringVal.Length + 1)};
+                    symbolTable[stringLabel] = new SemanticAnalyzer.SymbolEntry()
+                    {
+                        IdentifierAttributes = new IdentifierAttributes.Constant(new StaticInit.StringInit(stringExp.StringVal, true)),
+                        Type = new Type.Array(new Type.Char(), stringExp.StringVal.Length + 1)
+                    };
                     return new ExpResult.PlainOperand(new Val.Variable(stringLabel));
+                }
+            case Expression.SizeOf sizeofExp:
+                {
+                    var type = GetType(sizeofExp.Expression);
+                    var result = TypeChecker.GetTypeSize(type);
+                    return new ExpResult.PlainOperand(new Val.Constant(new Const.ConstULong((ulong)result)));
+                }
+            case Expression.SizeOfType sizeofType:
+                {
+                    var result = TypeChecker.GetTypeSize(sizeofType.TargetType);
+                    return new ExpResult.PlainOperand(new Val.Constant(new Const.ConstULong((ulong)result)));
                 }
             default:
                 throw new NotImplementedException();
@@ -479,7 +520,7 @@ public class TackyEmitter
                 instructions.Add(new Instruction.Load(pointer.Val, dst));
                 return new ExpResult.PlainOperand(dst);
             default:
-            throw new NotImplementedException();
+                throw new NotImplementedException();
         }
     }
 
