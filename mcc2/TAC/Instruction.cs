@@ -21,8 +21,8 @@ public abstract record Instruction
     public record GetAddress(Val Src, Val Dst) : Instruction;
     public record Load(Val SrcPtr, Val Dst) : Instruction;
     public record Store(Val Src, Val DstPtr) : Instruction;
-    public record AddPointer(Val Pointer, Val Index, int Scale, Val Dst) : Instruction;
-    public record CopyToOffset(Val Src, string Dst, int Offset) : Instruction;
+    public record AddPointer(Val Pointer, Val Index, long Scale, Val Dst) : Instruction;
+    public record CopyToOffset(Val Src, string Dst, long Offset) : Instruction;
 
     private Instruction() { }
 }

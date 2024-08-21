@@ -93,7 +93,7 @@ public class AssemblyGenerator
         }
 
         PseudoReplacer stackAllocator = new PseudoReplacer();
-        var bytesToAllocate = stackAllocator.Replace(fn.Instructions);
+        long bytesToAllocate = stackAllocator.Replace(fn.Instructions);
 
         // note: chapter 9 says we should store this per function in symboltable or ast
         // in order to round it up but we can do that here as well
@@ -133,7 +133,7 @@ public class AssemblyGenerator
         }
     }
 
-    public static int AlignTo(int bytes, int align)
+    public static long AlignTo(long bytes, long align)
     {
         return align * ((bytes + align - 1) / align);
     }
@@ -216,12 +216,15 @@ public class AssemblyGenerator
             instructions.Add(new Instruction.Binary(Instruction.BinaryOperator.Add, new AssemblyType.Quadword(),
                 new Operand.Imm((ulong)bytesToRemove), new Operand.Reg(Operand.RegisterName.SP)));
 
-        var assemblyDst = GenerateOperand(functionCall.Dst);
-        var returnType = GetAssemblyType(functionCall.Dst);
-        if (returnType is AssemblyType.Double)
-            instructions.Add(new Instruction.Mov(new AssemblyType.Double(), new Operand.Reg(Operand.RegisterName.XMM0), assemblyDst));
-        else
-            instructions.Add(new Instruction.Mov(returnType, new Operand.Reg(Operand.RegisterName.AX), assemblyDst));
+        if (functionCall.Dst != null)
+        {
+            var assemblyDst = GenerateOperand(functionCall.Dst);
+            var returnType = GetAssemblyType(functionCall.Dst);
+            if (returnType is AssemblyType.Double)
+                instructions.Add(new Instruction.Mov(new AssemblyType.Double(), new Operand.Reg(Operand.RegisterName.XMM0), assemblyDst));
+            else
+                instructions.Add(new Instruction.Mov(returnType, new Operand.Reg(Operand.RegisterName.AX), assemblyDst));
+        }
     }
 
     private List<Instruction> GenerateInstructions(List<TAC.Instruction> tacInstructions, List<Instruction> instructions)
@@ -231,10 +234,11 @@ public class AssemblyGenerator
             switch (inst)
             {
                 case TAC.Instruction.Return ret:
-                    if (GetAssemblyType(ret.Value) is AssemblyType.Double)
-                        instructions.Add(new Instruction.Mov(new AssemblyType.Double(), GenerateOperand(ret.Value), new Operand.Reg(Operand.RegisterName.XMM0)));
-                    else
-                        instructions.Add(new Instruction.Mov(GetAssemblyType(ret.Value), GenerateOperand(ret.Value), new Operand.Reg(Operand.RegisterName.AX)));
+                    if (ret.Value != null)
+                        if (GetAssemblyType(ret.Value) is AssemblyType.Double)
+                            instructions.Add(new Instruction.Mov(new AssemblyType.Double(), GenerateOperand(ret.Value), new Operand.Reg(Operand.RegisterName.XMM0)));
+                        else
+                            instructions.Add(new Instruction.Mov(GetAssemblyType(ret.Value), GenerateOperand(ret.Value), new Operand.Reg(Operand.RegisterName.AX)));
                     instructions.Add(new Instruction.Ret());
                     break;
                 case TAC.Instruction.Unary unary:
@@ -455,7 +459,7 @@ public class AssemblyGenerator
                     if (addPointer.Index is TAC.Val.Constant constant)
                     {
                         instructions.Add(new Instruction.Mov(new AssemblyType.Quadword(), GenerateOperand(addPointer.Pointer), new Operand.Reg(Operand.RegisterName.AX)));
-                        instructions.Add(new Instruction.Lea(new Operand.Memory(Operand.RegisterName.AX, (int)GetValue(constant.Value) * addPointer.Scale), GenerateOperand(addPointer.Dst)));
+                        instructions.Add(new Instruction.Lea(new Operand.Memory(Operand.RegisterName.AX, (long)GetValue(constant.Value) * addPointer.Scale), GenerateOperand(addPointer.Dst)));
                     }
                     else if (addPointer.Scale is 1 or 2 or 4 or 8)
                     {

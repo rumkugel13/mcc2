@@ -101,7 +101,7 @@ public class TackyEmitter
         }
     }
 
-    private void EmitCompoundInit(Initializer initializer, int offset, string name, List<Instruction> instructions)
+    private void EmitCompoundInit(Initializer initializer, long offset, string name, List<Instruction> instructions)
     {
         switch (initializer)
         {
@@ -128,7 +128,7 @@ public class TackyEmitter
         }
     }
 
-    private void EmitStringInit(string dst, int offset, List<byte> bytes, List<Instruction> instructions)
+    private void EmitStringInit(string dst, long offset, List<byte> bytes, List<Instruction> instructions)
     {
         if (bytes.Count >= 8)
         {

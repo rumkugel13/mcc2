@@ -887,7 +887,7 @@ public class TypeChecker
         };
     }
 
-    public static int GetTypeSize(Type type)
+    public static long GetTypeSize(Type type)
     {
         return type switch
         {

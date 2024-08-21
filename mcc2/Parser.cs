@@ -273,14 +273,14 @@ public class Parser
             throw new Exception("Parsing Error: Expected a constant token");
     }
 
-    private int GetValue(Const constVal)
+    private long GetValue(Const constVal)
     {
         return constVal switch
         {
-            Const.ConstInt constant => (int)constant.Value,
-            Const.ConstUInt constant => (int)constant.Value,
-            Const.ConstLong constant => (int)constant.Value,
-            Const.ConstULong constant => (int)constant.Value,
+            Const.ConstInt constant => (long)constant.Value,
+            Const.ConstUInt constant => (long)constant.Value,
+            Const.ConstLong constant => (long)constant.Value,
+            Const.ConstULong constant => (long)constant.Value,
             _ => throw new NotImplementedException()
         };
     }

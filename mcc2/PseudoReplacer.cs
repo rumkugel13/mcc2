@@ -4,10 +4,10 @@ namespace mcc2;
 
 public class PseudoReplacer
 {
-    public Dictionary<string, int> OffsetMap = [];
-    private int currentOffset;
+    public Dictionary<string, long> OffsetMap = [];
+    private long currentOffset;
 
-    public int Replace(List<Instruction> instructions)
+    public long Replace(List<Instruction> instructions)
     {
         for (int i = 0; i < instructions.Count; i++)
         {
@@ -172,7 +172,7 @@ public class PseudoReplacer
     private Operand ReplacePseudo(Operand operand)
     {
         string name;
-        int offset = 0;
+        long offset = 0;
         bool isMemory = false;
         if (operand is Operand.Pseudo pseudo)
             name = pseudo.Identifier;
@@ -185,7 +185,7 @@ public class PseudoReplacer
         else
             return operand;
 
-        if (OffsetMap.TryGetValue(name, out int val))
+        if (OffsetMap.TryGetValue(name, out long val))
         {
             if (isMemory)
                 val += offset;
