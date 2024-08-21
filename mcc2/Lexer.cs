@@ -38,6 +38,7 @@ namespace mcc2
             DoubleKeyword,
             CharKeyword,
             SizeofKeyword,
+            StructKeyword,
             DoubleHyphen,
             DoubleAmpersand,
             DoubleVertical,
@@ -66,6 +67,8 @@ namespace mcc2
             Ampersand,
             OpenBracket,
             CloseBracket,
+            Period,
+            HyphenGreaterThan,
         }
 
         // note: pattern order needs to match tokentype order
@@ -100,6 +103,7 @@ namespace mcc2
             "double\\b",
             "char\\b",
             "sizeof\\b",
+            "struct\\b",
             "--",
             "&&",
             "\\|\\|",
@@ -128,6 +132,8 @@ namespace mcc2
             "&",
             "\\[",
             "\\]",
+            "\\.(?![0-9])",
+            "->",
         ];
 
         public List<Token> Lex(string source)
