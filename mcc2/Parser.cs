@@ -63,82 +63,103 @@ public class Parser
         Expect(Lexer.TokenType.CloseParenthesis, tokens);
     }
 
-    private List<Lexer.TokenType> ParseSpecifiers(List<Token> tokens)
+    private List<Token> ParseSpecifiers(List<Token> tokens)
     {
-        List<Lexer.TokenType> specifiers = [];
+        List<Token> specifiers = [];
         var nextToken = Peek(tokens);
         while (IsSpecifier(nextToken))
         {
-            specifiers.Add(TakeToken(tokens).Type);
+            var token = TakeToken(tokens);
+            if (token.Type == Lexer.TokenType.StructKeyword)
+            {
+                token = Expect(Lexer.TokenType.Identifier, tokens);
+            }
+            specifiers.Add(token);
             nextToken = Peek(tokens);
         }
 
         return specifiers;
     }
 
-    private List<Lexer.TokenType> ParseTypeSpecifiers(List<Token> tokens)
+    private List<Token> ParseTypeSpecifiers(List<Token> tokens)
     {
-        List<Lexer.TokenType> specifiers = [];
+        List<Token> specifiers = [];
         var nextToken = Peek(tokens);
         while (IsTypeSpecifier(nextToken.Type))
         {
-            specifiers.Add(TakeToken(tokens).Type);
+            var token = TakeToken(tokens);
+            if (token.Type == Lexer.TokenType.StructKeyword)
+            {
+                token = Expect(Lexer.TokenType.Identifier, tokens);
+            }
+            specifiers.Add(token);
             nextToken = Peek(tokens);
         }
 
         return specifiers;
     }
 
-    private Type ParseType(List<Lexer.TokenType> types)
+    private Type ParseType(List<Token> types)
     {
         if (types.Count == 0 ||
-            (new HashSet<Lexer.TokenType>(types).Count != types.Count) ||
-            (types.Contains(Lexer.TokenType.SignedKeyword) && types.Contains(Lexer.TokenType.UnsignedKeyword)))
+            (types.Select(a => a.Type).Distinct().Count() != types.Count) ||
+            (Contains(types, Lexer.TokenType.SignedKeyword) && Contains(types, Lexer.TokenType.UnsignedKeyword)))
             throw new Exception($"Parsing Error: Invalid type specifier");
 
-        if (types.Count == 1 && types[0] == Lexer.TokenType.VoidKeyword)
+        if (types.Count == 1 && types[0].Type == Lexer.TokenType.Identifier)
+            return new Type.Structure(GetIdentifier(types[0], source));
+        if (types.Count > 1 && Contains(types, Lexer.TokenType.Identifier))
+            throw new Exception($"Parsing Error: Can't combine struct with other type specifiers");
+
+        if (types.Count == 1 && types[0].Type == Lexer.TokenType.VoidKeyword)
             return new Type.Void();
-        if (types.Count > 1 && types.Contains(Lexer.TokenType.VoidKeyword))
-            throw new Exception($"Parsing Error: Can't combine 'void' with other type specifiers");
+        if (types.Count > 1 && Contains(types, Lexer.TokenType.VoidKeyword))
+            throw new Exception($"Parsing Error: Can't combine void with other type specifiers");
 
-        if (types.Count == 1 && types[0] == Lexer.TokenType.DoubleKeyword)
+        if (types.Count == 1 && types[0].Type == Lexer.TokenType.DoubleKeyword)
             return new Type.Double();
-        if (types.Count > 1 && types.Contains(Lexer.TokenType.DoubleKeyword))
-            throw new Exception($"Parsing Error: Can't combine 'double' with other type specifiers");
+        if (types.Count > 1 && Contains(types, Lexer.TokenType.DoubleKeyword))
+            throw new Exception($"Parsing Error: Can't combine double with other type specifiers");
 
-        if (types.Count == 1 && types[0] == Lexer.TokenType.CharKeyword)
+        if (types.Count == 1 && types[0].Type == Lexer.TokenType.CharKeyword)
             return new Type.Char();
-        if (types.Count == 2 && types.Contains(Lexer.TokenType.CharKeyword) && types.Contains(Lexer.TokenType.SignedKeyword))
+        if (types.Count == 2 && Contains(types, Lexer.TokenType.CharKeyword) && Contains(types, Lexer.TokenType.SignedKeyword))
             return new Type.SChar();
-        if (types.Count == 2 && types.Contains(Lexer.TokenType.CharKeyword) && types.Contains(Lexer.TokenType.UnsignedKeyword))
+        if (types.Count == 2 && Contains(types, Lexer.TokenType.CharKeyword) && Contains(types, Lexer.TokenType.UnsignedKeyword))
             return new Type.UChar();
-        if (types.Contains(Lexer.TokenType.CharKeyword))
+        if (Contains(types, Lexer.TokenType.CharKeyword))
             throw new Exception("Parsing Error: Cannot combine other types with char");
 
-        if (types.Contains(Lexer.TokenType.UnsignedKeyword) && types.Contains(Lexer.TokenType.LongKeyword))
+        if (Contains(types, Lexer.TokenType.UnsignedKeyword) && Contains(types, Lexer.TokenType.LongKeyword))
             return new Type.ULong();
-        if (types.Contains(Lexer.TokenType.LongKeyword))
+        if (Contains(types, Lexer.TokenType.LongKeyword))
             return new Type.Long();
-        if (types.Contains(Lexer.TokenType.UnsignedKeyword))
+        if (Contains(types, Lexer.TokenType.UnsignedKeyword))
             return new Type.UInt();
 
         return new Type.Int();
     }
 
-    private void ParseTypeAndStorageClass(List<Lexer.TokenType> specifiers, out Type type, out Declaration.StorageClasses? storageClass)
+    private bool Contains(List<Token> types, Lexer.TokenType keyword)
     {
-        List<Lexer.TokenType> types = [];
-        List<Lexer.TokenType> storageClasses = [];
+        return types.Any(a => a.Type == keyword);
+    }
+
+    private (Type Type, Declaration.StorageClasses? StorageClass) ParseTypeAndStorageClass(List<Token> specifiers)
+    {
+        List<Token> types = [];
+        List<Token> storageClasses = [];
         foreach (var specifier in specifiers)
         {
-            if (IsTypeSpecifier(specifier))
+            if (IsTypeSpecifier(specifier.Type) || specifier.Type == Lexer.TokenType.Identifier)
                 types.Add(specifier);
             else
                 storageClasses.Add(specifier);
         }
 
-        type = ParseType(types);
+        var type = ParseType(types);
 
+        Declaration.StorageClasses? storageClass;
         if (storageClasses.Count > 1)
             throw new Exception($"Parsing Error: Invalid storage class count");
         if (storageClasses.Count == 1)
@@ -146,12 +167,12 @@ public class Parser
         else
             storageClass = null;
 
-        return;
+        return (type, storageClass);
     }
 
-    private Declaration.StorageClasses ParseStorageClass(Lexer.TokenType storageClass)
+    private Declaration.StorageClasses ParseStorageClass(Token storageClass)
     {
-        return storageClass switch
+        return storageClass.Type switch
         {
             Lexer.TokenType.ExternKeyword => Declaration.StorageClasses.Extern,
             Lexer.TokenType.StaticKeyword => Declaration.StorageClasses.Static,
@@ -161,8 +182,35 @@ public class Parser
 
     private Declaration ParseDeclaration(List<Token> tokens)
     {
+        if (Peek(tokens).Type == Lexer.TokenType.StructKeyword && 
+            PeekAhead(tokens, 1).Type == Lexer.TokenType.Identifier && 
+            (PeekAhead(tokens, 2).Type == Lexer.TokenType.OpenBrace || 
+            PeekAhead(tokens, 2).Type == Lexer.TokenType.Semicolon))
+        {
+            TakeToken(tokens);
+            var identifier = Expect(Lexer.TokenType.Identifier, tokens);
+            List<MemberDeclaration> memberDeclarations = [];
+            if (Peek(tokens).Type is Lexer.TokenType.OpenBrace)
+            {
+                TakeToken(tokens);
+                while (IsTypeSpecifier(Peek(tokens).Type))
+                {
+                    MemberDeclaration member = ParseMemberDeclaration(tokens);
+                    if (member.MemberType is Type.FunctionType)
+                        throw new Exception("Parsing Error: Cannot declare function in struct");
+                    memberDeclarations.Add(member);
+                }
+                Expect(Lexer.TokenType.CloseBrace, tokens);
+                
+                if (memberDeclarations.Count == 0)
+                    throw new Exception("Parsing Error: Cannot define struct without members");
+            }
+            Expect(Lexer.TokenType.Semicolon, tokens);
+            return new Declaration.StructDeclaration(GetIdentifier(identifier, source), memberDeclarations);
+        }
+
         var specifiers = ParseSpecifiers(tokens);
-        ParseTypeAndStorageClass(specifiers, out Type baseType, out Declaration.StorageClasses? storageClass);
+        (Type baseType, Declaration.StorageClasses? storageClass) = ParseTypeAndStorageClass(specifiers);
         var declarator = ParseDeclarator(tokens);
         var (name, declType, paramNames) = ProcessDeclarator(declarator, baseType);
 
@@ -189,6 +237,16 @@ public class Parser
         }
     }
 
+    private MemberDeclaration ParseMemberDeclaration(List<Token> tokens)
+    {
+        var specifiers = ParseTypeSpecifiers(tokens);
+        var type = ParseType(specifiers);
+        var declarator = ParseDeclarator(tokens);
+        var (Name, DerivedType, ParameterNames) = ProcessDeclarator(declarator, type);
+        Expect(Lexer.TokenType.Semicolon, tokens);
+        return new MemberDeclaration(Name, DerivedType);
+    }
+
     private Initializer ParseInitializer(List<Token> tokens)
     {
         if (Peek(tokens).Type == Lexer.TokenType.OpenBrace)
@@ -197,7 +255,7 @@ public class Parser
             List<Initializer> initializers = [];
             initializers.Add(ParseInitializer(tokens));
             if (Peek(tokens).Type == Lexer.TokenType.Comma)
-                    TakeToken(tokens);
+                TakeToken(tokens);
             while (Peek(tokens).Type != Lexer.TokenType.CloseBrace)
             {
                 initializers.Add(ParseInitializer(tokens));
@@ -611,21 +669,42 @@ public class Parser
     private bool IsUnaryOrPrimaryExpression(Token token)
     {
         return IsUnaryOperator(token) || token.Type == Lexer.TokenType.OpenParenthesis ||
-            IsConstant(token) || token.Type == Lexer.TokenType.Identifier || 
+            IsConstant(token) || token.Type == Lexer.TokenType.Identifier ||
             token.Type == Lexer.TokenType.StringLiteral || token.Type == Lexer.TokenType.SizeofKeyword;
     }
 
     private Expression ParsePostfixExpression(List<Token> tokens)
     {
         var primary = ParsePrimaryExpression(tokens);
-        while (Peek(tokens).Type == Lexer.TokenType.OpenBracket)
+        while (Peek(tokens).Type is Lexer.TokenType.Period or Lexer.TokenType.HyphenGreaterThan or Lexer.TokenType.OpenBracket)
+        {
+            primary = ParsePostfixOp(primary, tokens);
+        }
+        return primary;
+    }
+
+    private Expression ParsePostfixOp(Expression primary, List<Token> tokens)
+    {
+        var nextToken = Peek(tokens);
+        if (nextToken.Type is Lexer.TokenType.Period)
+        {
+            TakeToken(tokens);
+            var identifier = Expect(Lexer.TokenType.Identifier, tokens);
+            return new Expression.Dot(primary, GetIdentifier(identifier, source));
+        }
+        else if (nextToken.Type is Lexer.TokenType.HyphenGreaterThan)
+        {
+            TakeToken(tokens);
+            var identifier = Expect(Lexer.TokenType.Identifier, tokens);
+            return new Expression.Arrow(primary, GetIdentifier(identifier, source));
+        }
+        else
         {
             TakeToken(tokens);
             var exp = ParseExpression(tokens);
             Expect(Lexer.TokenType.CloseBracket, tokens);
-            primary = new Expression.Subscript(primary, exp, Type.None);
+            return new Expression.Subscript(primary, exp, Type.None);
         }
-        return primary;
     }
 
     private Expression ParsePrimaryExpression(List<Token> tokens)
@@ -703,7 +782,7 @@ public class Parser
         var nextToken = Peek(tokens);
         if (nextToken.Type == Lexer.TokenType.Asterisk)
         {
-            TakeToken(tokens);            
+            TakeToken(tokens);
             if (Peek(tokens).Type is Lexer.TokenType.Asterisk or Lexer.TokenType.OpenParenthesis or Lexer.TokenType.OpenBracket)
             {
                 return new AbstractDeclarator.AbstractPointer(ParseAbstractDeclarator(tokens));
@@ -840,7 +919,8 @@ public class Parser
             tokenType == Lexer.TokenType.UnsignedKeyword ||
             tokenType == Lexer.TokenType.DoubleKeyword ||
             tokenType == Lexer.TokenType.CharKeyword ||
-            tokenType == Lexer.TokenType.VoidKeyword;
+            tokenType == Lexer.TokenType.VoidKeyword ||
+            tokenType == Lexer.TokenType.StructKeyword;
     }
 
     private bool IsConstant(Token token)
