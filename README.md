@@ -46,7 +46,7 @@ Besides having fun and learning how compilers and C work, these are some of the 
   - [X] 14: Pointers
   - [X] 15: Arrays and Pointer Arithmetic
   - [X] 16: Characters and Strings
-  - [ ] 17: Supporting Dynamic Memory Allocation
+  - [X] 17: Supporting Dynamic Memory Allocation
   - [ ] 18: Structures
     - [ ] Extra: Unions
 - [ ] Part III: Optimizations
