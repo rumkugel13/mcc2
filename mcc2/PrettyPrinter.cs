@@ -118,7 +118,10 @@ public class PrettyPrinter
         {
             case Statement.ReturnStatement ret:
                 PrintLine($"Return(", indent);
-                PrintExpression(ret.Expression, source, indent + 1);
+                if (ret.Expression != null)
+                    PrintExpression(ret.Expression, source, indent + 1);
+                else
+                    PrintLine("void", indent + 1);
                 PrintLine(")", indent);
                 break;
             case Statement.IfStatement ifStatement:
@@ -288,6 +291,16 @@ public class PrettyPrinter
             case Expression.String str:
                 PrintLine($"String(", indent);
                 PrintLine($"value='{str.StringVal}'", indent + 1);
+                PrintLine(")", indent);
+                break;
+            case Expression.SizeOf sizeofExp:
+                PrintLine("SizeOf(", indent);
+                PrintExpression(sizeofExp.Expression, source, indent + 1);
+                PrintLine(")", indent);
+                break;
+            case Expression.SizeOfType sizeofType:
+                PrintLine("SizeOfType(", indent);
+                PrintLine($"target=\"{sizeofType.TargetType}\"", indent + 1);
                 PrintLine(")", indent);
                 break;
         }

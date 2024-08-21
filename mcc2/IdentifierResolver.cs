@@ -89,7 +89,10 @@ public class IdentifierResolver
         switch (statement)
         {
             case Statement.ReturnStatement ret:
-                return new Statement.ReturnStatement(ResolveExpression(ret.Expression, identifierMap));
+                if (ret.Expression == null)
+                    return ret;
+                else
+                    return new Statement.ReturnStatement(ResolveExpression(ret.Expression, identifierMap));
             case Statement.ExpressionStatement expressionStatement:
                 return new Statement.ExpressionStatement(ResolveExpression(expressionStatement.Expression, identifierMap));
             case Statement.NullStatement nullStatement:
@@ -227,6 +230,13 @@ public class IdentifierResolver
                 }
             case Expression.String stringExp:
                 return stringExp;
+            case Expression.SizeOf sizeofExp:
+                {
+                    var exp = ResolveExpression(sizeofExp.Expression, identifierMap);
+                    return new Expression.SizeOf(exp, sizeofExp.Type);
+                }
+            case Expression.SizeOfType sizeofType:
+                return sizeofType;
             default:
                 throw new NotImplementedException();
         }
