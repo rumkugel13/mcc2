@@ -23,6 +23,7 @@ public abstract record Instruction
     public record Store(Val Src, Val DstPtr) : Instruction;
     public record AddPointer(Val Pointer, Val Index, long Scale, Val Dst) : Instruction;
     public record CopyToOffset(Val Src, string Dst, long Offset) : Instruction;
+    public record CopyFromOffset(string Src, long Offset, Val Dst) : Instruction;
 
     private Instruction() { }
 }

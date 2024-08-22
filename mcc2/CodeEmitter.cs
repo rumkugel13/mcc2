@@ -51,7 +51,7 @@ public class CodeEmitter
         if (staticVariable.Global)
             builder.AppendLine($"\t.globl {staticVariable.Identifier}");
 
-        var isZero = staticVariable.Inits.Count == 1 && GetValue(staticVariable.Inits[0]) == 0 && staticVariable.Inits[0] is not StaticInit.DoubleInit;
+        var isZero = staticVariable.Inits.Count == 1 && GetValue(staticVariable.Inits[0]) == 0 && (staticVariable.Inits[0] is not StaticInit.DoubleInit || staticVariable.Inits[0] is StaticInit.ZeroInit);
         builder.AppendLine($"\t.{(isZero ? "bss" : "data")}");
         builder.AppendLine($"\t.{(OperatingSystem.IsLinux() ? "align" : "balign")} {staticVariable.Alignment}");
         builder.AppendLine($"{staticVariable.Identifier}:");

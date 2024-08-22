@@ -38,7 +38,7 @@ public class TackyEmitter
                             instructions.Add(new TopLevel.StaticVariable(entry.Key, stat.Global, entry.Value.Type, init.Inits));
                             break;
                         case InitialValue.Tentative:
-                            instructions.Add(new TopLevel.StaticVariable(entry.Key, stat.Global, entry.Value.Type, [TypeChecker.ConvertConstantToInit(entry.Value.Type, new Const.ConstInt(0), typeTable)]));
+                            instructions.Add(new TopLevel.StaticVariable(entry.Key, stat.Global, entry.Value.Type, [new StaticInit.ZeroInit(TypeChecker.GetTypeSize(entry.Value.Type, typeTable))]));
                             break;
                         case InitialValue.NoInitializer:
                             break;
@@ -114,18 +114,32 @@ public class TackyEmitter
                     var paddingBytes = new List<byte>(new byte[TypeChecker.GetTypeSize(single.Type, typeTable) - stringExp.StringVal.Length]);
                     stringBytes.AddRange(paddingBytes);
                     EmitStringInit(name, offset, stringBytes, instructions);
-                    break;
                 }
-                var result = EmitTackyAndConvert(single.Expression, instructions);
-                instructions.Add(new Instruction.CopyToOffset(ToVal(result), name, offset));
+                else
+                {
+                    var result = EmitTackyAndConvert(single.Expression, instructions);
+                    instructions.Add(new Instruction.CopyToOffset(ToVal(result), name, offset));
+                }
                 break;
             case Initializer.CompoundInitializer compound:
-                for (int i = 0; i < compound.Initializers.Count; i++)
+                if (compound.Type is Type.Structure structure)
                 {
-                    Initializer? init = compound.Initializers[i];
-                    var newOffset = offset + (i * TypeChecker.GetTypeSize(((Type.Array)compound.Type).Element, typeTable));
-                    EmitCompoundInit(init, newOffset, name, instructions);
+                    var members = typeTable[structure.Identifier].Members;
+                    for (int i = 0; i < members.Count; i++)
+                    {
+                        var memInit = compound.Initializers[i];
+                        var member = members[i];
+                        var memOffset = offset + member.Offset;
+                        EmitCompoundInit(memInit, memOffset, name, instructions);
+                    }
                 }
+                else
+                    for (int i = 0; i < compound.Initializers.Count; i++)
+                    {
+                        Initializer? init = compound.Initializers[i];
+                        var newOffset = offset + (i * TypeChecker.GetTypeSize(((Type.Array)compound.Type).Element, typeTable));
+                        EmitCompoundInit(init, newOffset, name, instructions);
+                    }
                 break;
         }
     }
@@ -259,6 +273,8 @@ public class TackyEmitter
             case Declaration.FunctionDeclaration functionDeclaration:
                 EmitFunction(functionDeclaration);
                 break;
+            case Declaration.StructDeclaration structDecl:
+                break;
             default:
                 throw new NotImplementedException();
         }
@@ -370,6 +386,9 @@ public class TackyEmitter
                         case ExpResult.DereferencedPointer pointer:
                             instructions.Add(new Instruction.Store(ToVal(rval), pointer.Val));
                             return new ExpResult.PlainOperand(ToVal(rval));
+                        case ExpResult.SubObject subObject:
+                            instructions.Add(new Instruction.CopyToOffset(ToVal(rval), subObject.Base, subObject.Offset));
+                            return new ExpResult.PlainOperand(ToVal(rval));
                         default:
                             throw new NotImplementedException();
                     }
@@ -475,6 +494,12 @@ public class TackyEmitter
                             return new ExpResult.PlainOperand(dst);
                         case ExpResult.DereferencedPointer pointer:
                             return new ExpResult.PlainOperand(pointer.Val);
+                        case ExpResult.SubObject subObject:
+                            var objDst = MakeTackyVariable(GetType(expression));
+                            instructions.Add(new Instruction.GetAddress(new Val.Variable(subObject.Base), objDst));
+                            if (subObject.Offset > 0)
+                                instructions.Add(new Instruction.AddPointer(objDst, new Val.Constant(new Const.ConstLong(subObject.Offset)), 1, objDst));
+                            return new ExpResult.PlainOperand(objDst);
                         default:
                             throw new NotImplementedException();
                     }
@@ -505,6 +530,41 @@ public class TackyEmitter
                     var result = TypeChecker.GetTypeSize(sizeofType.TargetType, typeTable);
                     return new ExpResult.PlainOperand(new Val.Constant(new Const.ConstULong((ulong)result)));
                 }
+            case Expression.Dot dot:
+                {
+                    var structDef = typeTable[((Type.Structure)GetType(dot.Structure)).Identifier];
+                    var memberOffset = structDef.Members.Find(a => a.MemberName == dot.Member).Offset;
+                    var innerObject = EmitTacky(dot.Structure, instructions);
+                    switch (innerObject)
+                    {
+                        case ExpResult.PlainOperand plain:
+                            if (plain.Val is Val.Variable var)
+                                return new ExpResult.SubObject(var.Name, memberOffset);
+                            else
+                                throw new NotImplementedException();
+                        case ExpResult.SubObject subObject:
+                            return new ExpResult.SubObject(subObject.Base, subObject.Offset + memberOffset);
+                        case ExpResult.DereferencedPointer pointer:
+                            var dstPointer = MakeTackyVariable(new Type.Pointer(GetType(expression)));
+                            var index = new Val.Constant(new Const.ConstLong(memberOffset));
+                            if (memberOffset > 0)
+                                instructions.Add(new Instruction.AddPointer(pointer.Val, index, 1, dstPointer));
+                            return new ExpResult.DereferencedPointer(dstPointer);
+                        default:
+                            throw new NotImplementedException();
+                    }
+                }
+            case Expression.Arrow arrow:
+                {
+                    var structDef = typeTable[((Type.Structure)((Type.Pointer)GetType(arrow.Pointer)).Referenced).Identifier];
+                    var memberOffset = structDef.Members.Find(a => a.MemberName == arrow.Member).Offset;
+                    var convertedPointer = EmitTackyAndConvert(arrow.Pointer, instructions);
+                    var dstPointer = MakeTackyVariable(new Type.Pointer(GetType(expression)));
+                    var index = new Val.Constant(new Const.ConstLong(memberOffset));
+                    if (memberOffset > 0)
+                        instructions.Add(new Instruction.AddPointer(ToVal(convertedPointer), index, 1, dstPointer));
+                    return new ExpResult.DereferencedPointer(dstPointer);
+                }
             default:
                 throw new NotImplementedException();
         }
@@ -521,6 +581,10 @@ public class TackyEmitter
                 var dst = MakeTackyVariable(GetType(expression));
                 instructions.Add(new Instruction.Load(pointer.Val, dst));
                 return new ExpResult.PlainOperand(dst);
+            case ExpResult.SubObject subObject:
+                var objDst = MakeTackyVariable(GetType(expression));
+                instructions.Add(new Instruction.CopyFromOffset(subObject.Base, subObject.Offset, objDst));
+                return new ExpResult.PlainOperand(objDst);
             default:
                 throw new NotImplementedException();
         }
