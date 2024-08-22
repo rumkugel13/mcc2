@@ -51,20 +51,21 @@ namespace mcc2
                 return output;
 
             Dictionary<string, SemanticAnalyzer.SymbolEntry> symbolTable = [];
-            new SemanticAnalyzer().Analyze(programAST, symbolTable);
+            Dictionary<string, SemanticAnalyzer.StructEntry> typeTable = [];
+            new SemanticAnalyzer().Analyze(programAST, symbolTable, typeTable);
 
             if (prettyPrint)
-                new PrettyPrinter(symbolTable).Print(programAST, source);
+                new PrettyPrinter(symbolTable, typeTable).Print(programAST, source);
 
             if (stages < Stages.Tacky)
                 return output;
 
-            TAC.TACProgam tacky = new TackyEmitter(symbolTable).Emit(programAST);
+            TAC.TACProgam tacky = new TackyEmitter(symbolTable, typeTable).Emit(programAST);
 
             if (stages < Stages.Assembly)
                 return output;
 
-            AssemblyProgram assembly = new AssemblyGenerator(symbolTable).Generate(tacky);
+            AssemblyProgram assembly = new AssemblyGenerator(symbolTable, typeTable).Generate(tacky);
 
             if (stages >= Stages.Emitter)
                 File.WriteAllText(output, new CodeEmitter().Emit(assembly).ToString());

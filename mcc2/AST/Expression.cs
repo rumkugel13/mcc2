@@ -42,8 +42,8 @@ public abstract record Expression
     public record String(string StringVal, Type Type) : Expression;
     public record SizeOf(Expression Expression, Type Type) : Expression;
     public record SizeOfType(Type TargetType, Type Type) : Expression;
-    public record Dot(Expression Structure, string Member) : Expression;
-    public record Arrow(Expression Pointer, string Member) : Expression;
+    public record Dot(Expression Structure, string Member, Type Type) : Expression;
+    public record Arrow(Expression Pointer, string Member, Type Type) : Expression;
 
     private Expression() { }
 }

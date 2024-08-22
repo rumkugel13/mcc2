@@ -4,10 +4,18 @@ namespace mcc2;
 
 public class SemanticAnalyzer
 {
-    public struct MapEntry
+    public struct StructEntry
     {
-        public string NewName;
-        public bool FromCurrentScope, HasLinkage;
+        public long Alignment;
+        public long Size;
+        public List<MemberEntry> Members;
+    }
+
+    public record struct MemberEntry
+    {
+        public string MemberName;
+        public Type MemberType;
+        public long Offset;
     }
 
     public struct SymbolEntry
@@ -16,10 +24,15 @@ public class SemanticAnalyzer
         public IdentifierAttributes IdentifierAttributes;
     }
 
-    public void Analyze(ASTProgram program, Dictionary<string, SymbolEntry> symbolTable)
+    public static Dictionary<string, SymbolEntry> SymbolTable = [];
+    public static Dictionary<string, StructEntry> TypeTable = [];
+
+    public void Analyze(ASTProgram program, Dictionary<string, SymbolEntry> symbolTable, Dictionary<string, StructEntry> typeTable)
     {
+        SymbolTable = symbolTable;
+        TypeTable = typeTable;
         new IdentifierResolver().Resolve(program);
-        new TypeChecker().Check(program, symbolTable);
+        new TypeChecker().Check(program, symbolTable, typeTable);
         new LoopLabeler().Label(program);
     }
 }

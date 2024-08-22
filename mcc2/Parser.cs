@@ -690,13 +690,13 @@ public class Parser
         {
             TakeToken(tokens);
             var identifier = Expect(Lexer.TokenType.Identifier, tokens);
-            return new Expression.Dot(primary, GetIdentifier(identifier, source));
+            return new Expression.Dot(primary, GetIdentifier(identifier, source), Type.None);
         }
         else if (nextToken.Type is Lexer.TokenType.HyphenGreaterThan)
         {
             TakeToken(tokens);
             var identifier = Expect(Lexer.TokenType.Identifier, tokens);
-            return new Expression.Arrow(primary, GetIdentifier(identifier, source));
+            return new Expression.Arrow(primary, GetIdentifier(identifier, source), Type.None);
         }
         else
         {

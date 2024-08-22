@@ -9,10 +9,12 @@ public class TackyEmitter
     private uint counter;
 
     private Dictionary<string, SemanticAnalyzer.SymbolEntry> symbolTable;
+    private Dictionary<string, SemanticAnalyzer.StructEntry> typeTable;
 
-    public TackyEmitter(Dictionary<string, SemanticAnalyzer.SymbolEntry> symbolTable)
+    public TackyEmitter(Dictionary<string, SemanticAnalyzer.SymbolEntry> symbolTable, Dictionary<string, SemanticAnalyzer.StructEntry> typeTable)
     {
         this.symbolTable = symbolTable;
+        this.typeTable = typeTable;
     }
 
     public TACProgam Emit(ASTProgram astProgram)
@@ -36,7 +38,7 @@ public class TackyEmitter
                             instructions.Add(new TopLevel.StaticVariable(entry.Key, stat.Global, entry.Value.Type, init.Inits));
                             break;
                         case InitialValue.Tentative:
-                            instructions.Add(new TopLevel.StaticVariable(entry.Key, stat.Global, entry.Value.Type, [TypeChecker.ConvertConstantToInit(entry.Value.Type, new Const.ConstInt(0))]));
+                            instructions.Add(new TopLevel.StaticVariable(entry.Key, stat.Global, entry.Value.Type, [TypeChecker.ConvertConstantToInit(entry.Value.Type, new Const.ConstInt(0), typeTable)]));
                             break;
                         case InitialValue.NoInitializer:
                             break;
@@ -109,7 +111,7 @@ public class TackyEmitter
                 if (single.Expression is Expression.String stringExp)
                 {
                     var stringBytes = new List<byte>(Encoding.ASCII.GetBytes(stringExp.StringVal));
-                    var paddingBytes = new List<byte>(new byte[TypeChecker.GetTypeSize(single.Type) - stringExp.StringVal.Length]);
+                    var paddingBytes = new List<byte>(new byte[TypeChecker.GetTypeSize(single.Type, typeTable) - stringExp.StringVal.Length]);
                     stringBytes.AddRange(paddingBytes);
                     EmitStringInit(name, offset, stringBytes, instructions);
                     break;
@@ -121,7 +123,7 @@ public class TackyEmitter
                 for (int i = 0; i < compound.Initializers.Count; i++)
                 {
                     Initializer? init = compound.Initializers[i];
-                    var newOffset = offset + (i * TypeChecker.GetTypeSize(((Type.Array)compound.Type).Element));
+                    var newOffset = offset + (i * TypeChecker.GetTypeSize(((Type.Array)compound.Type).Element, typeTable));
                     EmitCompoundInit(init, newOffset, name, instructions);
                 }
                 break;
@@ -319,7 +321,7 @@ public class TackyEmitter
                         var pointerVal = EmitTackyAndConvert(pointer, instructions);
                         var integerVal = EmitTackyAndConvert(integer, instructions);
                         var dst = MakeTackyVariable(binary.Type);
-                        instructions.Add(new Instruction.AddPointer(ToVal(pointerVal), ToVal(integerVal), TypeChecker.GetTypeSize(((Type.Pointer)GetType(pointer)).Referenced), dst));
+                        instructions.Add(new Instruction.AddPointer(ToVal(pointerVal), ToVal(integerVal), TypeChecker.GetTypeSize(((Type.Pointer)GetType(pointer)).Referenced, typeTable), dst));
                         return new ExpResult.PlainOperand(dst);
                     }
                     else if (binary.Operator == Expression.BinaryOperator.Subtract && (GetType(binary.Left) is Type.Pointer || GetType(binary.Right) is Type.Pointer))
@@ -331,7 +333,7 @@ public class TackyEmitter
                             var diffDst = MakeTackyVariable(binary.Type);
                             instructions.Add(new Instruction.Binary(Expression.BinaryOperator.Subtract, ToVal(p1), ToVal(p2), diffDst));
                             var result = MakeTackyVariable(binary.Type);
-                            instructions.Add(new Instruction.Binary(Expression.BinaryOperator.Divide, diffDst, new Val.Constant(new Const.ConstLong(TypeChecker.GetTypeSize(((Type.Pointer)GetType(binary.Left)).Referenced))), result));
+                            instructions.Add(new Instruction.Binary(Expression.BinaryOperator.Divide, diffDst, new Val.Constant(new Const.ConstLong(TypeChecker.GetTypeSize(((Type.Pointer)GetType(binary.Left)).Referenced, typeTable))), result));
                             return new ExpResult.PlainOperand(result);
                         }
 
@@ -342,7 +344,7 @@ public class TackyEmitter
                         var negatedDst = MakeTackyVariable(binary.Type);
                         instructions.Add(new Instruction.Unary(Expression.UnaryOperator.Negate, ToVal(integerVal), negatedDst));
                         var dst = MakeTackyVariable(binary.Type);
-                        instructions.Add(new Instruction.AddPointer(ToVal(pointerVal), negatedDst, TypeChecker.GetTypeSize(((Type.Pointer)GetType(pointer)).Referenced), dst));
+                        instructions.Add(new Instruction.AddPointer(ToVal(pointerVal), negatedDst, TypeChecker.GetTypeSize(((Type.Pointer)GetType(pointer)).Referenced, typeTable), dst));
                         return new ExpResult.PlainOperand(dst);
                     }
                     else
@@ -445,9 +447,9 @@ public class TackyEmitter
                     }
                     else
                     {
-                        if (TypeChecker.GetTypeSize(cast.TargetType) == TypeChecker.GetTypeSize(innerType))
+                        if (TypeChecker.GetTypeSize(cast.TargetType, typeTable) == TypeChecker.GetTypeSize(innerType, typeTable))
                             instructions.Add(new Instruction.Copy(ToVal(result), dst));
-                        else if (TypeChecker.GetTypeSize(cast.TargetType) < TypeChecker.GetTypeSize(innerType))
+                        else if (TypeChecker.GetTypeSize(cast.TargetType, typeTable) < TypeChecker.GetTypeSize(innerType, typeTable))
                             instructions.Add(new Instruction.Truncate(ToVal(result), dst));
                         else if (TypeChecker.IsSignedType(innerType))
                             instructions.Add(new Instruction.SignExtend(ToVal(result), dst));
@@ -495,12 +497,12 @@ public class TackyEmitter
             case Expression.SizeOf sizeofExp:
                 {
                     var type = GetType(sizeofExp.Expression);
-                    var result = TypeChecker.GetTypeSize(type);
+                    var result = TypeChecker.GetTypeSize(type, typeTable);
                     return new ExpResult.PlainOperand(new Val.Constant(new Const.ConstULong((ulong)result)));
                 }
             case Expression.SizeOfType sizeofType:
                 {
-                    var result = TypeChecker.GetTypeSize(sizeofType.TargetType);
+                    var result = TypeChecker.GetTypeSize(sizeofType.TargetType, typeTable);
                     return new ExpResult.PlainOperand(new Val.Constant(new Const.ConstULong((ulong)result)));
                 }
             default:

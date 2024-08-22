@@ -60,10 +60,11 @@ public class TestChapter01
         var ast = parser.Parse(return2tokens);
 
         Dictionary<string, SemanticAnalyzer.SymbolEntry> symbolTable = [];
-        TackyEmitter tackyEmitter = new TackyEmitter(symbolTable);
+        Dictionary<string, SemanticAnalyzer.StructEntry> typeTable = [];
+        TackyEmitter tackyEmitter = new TackyEmitter(symbolTable, typeTable);
         var tacky = tackyEmitter.Emit(ast);
 
-        AssemblyGenerator assemblyGenerator = new AssemblyGenerator(symbolTable);
+        AssemblyGenerator assemblyGenerator = new AssemblyGenerator(symbolTable,typeTable);
         var assembly = assemblyGenerator.Generate(tacky);
 
         Assert.IsNotNull(assembly, "Invalid Assembly node");
@@ -95,10 +96,11 @@ main:
         var ast = parser.Parse(return2tokens);
 
         Dictionary<string, SemanticAnalyzer.SymbolEntry> symbolTable = [];
-        TackyEmitter tackyEmitter = new TackyEmitter(symbolTable);
+        Dictionary<string, SemanticAnalyzer.StructEntry> typeTable = [];
+        TackyEmitter tackyEmitter = new TackyEmitter(symbolTable, typeTable);
         var tacky = tackyEmitter.Emit(ast);
 
-        AssemblyGenerator assemblyGenerator = new AssemblyGenerator(symbolTable);
+        AssemblyGenerator assemblyGenerator = new AssemblyGenerator(symbolTable, typeTable);
         var assembly = assemblyGenerator.Generate(tacky);
         
         CodeEmitter emitter = new CodeEmitter();

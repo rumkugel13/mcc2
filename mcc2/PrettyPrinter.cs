@@ -5,10 +5,12 @@ namespace mcc2;
 public class PrettyPrinter
 {
     Dictionary<string, SemanticAnalyzer.SymbolEntry> symbolTable;
+    Dictionary<string, SemanticAnalyzer.StructEntry> typeTable;
 
-    public PrettyPrinter(Dictionary<string, SemanticAnalyzer.SymbolEntry> symbolTable)
+    public PrettyPrinter(Dictionary<string, SemanticAnalyzer.SymbolEntry> symbolTable, Dictionary<string, SemanticAnalyzer.StructEntry> typeTable)
     {
         this.symbolTable = symbolTable;
+        this.typeTable = typeTable;
     }
 
     public void Print(ASTProgram program, string source)
@@ -29,6 +31,22 @@ public class PrettyPrinter
             PrintLine($"value=(", indent + 2);
             PrintLine($"attributes={entry.Value.IdentifierAttributes}", indent + 3);
             PrintLine($"type={entry.Value.Type}", indent + 3);
+            PrintLine(")", indent + 2);
+            PrintLine(")", indent + 1);
+        }
+        foreach (var entry in typeTable)
+        {
+            PrintLine("Types(", indent + 1);
+            PrintLine($"key=\"{entry.Key}\"", indent + 2);
+            PrintLine($"value=(", indent + 2);
+            PrintLine($"alignment={entry.Value.Alignment}", indent + 3);
+            PrintLine($"size={entry.Value.Size}", indent + 3);
+            PrintLine($"members=(", indent + 3);
+            foreach (var member in entry.Value.Members)
+            {
+                PrintLine($"{member}", indent + 4);
+            }
+            PrintLine($")", indent + 3);
             PrintLine(")", indent + 2);
             PrintLine(")", indent + 1);
         }
@@ -301,6 +319,22 @@ public class PrettyPrinter
             case Expression.SizeOfType sizeofType:
                 PrintLine("SizeOfType(", indent);
                 PrintLine($"target=\"{sizeofType.TargetType}\"", indent + 1);
+                PrintLine(")", indent);
+                break;
+            case Expression.Dot dot:
+                PrintLine($"Dot(", indent);
+                PrintLine($"structure=(", indent + 1);
+                PrintExpression(dot.Structure, source, indent + 2);
+                PrintLine(")", indent + 1);
+                PrintLine($"member=\"{dot.Member}\"", indent + 1);
+                PrintLine(")", indent);
+                break;
+            case Expression.Arrow arrow:
+                PrintLine($"Dot(", indent);
+                PrintLine($"pointer=(", indent + 1);
+                PrintExpression(arrow.Pointer, source, indent + 2);
+                PrintLine(")", indent + 1);
+                PrintLine($"member=\"{arrow.Member}\"", indent + 1);
                 PrintLine(")", indent);
                 break;
         }

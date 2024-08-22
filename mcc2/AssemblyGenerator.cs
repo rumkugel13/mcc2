@@ -8,12 +8,14 @@ public class AssemblyGenerator
     public static Dictionary<string, AsmSymbolTableEntry> AsmSymbolTable = [];
 
     private Dictionary<string, SemanticAnalyzer.SymbolEntry> symbolTable;
+    private Dictionary<string, SemanticAnalyzer.StructEntry> typeTable;
     private Dictionary<string, TopLevel.StaticConstant> staticConstants = [];
     private int counter;
 
-    public AssemblyGenerator(Dictionary<string, SemanticAnalyzer.SymbolEntry> symbolTable)
+    public AssemblyGenerator(Dictionary<string, SemanticAnalyzer.SymbolEntry> symbolTable, Dictionary<string, SemanticAnalyzer.StructEntry> typeTable)
     {
         this.symbolTable = symbolTable;
+        this.typeTable = typeTable;
 
         foreach (var entry in symbolTable)
         {
@@ -46,9 +48,9 @@ public class AssemblyGenerator
                 topLevelDefinitions.Add(GenerateFunction(fun));
             else if (def is TAC.TopLevel.StaticVariable staticVariable)
                 topLevelDefinitions.Add(new TopLevel.StaticVariable(staticVariable.Identifier, staticVariable.Global,
-                    GetAlignment(staticVariable.Type), staticVariable.Inits));
+                    GetAssemblyAlignment(staticVariable.Type), staticVariable.Inits));
             else if (def is TAC.TopLevel.StaticConstant staticConstant)
-                topLevelDefinitions.Add(new TopLevel.StaticConstant(staticConstant.Identifier, GetAlignment(staticConstant.Type), staticConstant.Init));
+                topLevelDefinitions.Add(new TopLevel.StaticConstant(staticConstant.Identifier, GetAssemblyAlignment(staticConstant.Type), staticConstant.Init));
         }
 
         foreach (var cons in staticConstants)
@@ -483,13 +485,13 @@ public class AssemblyGenerator
         return instructions;
     }
 
-    public static int GetAlignment(Type type)
+    public static int GetAssemblyAlignment(Type type)
     {
         return type switch
         {
             Type.Int or Type.UInt => 4,
             Type.Long or Type.ULong or Type.Double or Type.Pointer => 8,
-            Type.Array array => TypeChecker.GetTypeSize(array) >= 16 ? 16 : GetAlignment(array.Element),
+            Type.Array array => TypeChecker.GetTypeSize(array, SemanticAnalyzer.TypeTable) >= 16 ? 16 : GetAssemblyAlignment(array.Element),
             Type.Char or Type.SChar or Type.UChar => 1,
             _ => throw new NotImplementedException()
         };
@@ -502,7 +504,7 @@ public class AssemblyGenerator
             Type.Int or Type.UInt => new AssemblyType.Longword(),
             Type.Long or Type.ULong or Type.Pointer => new AssemblyType.Quadword(),
             Type.Double => new AssemblyType.Double(),
-            Type.Array array => new AssemblyType.ByteArray(TypeChecker.GetTypeSize(array.Element) * array.Size, GetAlignment(array)),
+            Type.Array array => new AssemblyType.ByteArray(TypeChecker.GetTypeSize(array.Element, SemanticAnalyzer.TypeTable) * array.Size, GetAssemblyAlignment(array)),
             Type.Char or Type.SChar or Type.UChar => new AssemblyType.Byte(),
             _ => throw new NotImplementedException()
         };
