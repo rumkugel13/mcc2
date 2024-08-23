@@ -330,7 +330,7 @@ public class PrettyPrinter
                 PrintLine(")", indent);
                 break;
             case Expression.Arrow arrow:
-                PrintLine($"Dot(", indent);
+                PrintLine($"Arrow(", indent);
                 PrintLine($"pointer=(", indent + 1);
                 PrintExpression(arrow.Pointer, source, indent + 2);
                 PrintLine(")", indent + 1);

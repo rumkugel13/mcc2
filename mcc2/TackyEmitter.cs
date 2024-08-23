@@ -561,7 +561,7 @@ public class TackyEmitter
                     var memberOffset = structDef.Members.Find(a => a.MemberName == arrow.Member).Offset;
                     var convertedPointer = EmitTackyAndConvert(arrow.Pointer, instructions);
                     if (memberOffset == 0)
-                        return convertedPointer;
+                        return new ExpResult.DereferencedPointer(ToVal(convertedPointer));
                     var dstPointer = MakeTackyVariable(new Type.Pointer(GetType(expression)));
                     var index = new Val.Constant(new Const.ConstLong(memberOffset));
                     instructions.Add(new Instruction.AddPointer(ToVal(convertedPointer), index, 1, dstPointer));
