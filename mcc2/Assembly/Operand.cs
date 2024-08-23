@@ -26,12 +26,19 @@ public abstract record Operand
         XMM14,
         XMM15,        
     }
+
+    public enum ClassType
+    {
+        Memory,
+        SSE,
+        Integer,
+    }
     
     public record Imm(ulong Value) : Operand;
     public record Pseudo(string Identifier) : Operand;
     public record Reg(RegisterName Register) : Operand;
     public record Memory(RegisterName Register, long Offset) : Operand;
-    public record Data(string Identifier) : Operand;
+    public record Data(string Identifier, long Offset) : Operand;
     public record Indexed(RegisterName Base, RegisterName Index, long Scale) : Operand;
     public record PseudoMemory(string Identifier, long Offset) : Operand;
 

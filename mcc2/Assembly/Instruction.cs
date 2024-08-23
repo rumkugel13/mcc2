@@ -18,6 +18,8 @@ public abstract record Instruction
         And,
         Or,
         Xor,
+        Shl,
+        ShrTwoOp,
     }
 
     public enum ConditionCode

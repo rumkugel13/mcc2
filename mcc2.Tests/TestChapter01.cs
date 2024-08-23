@@ -47,9 +47,9 @@ public class TestChapter01
         Assert.AreEqual(((Declaration.FunctionDeclaration)ast.Declarations[0]).Identifier, "main", "Invalid Identifier");
         Assert.IsNotNull(((Declaration.FunctionDeclaration)ast.Declarations[0]).Body, "Invalid Statement");
         Assert.IsInstanceOfType(((Declaration.FunctionDeclaration)ast.Declarations[0]).Body, typeof(Statement.ReturnStatement), "Expected ReturnStatement type");
-        Assert.IsNotNull(((Statement.ReturnStatement)((Declaration.FunctionDeclaration)ast.Declarations[0]).Body.BlockItems[0]).Expression, "Invalid Expression");
-        Assert.IsInstanceOfType(((Statement.ReturnStatement)((Declaration.FunctionDeclaration)ast.Declarations[0]).Body.BlockItems[0]).Expression, typeof(Expression.Constant), "Expected ConstantExpression type");
-        Assert.AreEqual(((Const.ConstInt)((Expression.Constant)((Statement.ReturnStatement)((Declaration.FunctionDeclaration)ast.Declarations[0]).Body.BlockItems[0]).Expression).Value).Value, 2, "Invalid Constant");
+        Assert.IsNotNull(((Statement.ReturnStatement)((Declaration.FunctionDeclaration)ast.Declarations[0]).Body!.BlockItems[0]).Expression, "Invalid Expression");
+        Assert.IsInstanceOfType(((Statement.ReturnStatement)((Declaration.FunctionDeclaration)ast.Declarations[0]).Body!.BlockItems[0]).Expression, typeof(Expression.Constant), "Expected ConstantExpression type");
+        Assert.AreEqual(((Const.ConstInt)((Expression.Constant)((Statement.ReturnStatement)((Declaration.FunctionDeclaration)ast.Declarations[0]).Body!.BlockItems[0]).Expression!).Value).Value, 2, "Invalid Constant");
     }
 
     [TestMethod]

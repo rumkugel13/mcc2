@@ -1059,7 +1059,7 @@ public class TypeChecker
         return type is Type.Char or Type.UChar or Type.SChar;
     }
 
-    private bool IsScalar(Type type)
+    public static bool IsScalar(Type type)
     {
         return type switch
         {
@@ -1071,7 +1071,7 @@ public class TypeChecker
         };
     }
 
-    private bool IsComplete(Type type, Dictionary<string, StructEntry> typeTable)
+    public static bool IsComplete(Type type, Dictionary<string, StructEntry> typeTable)
     {
         return type switch
         {

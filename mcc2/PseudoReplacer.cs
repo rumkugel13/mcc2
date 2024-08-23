@@ -7,6 +7,12 @@ public class PseudoReplacer
     public Dictionary<string, long> OffsetMap = [];
     private long currentOffset;
 
+    public PseudoReplacer(string functionName)
+    {
+        if (AssemblyGenerator.AsmSymbolTable[functionName] is AsmSymbolTableEntry.FunctionEntry funcEntry && funcEntry.ReturnOnStack)
+            currentOffset = 8;
+    }
+
     public long Replace(List<Instruction> instructions)
     {
         for (int i = 0; i < instructions.Count; i++)
@@ -194,7 +200,7 @@ public class PseudoReplacer
 
         if ((AsmSymbolTableEntry.ObjectEntry)AssemblyGenerator.AsmSymbolTable[name] is AsmSymbolTableEntry.ObjectEntry objEntry && objEntry.IsStatic)
         {
-            return new Operand.Data(name);
+            return new Operand.Data(name, offset);
         }
 
         var (size, align) = ((AsmSymbolTableEntry.ObjectEntry)AssemblyGenerator.AsmSymbolTable[name]).AssemblyType switch

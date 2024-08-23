@@ -21,11 +21,20 @@ public class AssemblyGenerator
         {
             if (entry.Value.IdentifierAttributes is IdentifierAttributes.Function funAttr)
             {
-                AsmSymbolTable[entry.Key] = new AsmSymbolTableEntry.FunctionEntry(funAttr.Defined);
+                bool returnsOnStack = false;
+                if (entry.Value.Type is Type.FunctionType funcType && (TypeChecker.IsComplete(funcType.Return, typeTable) || funcType.Return is Type.Void))
+                {
+                    returnsOnStack = true;
+                }
+                AsmSymbolTable[entry.Key] = new AsmSymbolTableEntry.FunctionEntry(funAttr.Defined, returnsOnStack);
             }
             else if (entry.Value.IdentifierAttributes is IdentifierAttributes.Constant constant)
             {
                 AsmSymbolTable[entry.Key] = new AsmSymbolTableEntry.ObjectEntry(GetAssemblyType(entry.Value.Type), true, true);
+            }
+            else if (entry.Value.IdentifierAttributes is IdentifierAttributes.Static stat && !TypeChecker.IsComplete(entry.Value.Type, typeTable))
+            {
+                AsmSymbolTable[entry.Key] = new AsmSymbolTableEntry.ObjectEntry(new AssemblyType.Byte(), true, true);
             }
             else
             {
@@ -85,7 +94,7 @@ public class AssemblyGenerator
     {
         List<Instruction> instructions = [];
 
-        SetupParameters(function.Name, function.Parameters, instructions);
+        SetupParameters(function.Parameters, ReturnsOnStack(function.Name), instructions);
 
         TopLevel.Function fn = new TopLevel.Function(function.Name, function.Global, GenerateInstructions(function.Instructions, instructions));
 
@@ -94,7 +103,7 @@ public class AssemblyGenerator
             AsmSymbolTable[cons.Key] = new AsmSymbolTableEntry.ObjectEntry(new AssemblyType.Double(), true, true);
         }
 
-        PseudoReplacer stackAllocator = new PseudoReplacer();
+        PseudoReplacer stackAllocator = new PseudoReplacer(function.Name);
         long bytesToAllocate = stackAllocator.Replace(fn.Instructions);
 
         // note: chapter 9 says we should store this per function in symboltable or ast
@@ -109,17 +118,35 @@ public class AssemblyGenerator
         return fn;
     }
 
-    private void SetupParameters(string functionName, List<string> parameters, List<Instruction> instructions)
+    private bool ReturnsOnStack(string funcName)
+    {
+        return symbolTable[funcName].Type is Type.FunctionType funcType && funcType.Return is Type.Structure structure &&
+            ClassifyStructure(typeTable[structure.Identifier])[0] == Operand.ClassType.Memory;
+    }
+
+    private void SetupParameters(List<string> parameters, bool returnInMemory, List<Instruction> instructions)
     {
         List<TAC.Val> vals = [];
         foreach (var param in parameters)
             vals.Add(new TAC.Val.Variable(param));
-        ClassifyParameters(vals, out var intRegArgs, out var doubleRegArgs, out var stackArgs);
+        (List<(AssemblyType, Operand)> intRegArgs, List<Operand> doubleRegArgs, List<(AssemblyType, Operand)> stackArgs) = ClassifyParameters(vals, returnInMemory);
 
-        for (int i = 0; i < intRegArgs.Count; i++)
+        var regIndex = 0;
+
+        if (returnInMemory)
         {
-            var arg = intRegArgs[i];
-            instructions.Add(new Instruction.Mov(arg.Item1, new Operand.Reg(ABIRegisters[i]), arg.Item2));
+            instructions.Add(new Instruction.Mov(new AssemblyType.Quadword(), new Operand.Reg(Operand.RegisterName.DI), new Operand.Memory(Operand.RegisterName.BP, -8)));
+            regIndex = 1;
+        }
+
+        for (int i = regIndex; i < intRegArgs.Count; i++)
+        {
+            (AssemblyType assemblyType, Operand operand) = intRegArgs[i];
+            var reg = ABIRegisters[i];
+            if (assemblyType is AssemblyType.ByteArray byteArray)
+                CopyBytesFromReg(reg, operand, byteArray.Size, instructions);
+            else
+                instructions.Add(new Instruction.Mov(assemblyType, new Operand.Reg(ABIRegisters[i]), operand));
         }
 
         for (int i = 0; i < doubleRegArgs.Count; i++)
@@ -128,10 +155,15 @@ public class AssemblyGenerator
             instructions.Add(new Instruction.Mov(new AssemblyType.Double(), new Operand.Reg(ABIFloatRegisters[i]), arg));
         }
 
+        var offset = 16;
         for (int i = 0; i < stackArgs.Count; i++)
         {
-            var arg = stackArgs[i];
-            instructions.Add(new Instruction.Mov(arg.Item1, new Operand.Memory(Operand.RegisterName.BP, 16 + i * 8), arg.Item2));
+            (AssemblyType assemblyType, Operand operand) = stackArgs[i];
+            if (assemblyType is AssemblyType.ByteArray byteArray)
+                CopyBytes(new Operand.Memory(Operand.RegisterName.BP, offset), operand, byteArray.Size, instructions);
+            else
+                instructions.Add(new Instruction.Mov(assemblyType, new Operand.Memory(Operand.RegisterName.BP, offset), operand));
+            offset += 8;
         }
     }
 
@@ -140,14 +172,59 @@ public class AssemblyGenerator
         return align * ((bytes + align - 1) / align);
     }
 
-    private void ClassifyParameters(List<TAC.Val> parameters,
-        out List<(AssemblyType, Operand)> intRegArgs,
-        out List<Operand> doubleRegArgs,
-        out List<(AssemblyType, Operand)> stackArgs)
+    private (List<(AssemblyType, Operand)> intRetVals, List<Operand> doubleRetVals, bool returnedInMemory) ClassifyReturnValue(TAC.Val returnValue)
     {
-        intRegArgs = [];
-        doubleRegArgs = [];
-        stackArgs = [];
+        AssemblyType assemblyType = GetAssemblyType(returnValue);
+
+        if (assemblyType is AssemblyType.Double)
+        {
+            var operand = GenerateOperand(returnValue);
+            return ([], [operand], false);
+        }
+        else if (IsScalar(returnValue))
+        {
+            var typedOperand = (assemblyType, GenerateOperand(returnValue));
+            return ([typedOperand], [], false);
+        }
+        else
+        {
+            var parameterName = ((TAC.Val.Variable)returnValue).Name;
+            var structDef = typeTable[((Type.Structure)(symbolTable[parameterName]).Type).Identifier];
+            var classes = ClassifyStructure(structDef);
+            var structSize = structDef.Size;
+            if (classes[0] == Operand.ClassType.Memory)
+                return ([], [], true);
+            else
+            {
+                List<(AssemblyType, Operand)> intRetVals = [];
+                List<Operand> doubleRetVals = [];
+                long offset = 0;
+                foreach (var classType in classes)
+                {
+                    var classOperand = new Operand.PseudoMemory(parameterName, offset);
+                    if (classType is Operand.ClassType.SSE)
+                        doubleRetVals.Add(classOperand);
+                    else if (classType is Operand.ClassType.Integer)
+                    {
+                        var eightByteType = GetEightbyteType(offset, structSize);
+                        intRetVals.Add((eightByteType, classOperand));
+                    }
+                    else
+                        throw new NotImplementedException();
+                    offset += 8;
+                }
+                return (intRetVals, doubleRetVals, false);
+            }
+        }
+    }
+
+    private (List<(AssemblyType, Operand)> intRegArgs, List<Operand> doubleRegArgs, List<(AssemblyType, Operand)> stackArgs) ClassifyParameters(List<TAC.Val> parameters, bool returnInMemory)
+    {
+        List<(AssemblyType, Operand)> intRegArgs = [];
+        List<Operand> doubleRegArgs = [];
+        List<(AssemblyType, Operand)> stackArgs = [];
+
+        var intRegsAvailable = returnInMemory ? ABIRegisters.Length - 1 : ABIRegisters.Length;  // 5 or 6
 
         for (int i = 0; i < parameters.Count; i++)
         {
@@ -161,19 +238,146 @@ public class AssemblyGenerator
                 else
                     stackArgs.Add(typedOperand);
             }
-            else
+            else if (IsScalar(parameters[i]))
             {
-                if (intRegArgs.Count < ABIRegisters.Length)
+                if (intRegArgs.Count < intRegsAvailable)
                     intRegArgs.Add(typedOperand);
                 else
                     stackArgs.Add(typedOperand);
             }
+            else
+            {
+                var parameterName = ((TAC.Val.Variable)parameters[i]).Name;
+                var structDef = typeTable[((Type.Structure)(symbolTable[parameterName]).Type).Identifier];
+                var classes = ClassifyStructure(structDef);
+                bool useStack = true;
+                var structSize = structDef.Size;
+
+                if (classes[0] != Operand.ClassType.Memory)
+                {
+                    List<(AssemblyType, Operand)> tentativeInts = [];
+                    List<Operand> tentativeDoubles = [];
+                    long offset = 0;
+                    foreach (var classType in classes)
+                    {
+                        var classOperand = new Operand.PseudoMemory(parameterName, offset);
+                        if (classType == Operand.ClassType.SSE)
+                            tentativeDoubles.Add(classOperand);
+                        else
+                        {
+                            var eightByteType = GetEightbyteType(offset, structSize);
+                            tentativeInts.Add((eightByteType, classOperand));
+                        }
+                        offset += 8;
+                    }
+
+                    if (tentativeDoubles.Count + doubleRegArgs.Count <= 8 &&
+                        tentativeInts.Count + intRegArgs.Count <= intRegsAvailable)
+                    {
+                        doubleRegArgs.AddRange(tentativeDoubles);
+                        intRegArgs.AddRange(tentativeInts);
+                        useStack = false;
+                    }
+                }
+
+                if (useStack)
+                {
+                    long offset = 0;
+                    foreach (var classType in classes)
+                    {
+                        var classOperand = new Operand.PseudoMemory(parameterName, offset);
+                        var eightByteType = GetEightbyteType(offset, structSize);
+                        stackArgs.Add((eightByteType, classOperand));
+                        offset += 8;
+                    }
+                }
+            }
         }
+
+        return (intRegArgs, doubleRegArgs, stackArgs);
+    }
+
+    private AssemblyType GetEightbyteType(long offset, long structSize)
+    {
+        var bytesFromEnd = structSize - offset;
+        if (bytesFromEnd >= 8)
+            return new AssemblyType.Quadword();
+        if (bytesFromEnd == 4)
+            return new AssemblyType.Longword();
+        if (bytesFromEnd == 1)
+            return new AssemblyType.Byte();
+        return new AssemblyType.ByteArray(bytesFromEnd, 8);
+    }
+
+    private List<Operand.ClassType> ClassifyStructure(SemanticAnalyzer.StructEntry structEntry)
+    {
+        // todo: cache the result
+        if (structEntry.Size > 16)
+        {
+            List<Operand.ClassType> result = [];
+            long size = structEntry.Size;
+            while (size > 0)
+            {
+                result.Add(Operand.ClassType.Memory);
+                size -= 8;
+            }
+            return result;
+        }
+        List<Type> scalarTypes = GetMemberTypes(structEntry);
+        if (structEntry.Size > 8)
+        {
+            if (scalarTypes[0] is Type.Double && scalarTypes[^1] is Type.Double)
+                return [Operand.ClassType.SSE, Operand.ClassType.SSE];
+            if (scalarTypes[0] is Type.Double)
+                return [Operand.ClassType.SSE, Operand.ClassType.Integer];
+            if (scalarTypes[^1] is Type.Double)
+                return [Operand.ClassType.Integer, Operand.ClassType.SSE];
+            return [Operand.ClassType.Integer, Operand.ClassType.Integer];
+        }
+        else if (scalarTypes[0] is Type.Double)
+            return [Operand.ClassType.SSE];
+        else
+            return [Operand.ClassType.Integer];
+    }
+
+    private List<Type> GetMemberTypes(SemanticAnalyzer.StructEntry structEntry)
+    {
+        List<Type> flatMembers = [];
+        foreach (var member in structEntry.Members)
+        {
+            if (member.MemberType is Type.Array array)
+            {
+                for (int i = 0; i < array.Size; i++)
+                    flatMembers.Add(array.Element);
+            }
+            else if (member.MemberType is Type.Structure structure)
+            {
+                flatMembers.AddRange(GetMemberTypes(typeTable[structure.Identifier]));
+            }
+            else
+                flatMembers.Add(member.MemberType);
+        }
+        return flatMembers;
     }
 
     private void GenerateFunctionCall(TAC.Instruction.FunctionCall functionCall, List<Instruction> instructions)
     {
-        ClassifyParameters(functionCall.Arguments, out var intRegArgs, out var doubleRegArgs, out var stackArgs);
+        bool returnInMemory = false;
+        List<(AssemblyType, Operand)> intDests = [];
+        List<Operand> doubleDests = [];
+        long regIndex = 0;
+
+        if (functionCall.Dst != null)
+            (intDests, doubleDests, returnInMemory) = ClassifyReturnValue(functionCall.Dst);
+
+        if (returnInMemory)
+        {
+            var dstOperand = GenerateOperand(functionCall.Dst!);
+            instructions.Add(new Instruction.Lea(dstOperand, new Operand.Reg(Operand.RegisterName.DI)));
+            regIndex = 1;
+        }
+
+        (List<(AssemblyType, Operand)> intRegArgs, List<Operand> doubleRegArgs, List<(AssemblyType, Operand)> stackArgs) = ClassifyParameters(functionCall.Arguments, returnInMemory);
 
         var stackPadding = stackArgs.Count % 2 != 0 ? 8 : 0;
 
@@ -181,12 +385,13 @@ public class AssemblyGenerator
             instructions.Add(new Instruction.Binary(Instruction.BinaryOperator.Sub, new AssemblyType.Quadword(),
                 new Operand.Imm((ulong)stackPadding), new Operand.Reg(Operand.RegisterName.SP)));
 
-        // pass args on registers
-        int regIndex = 0;
-        foreach (var tackyArg in intRegArgs)
+        foreach ((AssemblyType assemblyType, Operand operand) in intRegArgs)
         {
             var reg = ABIRegisters[regIndex];
-            instructions.Add(new Instruction.Mov(tackyArg.Item1, tackyArg.Item2, new Operand.Reg(reg)));
+            if (assemblyType is AssemblyType.ByteArray byteArray)
+                CopyBytesToReg(operand, reg, byteArray.Size, instructions);
+            else
+                instructions.Add(new Instruction.Mov(assemblyType, operand, new Operand.Reg(reg)));
             regIndex++;
         }
 
@@ -198,15 +403,19 @@ public class AssemblyGenerator
             regIndex++;
         }
 
-        // pass args on stack
         for (int i = stackArgs.Count - 1; i >= 0; i--)
         {
-            var tackyArg = stackArgs[i];
-            if (tackyArg.Item2 is Operand.Reg or Operand.Imm || tackyArg.Item1 is AssemblyType.Quadword or AssemblyType.Double)
-                instructions.Add(new Instruction.Push(tackyArg.Item2));
+            (AssemblyType assemblyType, Operand operand) = stackArgs[i];
+            if (assemblyType is AssemblyType.ByteArray byteArray)
+            {
+                instructions.Add(new Instruction.Binary(Instruction.BinaryOperator.Sub, new AssemblyType.Quadword(), new Operand.Imm(0), new Operand.Reg(Operand.RegisterName.SP)));
+                CopyBytes(operand, new Operand.Memory(Operand.RegisterName.SP, 0), byteArray.Size, instructions);
+            }
+            else if (operand is Operand.Reg or Operand.Imm || assemblyType is AssemblyType.Quadword or AssemblyType.Double)
+                instructions.Add(new Instruction.Push(operand));
             else
             {
-                instructions.Add(new Instruction.Mov(tackyArg.Item1, tackyArg.Item2, new Operand.Reg(Operand.RegisterName.AX)));
+                instructions.Add(new Instruction.Mov(assemblyType, operand, new Operand.Reg(Operand.RegisterName.AX)));
                 instructions.Add(new Instruction.Push(new Operand.Reg(Operand.RegisterName.AX)));
             }
         }
@@ -218,14 +427,55 @@ public class AssemblyGenerator
             instructions.Add(new Instruction.Binary(Instruction.BinaryOperator.Add, new AssemblyType.Quadword(),
                 new Operand.Imm((ulong)bytesToRemove), new Operand.Reg(Operand.RegisterName.SP)));
 
-        if (functionCall.Dst != null)
+        if (functionCall.Dst != null && !returnInMemory)
         {
-            var assemblyDst = GenerateOperand(functionCall.Dst);
-            var returnType = GetAssemblyType(functionCall.Dst);
-            if (returnType is AssemblyType.Double)
-                instructions.Add(new Instruction.Mov(new AssemblyType.Double(), new Operand.Reg(Operand.RegisterName.XMM0), assemblyDst));
-            else
-                instructions.Add(new Instruction.Mov(returnType, new Operand.Reg(Operand.RegisterName.AX), assemblyDst));
+            Operand.RegisterName[] intReturnRegs = [Operand.RegisterName.AX, Operand.RegisterName.DX];
+            Operand.RegisterName[] doubleReturnRegs = [Operand.RegisterName.XMM0, Operand.RegisterName.XMM1];
+
+            regIndex = 0;
+            foreach ((AssemblyType assemblyType, Operand operand) in intDests)
+            {
+                var reg = intReturnRegs[regIndex];
+                if (assemblyType is AssemblyType.ByteArray byteArray)
+                    CopyBytesFromReg(reg, operand, byteArray.Size, instructions);
+                else
+                    instructions.Add(new Instruction.Mov(assemblyType, new Operand.Reg(reg), operand));
+                regIndex++;
+            }
+
+            regIndex = 0;
+            foreach (Operand operand in doubleDests)
+            {
+                var reg = doubleReturnRegs[regIndex];
+                instructions.Add(new Instruction.Mov(new AssemblyType.Double(), new Operand.Reg(reg), operand));
+                regIndex++;
+            }
+        }
+    }
+
+    private void CopyBytesToReg(Operand operand, Operand.RegisterName reg, long size, List<Instruction> instructions)
+    {
+        var offset = size - 1;
+        while (offset >= 0)
+        {
+            var srcByte = AddOffset(operand, offset);
+            instructions.Add(new Instruction.Mov(new AssemblyType.Byte(), srcByte, new Operand.Reg(reg)));
+            if (offset > 0)
+                instructions.Add(new Instruction.Binary(Instruction.BinaryOperator.Shl, new AssemblyType.Quadword(), new Operand.Imm(8), new Operand.Reg(reg)));
+            offset -= 1;
+        }
+    }
+
+    private void CopyBytesFromReg(Operand.RegisterName reg, Operand operand, long size, List<Instruction> instructions)
+    {
+        var offset = 0;
+        while (offset < size)
+        {
+            var dstByte = AddOffset(operand, offset);
+            instructions.Add(new Instruction.Mov(new AssemblyType.Byte(), new Operand.Reg(reg), dstByte));
+            if (offset < size - 1)
+                instructions.Add(new Instruction.Binary(Instruction.BinaryOperator.ShrTwoOp, new AssemblyType.Quadword(), new Operand.Imm(8), new Operand.Reg(reg)));
+            offset += 1;
         }
     }
 
@@ -236,12 +486,49 @@ public class AssemblyGenerator
             switch (inst)
             {
                 case TAC.Instruction.Return ret:
-                    if (ret.Value != null)
-                        if (GetAssemblyType(ret.Value) is AssemblyType.Double)
-                            instructions.Add(new Instruction.Mov(new AssemblyType.Double(), GenerateOperand(ret.Value), new Operand.Reg(Operand.RegisterName.XMM0)));
+                    {
+                        if (ret.Value == null)
+                        {
+                            instructions.Add(new Instruction.Ret());
+                            break;
+                        }
+
+                        (List<(AssemblyType, Operand)> intRetVals, List<Operand> doubleRetVals, bool returnedInMemory) = ClassifyReturnValue(ret.Value);
+
+                        if (returnedInMemory)
+                        {
+                            instructions.Add(new Instruction.Mov(new AssemblyType.Quadword(), new Operand.Memory(Operand.RegisterName.BP, -8), new Operand.Reg(Operand.RegisterName.AX)));
+                            var returnStorage = new Operand.Memory(Operand.RegisterName.AX, 0);
+                            var retOperand = GenerateOperand(ret.Value);
+                            var t = GetAssemblyType(ret.Value);
+                            CopyBytes(retOperand, returnStorage, GetSize(ret.Value), instructions);
+                        }
                         else
-                            instructions.Add(new Instruction.Mov(GetAssemblyType(ret.Value), GenerateOperand(ret.Value), new Operand.Reg(Operand.RegisterName.AX)));
-                    instructions.Add(new Instruction.Ret());
+                        {
+                            Operand.RegisterName[] intReturnRegs = [Operand.RegisterName.AX, Operand.RegisterName.DX];
+                            Operand.RegisterName[] doubleReturnRegs = [Operand.RegisterName.XMM0, Operand.RegisterName.XMM1];
+
+                            var regIndex = 0;
+                            foreach ((AssemblyType assemblyType, Operand operand) in intRetVals)
+                            {
+                                var reg = intReturnRegs[regIndex];
+                                if (assemblyType is AssemblyType.ByteArray byteArray)
+                                    CopyBytesToReg(operand, reg, byteArray.Size, instructions);
+                                else
+                                    instructions.Add(new Instruction.Mov(assemblyType, operand, new Operand.Reg(reg)));
+                                regIndex++;
+                            }
+
+                            regIndex = 0;
+                            foreach (Operand operand in doubleRetVals)
+                            {
+                                var reg = doubleReturnRegs[regIndex];
+                                instructions.Add(new Instruction.Mov(new AssemblyType.Double(), operand, new Operand.Reg(reg)));
+                                regIndex++;
+                            }
+                        }
+                        instructions.Add(new Instruction.Ret());
+                    }
                     break;
                 case TAC.Instruction.Unary unary:
                     if (unary.UnaryOperator == AST.Expression.UnaryOperator.Not)
@@ -264,7 +551,7 @@ public class AssemblyGenerator
                     {
                         instructions.Add(new Instruction.Mov(new AssemblyType.Double(), GenerateOperand(unary.src), GenerateOperand(unary.dst)));
                         var constLabel = GenerateStaticConstant(new AST.Const.ConstDouble(-0.0), 16);
-                        instructions.Add(new Instruction.Binary(Instruction.BinaryOperator.Xor, new AssemblyType.Double(), new Operand.Data(constLabel), GenerateOperand(unary.dst)));
+                        instructions.Add(new Instruction.Binary(Instruction.BinaryOperator.Xor, new AssemblyType.Double(), new Operand.Data(constLabel, 0), GenerateOperand(unary.dst)));
                     }
                     else
                     {
@@ -349,7 +636,10 @@ public class AssemblyGenerator
                     }
                     break;
                 case TAC.Instruction.Copy copy:
-                    instructions.Add(new Instruction.Mov(GetAssemblyType(copy.Src), GenerateOperand(copy.Src), GenerateOperand(copy.Dst)));
+                    if (IsScalar(copy.Src))
+                        instructions.Add(new Instruction.Mov(GetAssemblyType(copy.Src), GenerateOperand(copy.Src), GenerateOperand(copy.Dst)));
+                    else
+                        CopyBytes(GenerateOperand(copy.Src), GenerateOperand(copy.Dst), GetSize(copy.Src), instructions);
                     break;
                 case TAC.Instruction.Label label:
                     instructions.Add(new Instruction.Label(label.Identifier));
@@ -389,7 +679,7 @@ public class AssemblyGenerator
                     else
                     {
                         var upperBoundLabel = GenerateStaticConstant(new AST.Const.ConstDouble(9223372036854775808.0), 8);
-                        instructions.Add(new Instruction.Cmp(new AssemblyType.Double(), new Operand.Data(upperBoundLabel), GenerateOperand(doubleToUInt.Src)));
+                        instructions.Add(new Instruction.Cmp(new AssemblyType.Double(), new Operand.Data(upperBoundLabel, 0), GenerateOperand(doubleToUInt.Src)));
                         var outOfRangeLabel = $".L_outOfRange.{counter}";
                         instructions.Add(new Instruction.JmpCC(Instruction.ConditionCode.AE, outOfRangeLabel));
                         instructions.Add(new Instruction.Cvttsd2si(new AssemblyType.Quadword(), GenerateOperand(doubleToUInt.Src), GenerateOperand(doubleToUInt.Dst)));
@@ -397,7 +687,7 @@ public class AssemblyGenerator
                         instructions.Add(new Instruction.Jmp(endLabel));
                         instructions.Add(new Instruction.Label(outOfRangeLabel));
                         instructions.Add(new Instruction.Mov(new AssemblyType.Double(), GenerateOperand(doubleToUInt.Src), new Operand.Reg(Operand.RegisterName.XMM1)));
-                        instructions.Add(new Instruction.Binary(Instruction.BinaryOperator.Sub, new AssemblyType.Double(), new Operand.Data(upperBoundLabel), new Operand.Reg(Operand.RegisterName.XMM1)));
+                        instructions.Add(new Instruction.Binary(Instruction.BinaryOperator.Sub, new AssemblyType.Double(), new Operand.Data(upperBoundLabel, 0), new Operand.Reg(Operand.RegisterName.XMM1)));
                         instructions.Add(new Instruction.Cvttsd2si(new AssemblyType.Quadword(), new Operand.Reg(Operand.RegisterName.XMM1), GenerateOperand(doubleToUInt.Dst)));
                         instructions.Add(new Instruction.Mov(new AssemblyType.Quadword(), new Operand.Imm(9223372036854775808), new Operand.Reg(Operand.RegisterName.DX)));
                         instructions.Add(new Instruction.Binary(Instruction.BinaryOperator.Add, new AssemblyType.Quadword(), new Operand.Reg(Operand.RegisterName.DX), GenerateOperand(doubleToUInt.Dst)));
@@ -444,18 +734,47 @@ public class AssemblyGenerator
                     }
                     break;
                 case TAC.Instruction.Load load:
-                    instructions.Add(new Instruction.Mov(new AssemblyType.Quadword(), GenerateOperand(load.SrcPtr), new Operand.Reg(Operand.RegisterName.AX)));
-                    instructions.Add(new Instruction.Mov(GetAssemblyType(load.Dst), new Operand.Memory(Operand.RegisterName.AX, 0), GenerateOperand(load.Dst)));
+                    if (IsScalar(load.Dst))
+                    {
+                        instructions.Add(new Instruction.Mov(new AssemblyType.Quadword(), GenerateOperand(load.SrcPtr), new Operand.Reg(Operand.RegisterName.AX)));
+                        instructions.Add(new Instruction.Mov(GetAssemblyType(load.Dst), new Operand.Memory(Operand.RegisterName.AX, 0), GenerateOperand(load.Dst)));
+                    }
+                    else
+                    {
+                        instructions.Add(new Instruction.Mov(new AssemblyType.Quadword(), GenerateOperand(load.SrcPtr), new Operand.Reg(Operand.RegisterName.AX)));
+                        CopyBytes(new Operand.Memory(Operand.RegisterName.AX, 0), GenerateOperand(load.Dst), GetSize(load.Dst), instructions);
+                    }
                     break;
                 case TAC.Instruction.Store store:
-                    instructions.Add(new Instruction.Mov(new AssemblyType.Quadword(), GenerateOperand(store.DstPtr), new Operand.Reg(Operand.RegisterName.AX)));
-                    instructions.Add(new Instruction.Mov(GetAssemblyType(store.Src), GenerateOperand(store.Src), new Operand.Memory(Operand.RegisterName.AX, 0)));
+                    if (IsScalar(store.Src))
+                    {
+                        instructions.Add(new Instruction.Mov(new AssemblyType.Quadword(), GenerateOperand(store.DstPtr), new Operand.Reg(Operand.RegisterName.AX)));
+                        instructions.Add(new Instruction.Mov(GetAssemblyType(store.Src), GenerateOperand(store.Src), new Operand.Memory(Operand.RegisterName.AX, 0)));
+                    }
+                    else
+                    {
+                        instructions.Add(new Instruction.Mov(new AssemblyType.Quadword(), GenerateOperand(store.DstPtr), new Operand.Reg(Operand.RegisterName.AX)));
+                        CopyBytes(GenerateOperand(store.Src), new Operand.Memory(Operand.RegisterName.AX, 0), GetSize(store.Src), instructions);
+                    }
                     break;
                 case TAC.Instruction.GetAddress getAddress:
                     instructions.Add(new Instruction.Lea(GenerateOperand(getAddress.Src), GenerateOperand(getAddress.Dst)));
                     break;
                 case TAC.Instruction.CopyToOffset copyToOffset:
-                    instructions.Add(new Instruction.Mov(GetAssemblyType(copyToOffset.Src), GenerateOperand(copyToOffset.Src), new Operand.PseudoMemory(copyToOffset.Dst, copyToOffset.Offset)));
+                    if (IsScalar(copyToOffset.Src))
+                        instructions.Add(new Instruction.Mov(GetAssemblyType(copyToOffset.Src), GenerateOperand(copyToOffset.Src), new Operand.PseudoMemory(copyToOffset.Dst, copyToOffset.Offset)));
+                    else
+                    {
+                        CopyBytes(GenerateOperand(copyToOffset.Src), new Operand.PseudoMemory(copyToOffset.Dst, copyToOffset.Offset), GetSize(copyToOffset.Src), instructions);
+                    }
+                    break;
+                case TAC.Instruction.CopyFromOffset copyFromOffset:
+                    if (IsScalar(copyFromOffset.Dst))
+                        instructions.Add(new Instruction.Mov(GetAssemblyType(copyFromOffset.Dst), new Operand.PseudoMemory(copyFromOffset.Src, copyFromOffset.Offset), GenerateOperand(copyFromOffset.Dst)));
+                    else
+                    {
+                        CopyBytes(new Operand.PseudoMemory(copyFromOffset.Src, copyFromOffset.Offset), GenerateOperand(copyFromOffset.Dst), GetSize(copyFromOffset.Dst), instructions);
+                    }
                     break;
                 case TAC.Instruction.AddPointer addPointer:
                     if (addPointer.Index is TAC.Val.Constant constant)
@@ -485,7 +804,42 @@ public class AssemblyGenerator
         return instructions;
     }
 
-    public static int GetAssemblyAlignment(Type type)
+    private void CopyBytes(Operand Src, Operand Dst, long bytes, List<Instruction> instructions)
+    {
+        if (bytes == 0)
+            return;
+
+        AssemblyType assemblyType = new AssemblyType.Byte();
+        long operandSize = 1;
+        if (bytes > 8)
+        {
+            assemblyType = new AssemblyType.Quadword();
+            operandSize = 8;
+        }
+        else if (bytes > 4)
+        {
+            assemblyType = new AssemblyType.Longword();
+            operandSize = 4;
+        }
+
+        var nextSrc = AddOffset(Src, operandSize);
+        var nextDst = AddOffset(Dst, operandSize);
+        var bytesLeft = bytes - operandSize;
+        instructions.Add(new Instruction.Mov(assemblyType, nextSrc, nextDst));
+        CopyBytes(nextSrc, nextDst, bytesLeft, instructions);
+    }
+
+    private Operand AddOffset(Operand operand, long bytes)
+    {
+        return operand switch
+        {
+            Operand.Memory memory => new Operand.Memory(memory.Register, memory.Offset + bytes),
+            Operand.PseudoMemory pseudo => new Operand.PseudoMemory(pseudo.Identifier, pseudo.Offset + bytes),
+            _ => throw new NotImplementedException(),
+        };
+    }
+
+    public static long GetAssemblyAlignment(Type type)
     {
         return type switch
         {
@@ -493,6 +847,7 @@ public class AssemblyGenerator
             Type.Long or Type.ULong or Type.Double or Type.Pointer => 8,
             Type.Array array => TypeChecker.GetTypeSize(array, SemanticAnalyzer.TypeTable) >= 16 ? 16 : GetAssemblyAlignment(array.Element),
             Type.Char or Type.SChar or Type.UChar => 1,
+            Type.Structure structure => SemanticAnalyzer.TypeTable[structure.Identifier].Alignment,
             _ => throw new NotImplementedException()
         };
     }
@@ -506,6 +861,7 @@ public class AssemblyGenerator
             Type.Double => new AssemblyType.Double(),
             Type.Array array => new AssemblyType.ByteArray(TypeChecker.GetTypeSize(array.Element, SemanticAnalyzer.TypeTable) * array.Size, GetAssemblyAlignment(array)),
             Type.Char or Type.SChar or Type.UChar => new AssemblyType.Byte(),
+            Type.Structure structure => new AssemblyType.ByteArray(SemanticAnalyzer.TypeTable[structure.Identifier].Size, SemanticAnalyzer.TypeTable[structure.Identifier].Alignment),
             _ => throw new NotImplementedException()
         };
     }
@@ -524,6 +880,34 @@ public class AssemblyGenerator
                 _ => throw new NotImplementedException()
             },
             TAC.Val.Variable var => GetAssemblyType(symbolTable[var.Name].Type),
+            _ => throw new NotImplementedException()
+        };
+    }
+
+    private bool IsScalar(TAC.Val val)
+    {
+        return val switch
+        {
+            TAC.Val.Constant constant => true,
+            TAC.Val.Variable var => TypeChecker.IsScalar(symbolTable[var.Name].Type),
+            _ => throw new NotImplementedException()
+        };
+    }
+
+    private long GetSize(TAC.Val val)
+    {
+        return val switch
+        {
+            TAC.Val.Constant constant => constant.Value switch
+            {
+                AST.Const.ConstInt or AST.Const.ConstUInt => 4,
+                AST.Const.ConstLong or AST.Const.ConstULong => 8,
+                AST.Const.ConstDouble => 8,
+                AST.Const.ConstChar => 1,
+                AST.Const.ConstUChar => 1,
+                _ => throw new NotImplementedException()
+            },
+            TAC.Val.Variable var => TypeChecker.GetTypeSize(symbolTable[var.Name].Type, typeTable),
             _ => throw new NotImplementedException()
         };
     }
@@ -572,6 +956,10 @@ public class AssemblyGenerator
         if (val is TAC.Val.Variable var && symbolTable.TryGetValue(var.Name, out var symbol) && symbol.Type is Type.Array)
         {
             return new Operand.PseudoMemory(var.Name, 0);
+        }
+        if (val is TAC.Val.Variable var2 && symbolTable.TryGetValue(var2.Name, out var symbol2) && symbol2.Type is Type.Structure)
+        {
+            return new Operand.PseudoMemory(var2.Name, 0);
         }
 
         return val switch
