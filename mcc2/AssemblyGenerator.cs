@@ -811,12 +811,12 @@ public class AssemblyGenerator
 
         AssemblyType assemblyType = new AssemblyType.Byte();
         long operandSize = 1;
-        if (bytes > 8)
+        if (bytes >= 8)
         {
             assemblyType = new AssemblyType.Quadword();
             operandSize = 8;
         }
-        else if (bytes > 4)
+        else if (bytes >= 4)
         {
             assemblyType = new AssemblyType.Longword();
             operandSize = 4;
@@ -825,7 +825,7 @@ public class AssemblyGenerator
         var nextSrc = AddOffset(Src, operandSize);
         var nextDst = AddOffset(Dst, operandSize);
         var bytesLeft = bytes - operandSize;
-        instructions.Add(new Instruction.Mov(assemblyType, nextSrc, nextDst));
+        instructions.Add(new Instruction.Mov(assemblyType, Src, Dst));
         CopyBytes(nextSrc, nextDst, bytesLeft, instructions);
     }
 

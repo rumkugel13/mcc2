@@ -545,10 +545,11 @@ public class TackyEmitter
                         case ExpResult.SubObject subObject:
                             return new ExpResult.SubObject(subObject.Base, subObject.Offset + memberOffset);
                         case ExpResult.DereferencedPointer pointer:
+                            if (memberOffset == 0)
+                                return new ExpResult.DereferencedPointer(pointer.Val);
                             var dstPointer = MakeTackyVariable(new Type.Pointer(GetType(expression)));
                             var index = new Val.Constant(new Const.ConstLong(memberOffset));
-                            if (memberOffset > 0)
-                                instructions.Add(new Instruction.AddPointer(pointer.Val, index, 1, dstPointer));
+                            instructions.Add(new Instruction.AddPointer(pointer.Val, index, 1, dstPointer));
                             return new ExpResult.DereferencedPointer(dstPointer);
                         default:
                             throw new NotImplementedException();
@@ -559,10 +560,11 @@ public class TackyEmitter
                     var structDef = typeTable[((Type.Structure)((Type.Pointer)GetType(arrow.Pointer)).Referenced).Identifier];
                     var memberOffset = structDef.Members.Find(a => a.MemberName == arrow.Member).Offset;
                     var convertedPointer = EmitTackyAndConvert(arrow.Pointer, instructions);
+                    if (memberOffset == 0)
+                        return convertedPointer;
                     var dstPointer = MakeTackyVariable(new Type.Pointer(GetType(expression)));
                     var index = new Val.Constant(new Const.ConstLong(memberOffset));
-                    if (memberOffset > 0)
-                        instructions.Add(new Instruction.AddPointer(ToVal(convertedPointer), index, 1, dstPointer));
+                    instructions.Add(new Instruction.AddPointer(ToVal(convertedPointer), index, 1, dstPointer));
                     return new ExpResult.DereferencedPointer(dstPointer);
                 }
             default:
