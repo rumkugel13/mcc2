@@ -24,7 +24,7 @@ public class AssemblyGenerator
                 bool returnsOnStack = false;
                 if (entry.Value.Type is Type.FunctionType funcType && (TypeChecker.IsComplete(funcType.Return, typeTable) || funcType.Return is Type.Void))
                 {
-                    returnsOnStack = true;
+                    returnsOnStack = ReturnsOnStack(entry.Key);
                 }
                 AsmSymbolTable[entry.Key] = new AsmSymbolTableEntry.FunctionEntry(funAttr.Defined, returnsOnStack);
             }

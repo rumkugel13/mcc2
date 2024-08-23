@@ -215,6 +215,6 @@ public class PseudoReplacer
 
         currentOffset = AssemblyGenerator.AlignTo(currentOffset + size, align);
         OffsetMap[name] = -currentOffset;
-        return new Operand.Memory(Operand.RegisterName.BP, -currentOffset);
+        return new Operand.Memory(Operand.RegisterName.BP, -currentOffset + (isMemory ? offset : 0));
     }
 }
