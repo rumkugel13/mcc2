@@ -408,7 +408,7 @@ public class AssemblyGenerator
             (AssemblyType assemblyType, Operand operand) = stackArgs[i];
             if (assemblyType is AssemblyType.ByteArray byteArray)
             {
-                instructions.Add(new Instruction.Binary(Instruction.BinaryOperator.Sub, new AssemblyType.Quadword(), new Operand.Imm(0), new Operand.Reg(Operand.RegisterName.SP)));
+                instructions.Add(new Instruction.Binary(Instruction.BinaryOperator.Sub, new AssemblyType.Quadword(), new Operand.Imm(8), new Operand.Reg(Operand.RegisterName.SP)));
                 CopyBytes(operand, new Operand.Memory(Operand.RegisterName.SP, 0), byteArray.Size, instructions);
             }
             else if (operand is Operand.Reg or Operand.Imm || assemblyType is AssemblyType.Quadword or AssemblyType.Double)
