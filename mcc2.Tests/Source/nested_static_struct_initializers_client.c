@@ -68,8 +68,9 @@ int main(void) {
         return 3;
     }
 
-    if (!test_implicit_conversions()) {
-        return 4;
+    int res = test_implicit_conversions();
+    if (res != 1) {
+        return 4 + res;
     }
 
     if (!test_array_of_structs()) {

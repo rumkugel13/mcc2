@@ -139,14 +139,14 @@ public class AssemblyGenerator
             regIndex = 1;
         }
 
-        for (int i = regIndex; i < intRegArgs.Count; i++)
+        foreach ((AssemblyType assemblyType, Operand operand) in intRegArgs)
         {
-            (AssemblyType assemblyType, Operand operand) = intRegArgs[i];
-            var reg = ABIRegisters[i];
+            var reg = ABIRegisters[regIndex];
             if (assemblyType is AssemblyType.ByteArray byteArray)
                 CopyBytesFromReg(reg, operand, byteArray.Size, instructions);
             else
-                instructions.Add(new Instruction.Mov(assemblyType, new Operand.Reg(ABIRegisters[i]), operand));
+                instructions.Add(new Instruction.Mov(assemblyType, new Operand.Reg(reg), operand));
+            regIndex++;
         }
 
         for (int i = 0; i < doubleRegArgs.Count; i++)
