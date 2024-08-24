@@ -8,7 +8,7 @@ namespace mcc2
             if (args.Length == 0)
             {
                 Console.WriteLine("Invalid Arguments");
-                return -1;
+                return 1;
             }
 
             string file = "";
@@ -44,7 +44,7 @@ namespace mcc2
                     else
                     {
                         Console.WriteLine($"Invalid option: {option}");
-                        return -4;
+                        return 4;
                     }
                 }
                 else
@@ -54,13 +54,13 @@ namespace mcc2
                     if (!File.Exists(file))
                     {
                         Console.WriteLine($"Invalid Source File: {file}");
-                        return -2;
+                        return 2;
                     }
 
                     if (!file.EndsWith(".c"))
                     {
                         Console.WriteLine("Not a C source File");
-                        return -3;
+                        return 3;
                     }
                 }
             }
@@ -74,9 +74,8 @@ namespace mcc2
             }
             catch (Exception e)
             {
-                Console.WriteLine($"Error on stage {stages}:");
                 Console.WriteLine(e.Message);
-                return -3 - (int)stages;
+                return 10;
             }
             finally
             {
