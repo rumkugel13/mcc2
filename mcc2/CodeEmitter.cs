@@ -263,6 +263,8 @@ public class CodeEmitter
             Instruction.BinaryOperator.DivDouble => "div",
             Instruction.BinaryOperator.And => "and",
             Instruction.BinaryOperator.Or => "or",
+            Instruction.BinaryOperator.Shl => "shl",
+            Instruction.BinaryOperator.ShrTwoOp => "shr",
             _ => throw new NotImplementedException()
         };
     }
@@ -285,7 +287,7 @@ public class CodeEmitter
             Operand.Reg reg => EmitRegister(reg.Register, assemblyType),
             Operand.Imm imm => $"${imm.Value}",
             Operand.Memory memory => $"{memory.Offset}({EmitRegister(memory.Register, new AssemblyType.Quadword())})",
-            Operand.Data data => $"{data.Identifier}(%rip)",
+            Operand.Data data => $"{data.Identifier}+{data.Offset}(%rip)",
             Operand.Indexed indexed => $"({EmitRegister(indexed.Base, new AssemblyType.Quadword())}, {EmitRegister(indexed.Index, new AssemblyType.Quadword())}, {indexed.Scale})",
             _ => throw new NotImplementedException()
         };
