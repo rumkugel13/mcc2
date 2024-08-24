@@ -42,21 +42,15 @@ public class CodeEmitter
 
     private void EmitStaticVariable(TopLevel.StaticVariable staticVariable, StringBuilder builder)
     {
-        if (staticVariable.Inits.Count == 1 && staticVariable.Inits[0] is StaticInit.StringInit)
-        {
-            EmitStaticConstant(new TopLevel.StaticConstant(staticVariable.Identifier, staticVariable.Alignment, staticVariable.Inits[0]), builder);
-            return;
-        }
-
         if (staticVariable.Global)
             builder.AppendLine($"\t.globl {staticVariable.Identifier}");
 
-        var isZero = staticVariable.Inits.Count == 1 && GetValue(staticVariable.Inits[0]) == 0 && (staticVariable.Inits[0] is not StaticInit.DoubleInit || staticVariable.Inits[0] is StaticInit.ZeroInit);
+        var isZero = IsZero(staticVariable.Inits);
         builder.AppendLine($"\t.{(isZero ? "bss" : "data")}");
         builder.AppendLine($"\t.{(OperatingSystem.IsLinux() ? "align" : "balign")} {staticVariable.Alignment}");
         builder.AppendLine($"{staticVariable.Identifier}:");
 
-        if (isZero)
+        if (isZero && staticVariable.Inits[0] is not StaticInit.ZeroInit)
             builder.AppendLine($"\t.zero {staticVariable.Alignment}");
         else
         {
@@ -78,6 +72,17 @@ public class CodeEmitter
         }
     }
 
+    private bool IsZero(List<StaticInit> inits)
+    {
+        if (inits.Count != 1)
+            return false;
+        if (inits[0] is StaticInit.ZeroInit)
+            return true;
+        if (inits[0] is not StaticInit.DoubleInit and not StaticInit.StringInit and not StaticInit.PointerInit && GetValue(inits[0]) == 0)
+            return true;
+        return false;
+    }
+
     private void EmitStringConstant(StaticInit.StringInit stringInit, StringBuilder builder)
     {
         builder.AppendLine($"\t.asci{(stringInit.NullTerminated ? "z" : "i")} \"{System.Text.RegularExpressions.Regex.Escape(stringInit.Value).
@@ -88,9 +93,9 @@ public class CodeEmitter
     private void EmitStaticConstant(TopLevel.StaticConstant statConst, StringBuilder builder)
     {
         if (OperatingSystem.IsLinux())
-            builder.AppendLine($".section .rodata");
+            builder.AppendLine($"\t.section .rodata");
         if (OperatingSystem.IsMacOS())
-            builder.AppendLine($".{(statConst.Init is StaticInit.StringInit ? "cstring" : $"literal{statConst.Alignment}")}");
+            builder.AppendLine($"\t.{(statConst.Init is StaticInit.StringInit ? "cstring" : $"literal{statConst.Alignment}")}");
 
         builder.AppendLine($"\t.{(OperatingSystem.IsLinux() ? "align" : "balign")} {statConst.Alignment}");
         builder.AppendLine($"{statConst.Identifier}:");
