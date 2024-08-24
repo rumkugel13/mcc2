@@ -11,7 +11,7 @@ namespace mcc2
                 return 1;
             }
 
-            string file = "";
+            List<string> files = [];
             CompilerDriver.Stages stages = CompilerDriver.Stages.Emitter;
             bool assemble = true;
             bool link = true;
@@ -49,7 +49,7 @@ namespace mcc2
                 }
                 else
                 {
-                    file = arg;
+                    var file = arg;
 
                     if (!File.Exists(file))
                     {
@@ -62,36 +62,57 @@ namespace mcc2
                         Console.WriteLine("Not a C source File");
                         return 3;
                     }
+
+                    files.Add(file);
                 }
             }
 
-            string processed = CompilerDriver.Preprocessor(file);
+            List<string> assemblyFiles = [];
+            foreach (var file in files)
+            {
+                string processed = CompilerDriver.Preprocessor(file);
 
-            string assembly;
-            try
-            {
-                assembly = CompilerDriver.Compile(processed, stages, prettyPrint);
-            }
-            catch (Exception e)
-            {
-                Console.WriteLine(e.Message);
-                return 10;
-            }
-            finally
-            {
-                File.Delete(processed);
+                try
+                {
+                    string assembly = CompilerDriver.Compile(processed, stages, prettyPrint);
+                    assemblyFiles.Add(assembly);
+                }
+                catch (Exception e)
+                {
+                    Console.WriteLine(e.Message);
+                    return 10;
+                }
+                finally
+                {
+                    File.Delete(processed);
+                }
             }
 
             if (stages == CompilerDriver.Stages.Emitter)
             {
                 if (assemble && link)
-                    CompilerDriver.AssembleAndLink(assembly, linkOption);
+                {
+                    if (assemblyFiles.Count == 1)
+                        CompilerDriver.AssembleAndLink(assemblyFiles[0], linkOption);
+                    else
+                        CompilerDriver.AssembleAndLinkFiles(assemblyFiles, $"{assemblyFiles[0][..^2]}", linkOption);
+                }
                 else if (assemble)
-                    CompilerDriver.AssembleOnly(assembly);
+                {
+                    foreach (var assembly in assemblyFiles)
+                    {
+                        CompilerDriver.AssembleOnly(assembly);
+                    }
+                }
             }
 
             if (assemble)
-                File.Delete(assembly);
+            {
+                foreach (var assembly in assemblyFiles)
+                {
+                    File.Delete(assembly);
+                }
+            }
 
             return 0;
         }

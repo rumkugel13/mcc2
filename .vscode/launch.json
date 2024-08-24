@@ -11,7 +11,9 @@
             "preLaunchTask": "dotnet: build",
             "program": "${workspaceFolder}/mcc2/bin/Debug/net8.0/mcc2",
             "args": [
-                "-S", "--pretty", "mcc2.Tests/Source/struct_copy_stack_clobber.c"
+                "--pretty", 
+                "mcc2.Tests/Source/return_calling_conventions_client.c", 
+                "mcc2.Tests/Source/return_calling_conventions.c", 
             ],
             "cwd": "${workspaceFolder}",
             "stopAtEntry": false,
