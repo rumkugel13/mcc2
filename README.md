@@ -38,7 +38,7 @@ Besides having fun and learning how compilers and C work, these are some of the 
     - [ ] Extra: switch Statements
   - [X] 9: Functions
   - [X] 10: File Scope Variable Declarations and Storage-Class Specifiers
-- [ ] Part II: Types beyond int
+- [X] Part II: Types beyond int
   - [X] 11: Long Integers
   - [X] 12: Unsigned Integers
   - [X] 13: Floating-Point Numbers
@@ -47,8 +47,14 @@ Besides having fun and learning how compilers and C work, these are some of the 
   - [X] 15: Arrays and Pointer Arithmetic
   - [X] 16: Characters and Strings
   - [X] 17: Supporting Dynamic Memory Allocation
-  - [ ] 18: Structures
+  - [X] 18: Structures
     - [ ] Extra: Unions
 - [ ] Part III: Optimizations
   - [ ] 19: Optimizing TACKY Programs
   - [ ] 20: Register Allocation
+
+## Bugs
+
+Chapter 18:
+
+There is one test (tests/chapter_18/valid/no_structure_parameters/libraries/initializers/nested_static_struct_initializers_client) which doesn't work correctly due to double type conversions. In the function "test_implicit_conversions" the check "converted.four_d != 9223372036854777856.0" fails due to converted.four_d not having the same double type value. "converted.four_d" was initialized with a "9223372036854776833ul", which should produce the same double value (9223372036854777856.0), but somehow doesn't. I don't know why this happens, especially when all the previous tests for double in chapter 13 do not fail, so there's that.
