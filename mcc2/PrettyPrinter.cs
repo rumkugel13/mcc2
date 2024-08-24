@@ -68,19 +68,22 @@ public class PrettyPrinter
 
     private void PrintFunctionDefinition(Declaration.FunctionDeclaration functionDefinition, string source, int indent)
     {
-        
+
         Type.FunctionType funcType = (Type.FunctionType)symbolTable[functionDefinition.Identifier].Type;
 
         PrintLine("Function(", indent++);
         PrintLine($"name=\"{functionDefinition.Identifier}\",", indent);
-        PrintLine($"parameters=(", indent);
-        if (functionDefinition.Parameters.Count == 0)
-            PrintLine($"void", indent + 1);
-        for (int i = 0; i < functionDefinition.Parameters.Count; i++)
+        if (functionDefinition.Parameters.Count > 0)
         {
-            PrintLine($"name=\"{functionDefinition.Parameters[i]}\", type={funcType.Parameters[i]}", indent + 1);
+            PrintLine($"parameters=(", indent);
+            for (int i = 0; i < functionDefinition.Parameters.Count; i++)
+            {
+                PrintLine($"name=\"{functionDefinition.Parameters[i]}\", type={funcType.Parameters[i]}", indent + 1);
+            }
+            PrintLine(")", indent);
         }
-        PrintLine(")", indent);
+        else
+            PrintLine("parameters=()", indent);
         PrintLine($"returnType={funcType.Return}", indent);
         PrintLine($"body=(", indent);
         if (functionDefinition.Body != null)
@@ -101,7 +104,8 @@ public class PrettyPrinter
                 PrintLine($"Declare(", indent);
                 PrintLine($"name=\"{declaration.Identifier}\",", indent + 1);
                 PrintLine($"type=({declaration.VariableType})", indent + 1);
-                if (declaration.Initializer != null){
+                if (declaration.Initializer != null)
+                {
                     PrintLine("init=(", indent + 1);
                     PrintInitializer(declaration.Initializer, source, indent + 2);
                     PrintLine(")", indent + 1);
@@ -223,9 +227,7 @@ public class PrettyPrinter
         switch (expression)
         {
             case Expression.Constant constant:
-                PrintLine($"Constant(", indent);
-                PrintLine($"value=\"{constant.Value}\"", indent + 1);
-                PrintLine(")", indent);
+                PrintLine($"Constant(value=({constant.Value}))", indent);
                 break;
             case Expression.Unary unary:
                 PrintLine($"Unary(", indent);
@@ -273,12 +275,17 @@ public class PrettyPrinter
             case Expression.FunctionCall functionCall:
                 PrintLine($"Call(", indent);
                 PrintLine($"name=\"{functionCall.Identifier}\",", indent + 1);
-                PrintLine($"args=(", indent + 1);
-                foreach (var arg in functionCall.Arguments)
+                if (functionCall.Arguments.Count > 0)
                 {
-                    PrintExpression(arg, source, indent + 2);
+                    PrintLine($"args=(", indent + 1);
+                    foreach (var arg in functionCall.Arguments)
+                    {
+                        PrintExpression(arg, source, indent + 2);
+                    }
+                    PrintLine(")", indent + 1);
                 }
-                PrintLine(")", indent + 1);
+                else
+                    PrintLine("args=()", indent + 1);
                 PrintLine(")", indent);
                 break;
             case Expression.Cast cast:
