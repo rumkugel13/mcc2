@@ -17,6 +17,25 @@ namespace mcc2
             Emitter,
         }
 
+        [Flags]
+        public enum Optimizations
+        {
+            None = 0,
+            FoldConstants = 1,
+            PropagateCopies = 2,
+            EliminateUnreachableCode = 4,
+            EliminateDeadStores = 8,
+            All = FoldConstants | PropagateCopies | EliminateUnreachableCode | EliminateDeadStores
+        }
+
+        public struct CompilerOptions
+        {
+            public string File;
+            public Stages Stages;
+            public Optimizations Optimizations;
+            public bool PrettyPrint;
+        }
+
         public static string Preprocessor(string file)
         {
             string output = $"{file[..^2]}.i";
@@ -32,42 +51,45 @@ namespace mcc2
             return output;
         }
 
-        public static string Compile(string file, Stages stages = Stages.Emitter, bool prettyPrint = false)
+        public static string Compile(CompilerOptions compilerOptions)// string file, Stages stages = Stages.Emitter, bool prettyPrint = false)
         {
-            string output = $"{file[..^2]}.s";
-            string source = File.ReadAllText(file);
+            string output = $"{compilerOptions.File[..^2]}.s";
+            string source = File.ReadAllText(compilerOptions.File);
 
-            if (stages < Stages.Lex)
+            if (compilerOptions.Stages < Stages.Lex)
                 return output;
 
             List<Lexer.Token> tokenList = new Lexer().Lex(source);
 
-            if (stages < Stages.Parse)
+            if (compilerOptions.Stages < Stages.Parse)
                 return output;
 
             ASTProgram programAST = new Parser(source).Parse(tokenList);
 
-            if (stages < Stages.Validate)
+            if (compilerOptions.Stages < Stages.Validate)
                 return output;
 
             Dictionary<string, SemanticAnalyzer.SymbolEntry> symbolTable = [];
             Dictionary<string, SemanticAnalyzer.StructEntry> typeTable = [];
             new SemanticAnalyzer().Analyze(programAST, symbolTable, typeTable);
 
-            if (prettyPrint)
+            if (compilerOptions.PrettyPrint)
                 new PrettyPrinter(symbolTable, typeTable).Print(programAST, source);
 
-            if (stages < Stages.Tacky)
+            if (compilerOptions.Stages < Stages.Tacky)
                 return output;
 
             TAC.TACProgam tacky = new TackyEmitter(symbolTable, typeTable).Emit(programAST);
 
-            if (stages < Stages.Assembly)
+            if (compilerOptions.Optimizations != Optimizations.None)
+                tacky = new TackyOptimizer().Optimize(tacky, compilerOptions.Optimizations);
+
+            if (compilerOptions.Stages < Stages.Assembly)
                 return output;
 
             AssemblyProgram assembly = new AssemblyGenerator(symbolTable, typeTable).Generate(tacky);
 
-            if (stages >= Stages.Emitter)
+            if (compilerOptions.Stages >= Stages.Emitter)
                 File.WriteAllText(output, new CodeEmitter().Emit(assembly).ToString());
 
             return output;

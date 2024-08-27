@@ -533,30 +533,30 @@ public class AssemblyGenerator
                 case TAC.Instruction.Unary unary:
                     if (unary.UnaryOperator == AST.Expression.UnaryOperator.Not)
                     {
-                        if (GetAssemblyType(unary.src) is AssemblyType.Double)
+                        if (GetAssemblyType(unary.Src) is AssemblyType.Double)
                         {
                             instructions.Add(new Instruction.Binary(Instruction.BinaryOperator.Xor, new AssemblyType.Double(), new Operand.Reg(Operand.RegisterName.XMM0), new Operand.Reg(Operand.RegisterName.XMM0)));
-                            instructions.Add(new Instruction.Cmp(new AssemblyType.Double(), GenerateOperand(unary.src), new Operand.Reg(Operand.RegisterName.XMM0)));
-                            instructions.Add(new Instruction.Mov(GetAssemblyType(unary.dst), new Operand.Imm(0), GenerateOperand(unary.dst)));
-                            instructions.Add(new Instruction.SetCC(Instruction.ConditionCode.E, GenerateOperand(unary.dst)));
+                            instructions.Add(new Instruction.Cmp(new AssemblyType.Double(), GenerateOperand(unary.Src), new Operand.Reg(Operand.RegisterName.XMM0)));
+                            instructions.Add(new Instruction.Mov(GetAssemblyType(unary.Dst), new Operand.Imm(0), GenerateOperand(unary.Dst)));
+                            instructions.Add(new Instruction.SetCC(Instruction.ConditionCode.E, GenerateOperand(unary.Dst)));
                         }
                         else
                         {
-                            instructions.Add(new Instruction.Cmp(GetAssemblyType(unary.src), new Operand.Imm(0), GenerateOperand(unary.src)));
-                            instructions.Add(new Instruction.Mov(GetAssemblyType(unary.dst), new Operand.Imm(0), GenerateOperand(unary.dst)));
-                            instructions.Add(new Instruction.SetCC(Instruction.ConditionCode.E, GenerateOperand(unary.dst)));
+                            instructions.Add(new Instruction.Cmp(GetAssemblyType(unary.Src), new Operand.Imm(0), GenerateOperand(unary.Src)));
+                            instructions.Add(new Instruction.Mov(GetAssemblyType(unary.Dst), new Operand.Imm(0), GenerateOperand(unary.Dst)));
+                            instructions.Add(new Instruction.SetCC(Instruction.ConditionCode.E, GenerateOperand(unary.Dst)));
                         }
                     }
-                    else if (unary.UnaryOperator == AST.Expression.UnaryOperator.Negate && GetAssemblyType(unary.src) is AssemblyType.Double)
+                    else if (unary.UnaryOperator == AST.Expression.UnaryOperator.Negate && GetAssemblyType(unary.Src) is AssemblyType.Double)
                     {
-                        instructions.Add(new Instruction.Mov(new AssemblyType.Double(), GenerateOperand(unary.src), GenerateOperand(unary.dst)));
+                        instructions.Add(new Instruction.Mov(new AssemblyType.Double(), GenerateOperand(unary.Src), GenerateOperand(unary.Dst)));
                         var constLabel = GenerateStaticConstant(new AST.Const.ConstDouble(-0.0), 16);
-                        instructions.Add(new Instruction.Binary(Instruction.BinaryOperator.Xor, new AssemblyType.Double(), new Operand.Data(constLabel, 0), GenerateOperand(unary.dst)));
+                        instructions.Add(new Instruction.Binary(Instruction.BinaryOperator.Xor, new AssemblyType.Double(), new Operand.Data(constLabel, 0), GenerateOperand(unary.Dst)));
                     }
                     else
                     {
-                        instructions.Add(new Instruction.Mov(GetAssemblyType(unary.src), GenerateOperand(unary.src), GenerateOperand(unary.dst)));
-                        instructions.Add(new Instruction.Unary(ConvertUnary(unary.UnaryOperator), GetAssemblyType(unary.src), GenerateOperand(unary.dst)));
+                        instructions.Add(new Instruction.Mov(GetAssemblyType(unary.Src), GenerateOperand(unary.Src), GenerateOperand(unary.Dst)));
+                        instructions.Add(new Instruction.Unary(ConvertUnary(unary.UnaryOperator), GetAssemblyType(unary.Src), GenerateOperand(unary.Dst)));
                     }
                     break;
                 case TAC.Instruction.Binary binary:

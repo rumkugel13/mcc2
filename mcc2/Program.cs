@@ -12,10 +12,14 @@ namespace mcc2
             }
 
             List<string> files = [];
-            CompilerDriver.Stages stages = CompilerDriver.Stages.Emitter;
+            CompilerDriver.CompilerOptions compilerOptions = new CompilerDriver.CompilerOptions() {
+                File = "", 
+                Stages = CompilerDriver.Stages.Emitter, 
+                Optimizations = CompilerDriver.Optimizations.None, 
+                PrettyPrint = false
+            };
             bool assemble = true;
             bool link = true;
-            bool prettyPrint = false;
             string linkOption = "";
 
             foreach (string arg in args)
@@ -23,28 +27,58 @@ namespace mcc2
                 if (arg.StartsWith('-'))
                 {
                     string option = arg;
-                    if (option == "--lex")
-                        stages = CompilerDriver.Stages.Lex;
-                    else if (option == "--parse")
-                        stages = CompilerDriver.Stages.Parse;
-                    else if (option == "--validate")
-                        stages = CompilerDriver.Stages.Validate;
-                    else if (option == "--tacky")
-                        stages = CompilerDriver.Stages.Tacky;
-                    else if (option == "--codegen")
-                        stages = CompilerDriver.Stages.Assembly;
-                    else if (option == "-S")
-                        assemble = false;
-                    else if (option == "-c")
-                        link = false;
-                    else if (option == "--pretty")
-                        prettyPrint = true;
-                    else if (option.StartsWith("-l"))
-                        linkOption = option;
-                    else
+                    switch (option)
                     {
-                        Console.WriteLine($"Invalid option: {option}");
-                        return 4;
+                        case "--lex":
+                            compilerOptions.Stages = CompilerDriver.Stages.Lex;
+                            break;
+                        case "--parse":
+                            compilerOptions.Stages = CompilerDriver.Stages.Parse;
+                            break;
+                        case "--validate":
+                            compilerOptions.Stages = CompilerDriver.Stages.Validate;
+                            break;
+                        case "--tacky":
+                            compilerOptions.Stages = CompilerDriver.Stages.Tacky;
+                            break;
+                        case "--codegen":
+                            compilerOptions.Stages = CompilerDriver.Stages.Assembly;
+                            break;
+                        case "--fold-constants":
+                            compilerOptions.Optimizations |= CompilerDriver.Optimizations.FoldConstants;
+                            break;
+                        case "--propagate-copies":
+                            compilerOptions.Optimizations |= CompilerDriver.Optimizations.PropagateCopies;
+                            break;
+                        case "--eliminate-unreachable-code":
+                            compilerOptions.Optimizations |= CompilerDriver.Optimizations.EliminateUnreachableCode;
+                            break;
+                        case "--eliminate-dead-stores":
+                            compilerOptions.Optimizations |= CompilerDriver.Optimizations.EliminateDeadStores;
+                            break;
+                        case "--optimize":
+                            compilerOptions.Optimizations = CompilerDriver.Optimizations.All;
+                            break;
+                        case "-s":
+                        case "-S":
+                            assemble = false;
+                            break;
+                        case "-c":
+                            link = false;
+                            break;
+                        case "--pretty":
+                            compilerOptions.PrettyPrint = true;
+                            break;
+                        default:
+                            if (option.StartsWith("-l"))
+                                linkOption = option;
+                            else
+                            {
+                                Console.WriteLine($"Invalid option: {option}");
+                                return 4;
+                            }
+
+                            break;
                     }
                 }
                 else
@@ -71,10 +105,11 @@ namespace mcc2
             foreach (var file in files)
             {
                 string processed = CompilerDriver.Preprocessor(file);
+                compilerOptions.File = processed;
 
                 try
                 {
-                    string assembly = CompilerDriver.Compile(processed, stages, prettyPrint);
+                    string assembly = CompilerDriver.Compile(compilerOptions);
                     assemblyFiles.Add(assembly);
                 }
                 catch (Exception e)
@@ -88,7 +123,7 @@ namespace mcc2
                 }
             }
 
-            if (stages == CompilerDriver.Stages.Emitter)
+            if (compilerOptions.Stages == CompilerDriver.Stages.Emitter)
             {
                 if (assemble && link)
                 {
