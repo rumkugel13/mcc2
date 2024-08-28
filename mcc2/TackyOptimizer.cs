@@ -1,4 +1,5 @@
 using mcc2.AST;
+using mcc2.CFG;
 using mcc2.TAC;
 
 namespace mcc2;
@@ -31,7 +32,7 @@ public class TackyOptimizer()
         {
             List<Instruction> postConstantFolding = optimizations.HasFlag(CompilerDriver.Optimizations.FoldConstants) ? ConstantFolding(instructions) : instructions;
 
-            DUMMY cfg = MakeControlFlowGraph(postConstantFolding);
+            Graph cfg = MakeControlFlowGraph(postConstantFolding);
 
             if (optimizations.HasFlag(CompilerDriver.Optimizations.EliminateUnreachableCode))
                 cfg = UnreachableCodeElimination(cfg);
@@ -515,33 +516,266 @@ public class TackyOptimizer()
         };
     }
 
-    private struct DUMMY
+    private Graph MakeControlFlowGraph(List<Instruction> instructions)
     {
-        public List<Instruction> Instructions;
+        var partitions = PartitionIntoBasicBlocks(instructions);
+        List<Node> blocks = [new Node.EntryNode([]), new Node.ExitNode([])];
+        int counter = (int)Node.BlockId.START;
+        foreach (var part in partitions)
+        {
+            blocks.Add(new Node.BasicBlock(counter++, part, [], []));
+        }
+        Graph graph = new Graph(blocks);
+        AddAllEdges(graph);
+        return graph;
     }
 
-    private DUMMY MakeControlFlowGraph(List<Instruction> postConstantFolding)
+    private void AddAllEdges(Graph graph)
     {
-        return new DUMMY() { Instructions = postConstantFolding };
+        AddEdge(graph, (int)Node.BlockId.ENTRY, (int)Node.BlockId.START);
+
+        foreach (var graphNode in graph.Nodes)
+        {
+            if (graphNode is Node.EntryNode or Node.ExitNode)
+                continue;
+
+            var node = (Node.BasicBlock)graphNode;
+            int nextId = (node.Id == graph.Nodes.Count - 1) ? (int)Node.BlockId.EXIT : node.Id + 1;
+
+            var inst = node.Instructions[^1];
+            switch (inst)
+            {
+                case Instruction.Return ret:
+                    AddEdge(graph, node.Id, (int)Node.BlockId.EXIT);
+                    break;
+                case Instruction.Jump jump:
+                    var targetId = GetBlockByLabel(graph, jump.Target);
+                    AddEdge(graph, node.Id, targetId);
+                    break;
+                case Instruction.JumpIfZero jumpIfZero:
+                    targetId = GetBlockByLabel(graph, jumpIfZero.Target);
+                    AddEdge(graph, node.Id, targetId);
+                    AddEdge(graph, node.Id, nextId);
+                    break;
+                case Instruction.JumpIfNotZero jumpIfNotZero:
+                    targetId = GetBlockByLabel(graph, jumpIfNotZero.Target);
+                    AddEdge(graph, node.Id, targetId);
+                    AddEdge(graph, node.Id, nextId);
+                    break;
+                default:
+                    AddEdge(graph, node.Id, nextId);
+                    break;
+            }
+        }
     }
 
-    private DUMMY UnreachableCodeElimination(DUMMY cfg)
+    private int GetBlockByLabel(Graph graph, string label)
+    {
+        foreach (var node in graph.Nodes)
+        {
+            if (node is Node.BasicBlock basic && basic.Instructions[0] is Instruction.Label l && l.Identifier == label)
+                return basic.Id;
+        }
+        throw new Exception($"Optimizer Error: Couldn't find block with label {label}");
+    }
+
+    private void AddEdge(Graph graph, int node1, int node2)
+    {
+        switch (graph.Nodes[node1])
+        {
+            case Node.EntryNode entry:
+                entry.Successors.Add(node2);
+                break;
+            case Node.BasicBlock basic:
+                basic.Successors.Add(node2);
+                break;
+        }
+
+        switch (graph.Nodes[node2])
+        {
+            case Node.BasicBlock basic:
+                basic.Predecessors.Add(node1);
+                break;
+            case Node.ExitNode entry:
+                entry.Predecessors.Add(node1);
+                break;
+        }
+    }
+
+    private void RemoveEdge(Graph graph, int node1, int node2)
+    {
+        switch (FindNode(graph, node1))
+        {
+            case Node.EntryNode entry:
+                entry.Successors.Remove(node2);
+                break;
+            case Node.BasicBlock basic:
+                basic.Successors.Remove(node2);
+                break;
+        }
+
+        switch (FindNode(graph, node2))
+        {
+            case Node.BasicBlock basic:
+                basic.Predecessors.Remove(node1);
+                break;
+            case Node.ExitNode entry:
+                entry.Predecessors.Remove(node1);
+                break;
+        }
+    }
+
+    private Node FindNode(Graph graph, int id)
+    {
+        if (id == (int)Node.BlockId.ENTRY)
+            return graph.Nodes[(int)Node.BlockId.ENTRY];
+        else if (id == (int)Node.BlockId.EXIT)
+            return graph.Nodes[(int)Node.BlockId.EXIT];
+        else
+        foreach (var node in graph.Nodes)
+        {
+            if (node is Node.BasicBlock basic && basic.Id == id)
+                return basic;
+        }
+        throw new Exception($"Optimizer Error: Couldn't find block with id {id}");
+    }
+
+    private List<List<Instruction>> PartitionIntoBasicBlocks(List<Instruction> instructions)
+    {
+        List<List<Instruction>> finishedBlocks = [];
+        List<Instruction> currentBlock = [];
+        foreach (var inst in instructions)
+        {
+            if (inst is Instruction.Label)
+            {
+                if (currentBlock.Count != 0)
+                    finishedBlocks.Add(currentBlock);
+                currentBlock = [inst];
+            }
+            else if (inst is Instruction.Jump or Instruction.JumpIfZero or Instruction.JumpIfNotZero or Instruction.Return)
+            {
+                currentBlock.Add(inst);
+                finishedBlocks.Add(currentBlock);
+                currentBlock = [];
+            }
+            else
+                currentBlock.Add(inst);
+        }
+
+        if (currentBlock.Count != 0)
+            finishedBlocks.Add(currentBlock);
+
+        return finishedBlocks;
+    }
+
+    private Graph UnreachableCodeElimination(Graph cfg)
+    {
+        HashSet<int> visited = [];
+        FindReachableBlocks(cfg, (int)Node.BlockId.ENTRY, visited);
+        var toRemove = cfg.Nodes.Where(a => a is Node.BasicBlock basic && !visited.Contains(basic.Id)).ToList();
+        foreach (var node in toRemove)
+        {
+            if (node is Node.BasicBlock basic)
+                while (basic.Successors.Count > 0)
+                {
+                    RemoveEdge(cfg, basic.Id, basic.Successors[0]);
+                }
+        }
+
+        cfg.Nodes = cfg.Nodes.Where(a => (a is Node.BasicBlock basic && visited.Contains(basic.Id)) || a is Node.EntryNode or Node.ExitNode).ToList();
+        
+        RemoveRedundantJumps(cfg);
+        RemoveUselessLabels(cfg);
+
+        return cfg;
+    }
+
+    private void RemoveUselessLabels(Graph graph)
+    {
+        //note: make sure nodes are ordered by id
+        int i = (int)Node.BlockId.START;
+        while (i < graph.Nodes.Count)
+        {
+            var block = graph.Nodes[i];
+            if (block is Node.BasicBlock basic && basic.Instructions.Count > 0 && basic.Instructions[0] is Instruction.Label)
+            {
+                bool keepLabel = false;
+                var defaultPredecessor = graph.Nodes[i - 1];
+                foreach (var predecessorId in basic.Predecessors)
+                {
+                    if (predecessorId != defaultPredecessor.Id && predecessorId != (int)Node.BlockId.ENTRY)
+                    {
+                        keepLabel = true;
+                        break;
+                    }
+                }
+
+                if (!keepLabel)
+                    basic.Instructions.RemoveAt(0);
+            }
+
+            i += 1;
+        }
+    }
+
+    private void RemoveRedundantJumps(Graph graph)
+    {
+        //note: make sure nodes are ordered by id
+        int i = (int)Node.BlockId.START;
+        while (i < graph.Nodes.Count - 1)
+        {
+            var block = graph.Nodes[i];
+            if (block is Node.BasicBlock basic && basic.Instructions[^1] is Instruction.Jump or Instruction.JumpIfZero or Instruction.JumpIfNotZero)
+            {
+                bool keepJump = false;
+                var defaultSuccessor = graph.Nodes[i + 1];
+                foreach (var successorId in basic.Successors)
+                {
+                    if (successorId != defaultSuccessor.Id)
+                    {
+                        keepJump = true;
+                        break;
+                    }
+                }
+
+                if (!keepJump)
+                    basic.Instructions.RemoveAt(basic.Instructions.Count - 1);
+            }
+
+            i += 1;
+        }
+    }
+
+    private void FindReachableBlocks(Graph cfg, int start, HashSet<int> visited)
+    {
+        if (!visited.Add(start) || start == (int)Node.BlockId.EXIT)
+            return;
+
+        switch (cfg.Nodes[start])
+        {
+            case Node.EntryNode entry:
+                foreach (var successor in entry.Successors)
+                    FindReachableBlocks(cfg, successor, visited);
+                break;
+            case Node.BasicBlock basic:
+                foreach (var successor in basic.Successors)
+                    FindReachableBlocks(cfg, successor, visited);
+                break;
+        }
+    }
+
+    private Graph CopyPropagation(Graph cfg)
     {
         return cfg;
     }
 
-    private DUMMY CopyPropagation(DUMMY cfg)
+    private Graph DeadStoreElimination(Graph cfg)
     {
         return cfg;
     }
 
-    private DUMMY DeadStoreElimination(DUMMY cfg)
+    private List<Instruction> ControlFlowGraphToInstructions(Graph cfg)
     {
-        return cfg;
-    }
-
-    private List<Instruction> ControlFlowGraphToInstructions(DUMMY cfg)
-    {
-        return cfg.Instructions;
+        return cfg.Nodes[(int)Node.BlockId.START..].SelectMany(a => ((Node.BasicBlock)a).Instructions).ToList();
     }
 }

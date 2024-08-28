@@ -13,8 +13,8 @@
             "args": [
                 "-S",
                 "--pretty", 
-                "mcc2.Tests/Source/fold_long.c", 
-                "--fold-constants", 
+                "mcc2.Tests/Source/remove_jump_keep_label.c", 
+                "--eliminate-unreachable-code", 
             ],
             "cwd": "${workspaceFolder}",
             "stopAtEntry": false,
