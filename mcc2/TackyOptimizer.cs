@@ -45,11 +45,31 @@ public class TackyOptimizer()
 
             List<Instruction> optimized = ControlFlowGraphToInstructions(cfg);
 
-            if (optimized.SequenceEqual(instructions) || optimized.Count == 0)
+            if (AreEqual(optimized, instructions) || optimized.Count == 0)
                 return optimized;
 
             instructions = optimized;
         }
+    }
+
+    private bool AreEqual(List<Instruction> list1, List<Instruction> list2)
+    {
+        if (list1.Count != list2.Count)
+            return false;
+
+        for (int i = 0; i < list1.Count; i++)
+        {
+            if (list1[i] is Instruction.FunctionCall f1 && list2[i] is Instruction.FunctionCall f2)
+            {
+                if (f1.Identifier != f2.Identifier || f1.Dst != f2.Dst || f1.Arguments.Count != f2.Arguments.Count ||
+                    !f1.Arguments.SequenceEqual(f2.Arguments))
+                    return false;
+            }
+            else if (list1[i] != list2[i])
+                return false;
+        }
+        
+        return true;
     }
 
     private List<Instruction> ConstantFolding(List<Instruction> instructions)
@@ -632,11 +652,11 @@ public class TackyOptimizer()
         else if (id == (int)Node.BlockId.EXIT)
             return graph.Nodes[(int)Node.BlockId.EXIT];
         else
-        foreach (var node in graph.Nodes)
-        {
-            if (node is Node.BasicBlock basic && basic.Id == id)
-                return basic;
-        }
+            foreach (var node in graph.Nodes)
+            {
+                if (node is Node.BasicBlock basic && basic.Id == id)
+                    return basic;
+            }
         throw new Exception($"Optimizer Error: Couldn't find block with id {id}");
     }
 
@@ -683,7 +703,7 @@ public class TackyOptimizer()
         }
 
         cfg.Nodes = cfg.Nodes.Where(a => (a is Node.BasicBlock basic && visited.Contains(basic.Id)) || a is Node.EntryNode or Node.ExitNode).ToList();
-        
+
         RemoveRedundantJumps(cfg);
         RemoveUselessLabels(cfg);
 
@@ -764,9 +784,276 @@ public class TackyOptimizer()
         }
     }
 
+    private Dictionary<(int blockId, int instIndex), List<Instruction.Copy>> annotatedInstructions = [];
+    private Dictionary<int, List<Instruction.Copy>> annotatedBlocks = [];
+
     private Graph CopyPropagation(Graph cfg)
     {
+        annotatedBlocks.Clear();
+        annotatedInstructions.Clear();
+        FindReachingCopies(cfg);
+        foreach (var node in cfg.Nodes)
+        {
+            if (node is Node.BasicBlock basic)
+            {
+                List<Instruction> newInstructions = [];
+                for (int i = 0; i < basic.Instructions.Count; i++)
+                {
+                    var newInst = RewriteInstruction(basic.Instructions[i], i, basic.Id);
+                    if (newInst != null)
+                        newInstructions.Add(newInst);
+                }
+                basic.Instructions.Clear();
+                basic.Instructions.AddRange(newInstructions);
+            }
+        }
         return cfg;
+    }
+
+    private Instruction? RewriteInstruction(Instruction instruction, int instIndex, int blockId)
+    {
+        List<Instruction.Copy> reachingCopies = GetInstructionAnnotation(blockId, instIndex, instruction);
+        switch (instruction)
+        {
+            case Instruction.Copy copyInst:
+                {
+                    foreach (var copy in reachingCopies)
+                    {
+                        if (copy == copyInst || (copy.Src == copyInst.Dst && copy.Dst == copyInst.Src))
+                            return null;
+                    }
+                    Val newSrc = ReplaceOperand(copyInst.Src, reachingCopies);
+                    return new Instruction.Copy(newSrc, copyInst.Dst);
+                }
+            case Instruction.Unary unary:
+                {
+                    Val newSrc = ReplaceOperand(unary.Src, reachingCopies);
+                    return new Instruction.Unary(unary.UnaryOperator, newSrc, unary.Dst);
+                }
+            case Instruction.Binary binary:
+                {
+                    Val newSrc1 = ReplaceOperand(binary.Src1, reachingCopies);
+                    Val newSrc2 = ReplaceOperand(binary.Src2, reachingCopies);
+                    return new Instruction.Binary(binary.Operator, newSrc1, newSrc2, binary.Dst);
+                }
+            case Instruction.Return ret:
+                {
+                    if (ret.Value != null)
+                    {
+                        Val newSrc = ReplaceOperand(ret.Value, reachingCopies);
+                        return new Instruction.Return(newSrc);
+                    }
+                    return ret;
+                }
+            case Instruction.JumpIfZero jz:
+            {
+                Val newSrc = ReplaceOperand(jz.Condition, reachingCopies);
+                return new Instruction.JumpIfZero(newSrc, jz.Target);
+            }
+            case Instruction.JumpIfNotZero jnz:
+            {
+                Val newSrc = ReplaceOperand(jnz.Condition, reachingCopies);
+                return new Instruction.JumpIfNotZero(newSrc, jnz.Target);
+            }
+            case Instruction.FunctionCall funCall:
+            {
+                List<Val> newArgs = [];
+                foreach (var arg in funCall.Arguments)
+                {
+                    Val newSrc = ReplaceOperand(arg, reachingCopies);
+                    newArgs.Add(newSrc);
+                }
+                return new Instruction.FunctionCall(funCall.Identifier, newArgs, funCall.Dst);
+            }
+            //todo: other instructions
+            default:
+                return instruction;
+        }
+    }
+
+    private Val ReplaceOperand(Val op, List<Instruction.Copy> reachingCopies)
+    {
+        if (op is Val.Constant)
+            return op;
+
+        foreach (var copy in reachingCopies)
+            if (copy.Dst == op)
+                return copy.Src;
+
+        return op;
+    }
+
+    private List<Instruction.Copy> GetInstructionAnnotation(int blockId, int instIndex, Instruction instruction)
+    {
+        if (annotatedInstructions.TryGetValue((blockId, instIndex), out var result))
+            return result;
+        throw new Exception($"Optimizer Error: Couldn't find annotated instruction");
+    }
+
+    private void FindReachingCopies(Graph graph)
+    {
+        List<Instruction.Copy> allCopies = graph.Nodes.FindAll(a => a is Node.BasicBlock)
+                                                      .SelectMany(a => ((Node.BasicBlock)a).Instructions)
+                                                      .Where(a => a is Instruction.Copy)
+                                                      .Select(a => (Instruction.Copy)a)
+                                                      .ToList();
+        Queue<Node.BasicBlock> workList = [];
+
+        foreach (var node in graph.Nodes)
+        {
+            if (node is Node.EntryNode or Node.ExitNode)
+                continue;
+
+            workList.Enqueue((Node.BasicBlock)node);
+            AnnotateBlock(node.Id, allCopies);
+        }
+
+        while (workList.Count > 0)
+        {
+            var block = workList.Dequeue();
+            var oldAnnotation = GetBlockAnnotation(block.Id);
+            var incomingCopies = Meet(graph, block, allCopies);
+            Transfer(block, incomingCopies);
+            if (!oldAnnotation.SequenceEqual(GetBlockAnnotation(block.Id)))
+            {
+                foreach (var succId in block.Successors)
+                {
+                    switch (FindNode(graph, succId))
+                    {
+                        case Node.ExitNode:
+                            continue;
+                        case Node.EntryNode:
+                            throw new Exception("Optimizer Error: Malformed control-flow graph");
+                        case Node.BasicBlock basic:
+                            var successor = FindNode(graph, succId);
+                            if (successor is Node.BasicBlock succ && !workList.Contains(succ))
+                                workList.Enqueue(succ);
+                            break;
+                    }
+                }
+            }
+        }
+    }
+
+    private List<Instruction.Copy> Meet(Graph graph, Node.BasicBlock block, List<Instruction.Copy> allCopies)
+    {
+        List<Instruction.Copy> incomingCopies = new(allCopies);
+        foreach (var predId in block.Predecessors)
+        {
+            switch (FindNode(graph, predId))
+            {
+                case Node.EntryNode entry:
+                    return [];
+                case Node.BasicBlock basic:
+                    {
+                        var predOutCopies = GetBlockAnnotation(predId);
+                        incomingCopies = incomingCopies.Intersect(predOutCopies).ToList();
+                    }
+                    break;
+                case Node.ExitNode:
+                    throw new Exception("Optimizer Error: Malformed control-flow graph");
+            }
+        }
+        return incomingCopies;
+    }
+
+    private List<Instruction.Copy> GetBlockAnnotation(int predId)
+    {
+        if (annotatedBlocks.TryGetValue(predId, out var result))
+            return result;
+        throw new Exception($"Optimizer Error: Couldn't find annotated block id {predId}");
+    }
+
+    private void Transfer(Node.BasicBlock block, List<Instruction.Copy> initialReachingCopies)
+    {
+        List<Instruction.Copy> currentReachingCopies = new(initialReachingCopies);
+
+        for (int i = 0; i < block.Instructions.Count; i++)
+        {
+            Instruction? inst = block.Instructions[i];
+            AnnotateInstruction(block.Id, i, currentReachingCopies);
+
+            switch (inst)
+            {
+                case Instruction.Copy copyInst:
+                    {
+                        if (currentReachingCopies.Contains(new Instruction.Copy(copyInst.Dst, copyInst.Src)))
+                            continue;
+
+                        for (int i1 = 0; i1 < currentReachingCopies.Count; i1++)
+                        {
+                            Instruction.Copy? copy = currentReachingCopies[i1];
+                            if (copy.Src == copyInst.Dst || copy.Dst == copyInst.Dst)
+                            {
+                                currentReachingCopies.Remove(copy);
+                                i1--;
+                            }
+                        }
+
+                        currentReachingCopies.Add(copyInst);
+                    }
+                    break;
+                case Instruction.FunctionCall funCall:
+                    {
+                        for (int i1 = 0; i1 < currentReachingCopies.Count; i1++)
+                        {
+                            Instruction.Copy? copy = currentReachingCopies[i1];
+                            if (IsStatic(copy.Src) || IsStatic(copy.Dst) ||
+                                copy.Src == funCall.Dst || copy.Dst == funCall.Dst)
+                            {
+                                currentReachingCopies.Remove(copy);
+                                i1--;
+                            }
+                        }
+                    }
+                    break;
+                case Instruction.Unary unary:
+                    {
+                        for (int i1 = 0; i1 < currentReachingCopies.Count; i1++)
+                        {
+                            Instruction.Copy? copy = currentReachingCopies[i1];
+                            if (copy.Src == unary.Dst || copy.Dst == unary.Dst)
+                            {
+                                currentReachingCopies.Remove(copy);
+                                i1--;
+                            }
+                        }
+                    }
+                    break;
+                case Instruction.Binary binary:
+                    {
+                        for (int i1 = 0; i1 < currentReachingCopies.Count; i1++)
+                        {
+                            Instruction.Copy? copy = currentReachingCopies[i1];
+                            if (copy.Src == binary.Dst || copy.Dst == binary.Dst)
+                            {
+                                currentReachingCopies.Remove(copy);
+                                i1--;
+                            }
+                        }
+                    }
+                    break;
+                default:
+                    continue;
+            }
+        }
+
+        AnnotateBlock(block.Id, currentReachingCopies);
+    }
+
+    private void AnnotateBlock(int id, List<Instruction.Copy> currentReachingCopies)
+    {
+        annotatedBlocks[id] = new(currentReachingCopies);
+    }
+
+    private bool IsStatic(Val src)
+    {
+        return src is Val.Variable var && SemanticAnalyzer.SymbolTable.TryGetValue(var.Name, out var entry) && entry.IdentifierAttributes is IdentifierAttributes.Static;
+    }
+
+    private void AnnotateInstruction(int blockId, int instIndex, List<Instruction.Copy> reachingCopies)
+    {
+        annotatedInstructions[(blockId, instIndex)] = new(reachingCopies);
     }
 
     private Graph DeadStoreElimination(Graph cfg)

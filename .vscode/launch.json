@@ -13,8 +13,8 @@
             "args": [
                 "-S",
                 "--pretty", 
-                "mcc2.Tests/Source/remove_jump_keep_label.c", 
-                "--eliminate-unreachable-code", 
+                "mcc2.Tests/Source/constant_propagation.c", 
+                "--propagate-copies", 
             ],
             "cwd": "${workspaceFolder}",
             "stopAtEntry": false,
