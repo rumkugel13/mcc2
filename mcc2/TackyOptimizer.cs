@@ -178,6 +178,9 @@ public class TackyOptimizer()
                             case Type.Char c:
                                 result.Add(new Instruction.Copy(new Val.Constant(new Const.ConstChar((char)dval.Value)), d2i.Dst));
                                 break;
+                            case Type.SChar c:
+                                result.Add(new Instruction.Copy(new Val.Constant(new Const.ConstChar((char)dval.Value)), d2i.Dst));
+                                break;
                             case Type.Int i:
                                 result.Add(new Instruction.Copy(new Val.Constant(new Const.ConstInt((int)dval.Value)), d2i.Dst));
                                 break;
@@ -276,6 +279,39 @@ public class TackyOptimizer()
                         }
                         else
                             result.Add(inst);
+                    }
+                    else
+                        result.Add(inst);
+                    break;
+                case Instruction.Truncate trun:
+                    if (trun.Src is Val.Constant trunConst)
+                    {
+                        long value = trunConst.Value switch 
+                        {
+                            Const.ConstLong c => (long)c.Value,
+                            Const.ConstULong c => (long)c.Value,
+                            Const.ConstInt c => (long)c.Value,
+                            Const.ConstUInt c => (long)c.Value,
+                            _ => throw new NotImplementedException()
+                        };
+
+                        switch (GetType(trun.Dst))
+                        {
+                            case Type.Int:
+                                result.Add(new Instruction.Copy(new Val.Constant(new Const.ConstInt((int)value)), trun.Dst));
+                                break;
+                            case Type.UInt:
+                                result.Add(new Instruction.Copy(new Val.Constant(new Const.ConstUInt((uint)value)), trun.Dst));
+                                break;
+                            case Type.Char or Type.SChar:
+                                result.Add(new Instruction.Copy(new Val.Constant(new Const.ConstChar((char)value)), trun.Dst));
+                                break;
+                            case Type.UChar:
+                                result.Add(new Instruction.Copy(new Val.Constant(new Const.ConstUChar((byte)value)), trun.Dst));
+                                break;
+                            default:
+                                throw new NotImplementedException();
+                        }
                     }
                     else
                         result.Add(inst);

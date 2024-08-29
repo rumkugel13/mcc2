@@ -13,8 +13,8 @@
             "args": [
                 "-S",
                 "--pretty", 
-                "mcc2.Tests/Source/nested_loops.c", 
-                "--eliminate-dead-stores", 
+                "mcc2.Tests/Source/listing_19_5_more_types.c", 
+                "--optimize", 
             ],
             "cwd": "${workspaceFolder}",
             "stopAtEntry": false,
