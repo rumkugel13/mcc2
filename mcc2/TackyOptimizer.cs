@@ -798,13 +798,13 @@ public class TackyOptimizer()
         }
     }
 
-    private Dictionary<(int blockId, int instIndex), List<Instruction.Copy>> annotatedInstructions = [];
-    private Dictionary<int, List<Instruction.Copy>> annotatedBlocks = [];
+    private Dictionary<(int blockId, int instIndex), List<Instruction.Copy>> annotatedCopyInstructions = [];
+    private Dictionary<int, List<Instruction.Copy>> annotatedCopyBlocks = [];
 
     private Graph CopyPropagation(Graph cfg, List<Val.Variable> aliasedVars)
     {
-        annotatedBlocks.Clear();
-        annotatedInstructions.Clear();
+        annotatedCopyBlocks.Clear();
+        annotatedCopyInstructions.Clear();
         FindReachingCopies(cfg, aliasedVars);
         foreach (var node in cfg.Nodes)
         {
@@ -826,7 +826,7 @@ public class TackyOptimizer()
 
     private Instruction? RewriteInstruction(Instruction instruction, int instIndex, int blockId)
     {
-        List<Instruction.Copy> reachingCopies = GetInstructionAnnotation(blockId, instIndex, instruction);
+        List<Instruction.Copy> reachingCopies = GetInstructionCopyAnnotation(blockId, instIndex, instruction);
         switch (instruction)
         {
             case Instruction.Copy copyInst:
@@ -957,9 +957,9 @@ public class TackyOptimizer()
         return op;
     }
 
-    private List<Instruction.Copy> GetInstructionAnnotation(int blockId, int instIndex, Instruction instruction)
+    private List<Instruction.Copy> GetInstructionCopyAnnotation(int blockId, int instIndex, Instruction instruction)
     {
-        if (annotatedInstructions.TryGetValue((blockId, instIndex), out var result))
+        if (annotatedCopyInstructions.TryGetValue((blockId, instIndex), out var result))
             return result;
         throw new Exception($"Optimizer Error: Couldn't find annotated instruction");
     }
@@ -979,16 +979,16 @@ public class TackyOptimizer()
                 continue;
 
             workList.Enqueue((Node.BasicBlock)node);
-            AnnotateBlock(node.Id, allCopies);
+            AnnotateCopyBlock(node.Id, allCopies);
         }
 
         while (workList.Count > 0)
         {
             var block = workList.Dequeue();
-            var oldAnnotation = GetBlockAnnotation(block.Id);
+            var oldAnnotation = GetCopyBlockAnnotation(block.Id);
             var incomingCopies = Meet(graph, block, allCopies);
             Transfer(block, incomingCopies, aliasedVars);
-            if (!oldAnnotation.SequenceEqual(GetBlockAnnotation(block.Id)))
+            if (!oldAnnotation.SequenceEqual(GetCopyBlockAnnotation(block.Id)))
             {
                 foreach (var succId in block.Successors)
                 {
@@ -1020,7 +1020,7 @@ public class TackyOptimizer()
                     return [];
                 case Node.BasicBlock basic:
                     {
-                        var predOutCopies = GetBlockAnnotation(predId);
+                        var predOutCopies = GetCopyBlockAnnotation(predId);
                         incomingCopies = incomingCopies.Intersect(predOutCopies).ToList();
                     }
                     break;
@@ -1031,9 +1031,9 @@ public class TackyOptimizer()
         return incomingCopies;
     }
 
-    private List<Instruction.Copy> GetBlockAnnotation(int predId)
+    private List<Instruction.Copy> GetCopyBlockAnnotation(int predId)
     {
-        if (annotatedBlocks.TryGetValue(predId, out var result))
+        if (annotatedCopyBlocks.TryGetValue(predId, out var result))
             return result;
         throw new Exception($"Optimizer Error: Couldn't find annotated block id {predId}");
     }
@@ -1045,7 +1045,7 @@ public class TackyOptimizer()
         for (int i = 0; i < block.Instructions.Count; i++)
         {
             Instruction? inst = block.Instructions[i];
-            AnnotateInstruction(block.Id, i, currentReachingCopies);
+            AnnotateCopyInstruction(block.Id, i, currentReachingCopies);
 
             switch (inst)
             {
@@ -1136,7 +1136,7 @@ public class TackyOptimizer()
             }
         }
 
-        AnnotateBlock(block.Id, currentReachingCopies);
+        AnnotateCopyBlock(block.Id, currentReachingCopies);
     }
 
     private bool IsAliased(List<Val.Variable> aliasedVars, Val val)
@@ -1157,9 +1157,9 @@ public class TackyOptimizer()
         }
     }
 
-    private void AnnotateBlock(int id, List<Instruction.Copy> currentReachingCopies)
+    private void AnnotateCopyBlock(int id, List<Instruction.Copy> currentReachingCopies)
     {
-        annotatedBlocks[id] = new(currentReachingCopies);
+        annotatedCopyBlocks[id] = new(currentReachingCopies);
     }
 
     private bool IsStatic(Val src)
@@ -1167,14 +1167,238 @@ public class TackyOptimizer()
         return src is Val.Variable var && SemanticAnalyzer.SymbolTable.TryGetValue(var.Name, out var entry) && entry.IdentifierAttributes is IdentifierAttributes.Static;
     }
 
-    private void AnnotateInstruction(int blockId, int instIndex, List<Instruction.Copy> reachingCopies)
+    private void AnnotateCopyInstruction(int blockId, int instIndex, List<Instruction.Copy> reachingCopies)
     {
-        annotatedInstructions[(blockId, instIndex)] = new(reachingCopies);
+        annotatedCopyInstructions[(blockId, instIndex)] = new(reachingCopies);
     }
+
+    private Dictionary<(int blockId, int instIndex), List<Val.Variable>> annotatedLiveInstructions = [];
+    private Dictionary<int, List<Val.Variable>> annotatedLiveBlocks = [];
 
     private Graph DeadStoreElimination(Graph cfg, List<Val.Variable> aliasedVars)
     {
+        var staticVars = FindAllStaticVariables();
+        annotatedLiveBlocks.Clear();
+        annotatedLiveInstructions.Clear();
+
+        LivenessAnalysis(cfg, staticVars);
+        foreach (var node in cfg.Nodes)
+        {
+            if (node is Node.BasicBlock basic)
+            {
+                List<Instruction> newInstructions = [];
+                for (int i = 0; i < basic.Instructions.Count; i++)
+                {
+                    if (!IsDeadStore(basic.Instructions[i], basic.Id, i))
+                        newInstructions.Add(basic.Instructions[i]);
+                }
+                basic.Instructions.Clear();
+                basic.Instructions.AddRange(newInstructions);
+            }
+        }
         return cfg;
+    }
+
+    private bool IsDeadStore(Instruction instruction, int blockId, int instIndex)
+    {
+        if (instruction is Instruction.FunctionCall)
+            return false;
+
+        switch (instruction)
+        {
+            case Instruction.Binary binary:
+                {
+                    List<Val.Variable> liveVars = GetInstructionLiveAnnotation(blockId, instIndex);
+                    if (!liveVars.Contains(binary.Dst))
+                        return true;
+                    break;
+                }
+            case Instruction.Unary unary:
+                {
+                    List<Val.Variable> liveVars = GetInstructionLiveAnnotation(blockId, instIndex);
+                    if (!liveVars.Contains(unary.Dst))
+                        return true;
+                    break;
+                }
+            case Instruction.Copy copy:
+                {
+                    List<Val.Variable> liveVars = GetInstructionLiveAnnotation(blockId, instIndex);
+                    if (copy.Dst is Val.Variable var && !liveVars.Contains(var))
+                        return true;
+                    break;
+                }
+        }
+
+        return false;
+    }
+
+    private List<Val.Variable> GetInstructionLiveAnnotation(int blockId, int instIndex)
+    {
+        if (annotatedLiveInstructions.TryGetValue((blockId, instIndex), out var result))
+            return result;
+        throw new Exception($"Optimizer Error: Couldn't find annotated instruction");
+    }
+
+    private void LivenessAnalysis(Graph graph, List<Val.Variable> allStaticVariables)
+    {
+        List<Val.Variable> allLive = [];
+        Queue<Node.BasicBlock> workList = [];
+
+        foreach (var node in graph.Nodes)
+        {
+            if (node is Node.EntryNode or Node.ExitNode)
+                continue;
+
+            workList.Enqueue((Node.BasicBlock)node);
+            AnnotateLiveBlock(node.Id, allLive);
+        }
+
+        while (workList.Count > 0)
+        {
+            var block = workList.Dequeue();
+            var oldAnnotation = GetLiveBlockAnnotation(block.Id);
+            var incomingCopies = Meet(graph, block, allLive);
+            Transfer(block, incomingCopies, allStaticVariables);
+            if (!oldAnnotation.SequenceEqual(GetLiveBlockAnnotation(block.Id)))
+            {
+                foreach (var predId in block.Predecessors)
+                {
+                    switch (FindNode(graph, predId))
+                    {
+                        case Node.ExitNode:
+                            throw new Exception("Optimizer Error: Malformed control-flow graph");
+                        case Node.EntryNode:
+                            continue;
+                        case Node.BasicBlock basic:
+                            var predecessor = FindNode(graph, predId);
+                            if (predecessor is Node.BasicBlock pred && !workList.Contains(pred))
+                                workList.Enqueue(pred);
+                            break;
+                    }
+                }
+            }
+        }
+    }
+
+    private void AnnotateLiveBlock(int id, List<Val.Variable> allLive)
+    {
+        annotatedLiveBlocks[id] = new(allLive);
+    }
+
+    private List<Val.Variable> Meet(Graph graph, Node.BasicBlock block, List<Val.Variable> allStaticVariables)
+    {
+        List<Val.Variable> liveVars = [];
+        foreach (var succId in block.Successors)
+        {
+            switch (FindNode(graph, succId))
+            {
+                case Node.ExitNode:
+                    liveVars.AddRange(allStaticVariables);
+                    break;
+                case Node.EntryNode:
+                    throw new Exception("Optimizer Error: Malformed control-flow graph");
+                case Node.BasicBlock basic:
+                    var succLiveVars = GetLiveBlockAnnotation(succId);
+                    liveVars.AddRange(succLiveVars);
+                    break;
+            }
+        }
+        return liveVars;
+    }
+
+    private List<Val.Variable> GetLiveBlockAnnotation(int succId)
+    {
+        if (annotatedLiveBlocks.TryGetValue(succId, out var result))
+            return result;
+        throw new Exception($"Optimizer Error: Couldn't find annotated block id {succId}");
+    }
+
+    private void Transfer(Node.BasicBlock block, List<Val.Variable> endLiveVariables, List<Val.Variable> allStaticVariables)
+    {
+        List<Val.Variable> currentLiveVariables = new(endLiveVariables);
+
+        for (int i = block.Instructions.Count - 1; i >= 0; i--)
+        {
+            AnnotateLiveInstruction(block.Id, i, currentLiveVariables);
+
+            switch (block.Instructions[i])
+            {
+                case Instruction.Binary binary:
+                    {
+                        currentLiveVariables.Remove(binary.Dst);
+                        if (binary.Src1 is Val.Variable var1)
+                            currentLiveVariables.Add(var1);
+                        if (binary.Src2 is Val.Variable var2)
+                            currentLiveVariables.Add(var2);
+                        break;
+                    }
+                case Instruction.Unary unary:
+                    {
+                        currentLiveVariables.Remove(unary.Dst);
+                        if (unary.Src is Val.Variable var1)
+                            currentLiveVariables.Add(var1);
+                        break;
+                    }
+                case Instruction.JumpIfZero jz:
+                    {
+                        if (jz.Condition is Val.Variable var1)
+                            currentLiveVariables.Add(var1);
+                        break;
+                    }
+                case Instruction.JumpIfNotZero jnz:
+                    {
+                        if (jnz.Condition is Val.Variable var1)
+                            currentLiveVariables.Add(var1);
+                        break;
+                    }
+                case Instruction.Copy copy:
+                    {
+                        if (copy.Dst is Val.Variable var)
+                            currentLiveVariables.Remove(var);
+                        if (copy.Src is Val.Variable var1)
+                            currentLiveVariables.Add(var1);
+                        break;
+                    }
+                case Instruction.FunctionCall funCall:
+                    {
+                        if (funCall.Dst != null && funCall.Dst is Val.Variable dst)
+                            currentLiveVariables.Remove(dst);
+                        foreach (var arg in funCall.Arguments)
+                        {
+                            if (arg is Val.Variable var)
+                                currentLiveVariables.Add(var);
+                        }
+                        currentLiveVariables.AddRange(allStaticVariables);
+                        break;
+                    }
+                case Instruction.Return ret:
+                    {
+                        if (ret.Value != null && ret.Value is Val.Variable var1)
+                            currentLiveVariables.Add(var1);
+                        break;
+                    }
+                default:
+                    throw new NotImplementedException();
+            }
+        }
+    }
+
+    private void AnnotateLiveInstruction(int id, int i, List<Val.Variable> currentLiveVariables)
+    {
+        annotatedLiveInstructions[(id, i)] = new(currentLiveVariables);
+    }
+
+    private List<Val.Variable> FindAllStaticVariables()
+    {
+        //note: we add too many static variables that may not even be used in the block
+        //      we could instead scan every instruction in a block and add them
+        List<Val.Variable> result = [];
+        foreach (var entry in SemanticAnalyzer.SymbolTable)
+        {
+            if (entry.Value.IdentifierAttributes is IdentifierAttributes.Static)
+                result.Add(new Val.Variable(entry.Key));
+        }
+        return result;
     }
 
     private List<Instruction> ControlFlowGraphToInstructions(Graph cfg)
