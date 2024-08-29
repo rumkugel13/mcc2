@@ -120,12 +120,12 @@ public class CodeEmitter
         return staticInit switch {
             StaticInit.IntInit init => (long)init.Value,
             StaticInit.LongInit init => (long)init.Value,
-            StaticInit.UIntInit init => (long)init.Value,
+            StaticInit.UIntInit init => (long)(ulong)init.Value,
             StaticInit.ULongInit init => (long)init.Value,
             StaticInit.DoubleInit init => (long)BitConverter.DoubleToInt64Bits(init.Value),
             StaticInit.ZeroInit init => (long)init.Bytes,
             StaticInit.CharInit init => (long)init.Value,
-            StaticInit.UCharInit init => (long)init.Value,
+            StaticInit.UCharInit init => (long)(ulong)(byte)init.Value,
             _ => throw new NotImplementedException()
         };
     }
@@ -285,7 +285,7 @@ public class CodeEmitter
         return operand switch
         {
             Operand.Reg reg => EmitRegister(reg.Register, assemblyType),
-            Operand.Imm imm => $"${imm.Value}",
+            Operand.Imm imm => $"${(long)imm.Value}",
             Operand.Memory memory => $"{(memory.Offset != 0 ? memory.Offset : "")}({EmitRegister(memory.Register, new AssemblyType.Quadword())})",
             Operand.Data data => $"{data.Identifier}{(data.Offset != 0 ? $"+{data.Offset}" : "")}(%rip)",
             Operand.Indexed indexed => $"({EmitRegister(indexed.Base, new AssemblyType.Quadword())}, {EmitRegister(indexed.Index, new AssemblyType.Quadword())}, {indexed.Scale})",

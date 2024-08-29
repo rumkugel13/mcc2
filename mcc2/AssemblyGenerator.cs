@@ -966,11 +966,11 @@ public class AssemblyGenerator
         {
             TAC.Val.Constant c => c.Value switch
             {
-                AST.Const.ConstInt constInt => new Operand.Imm((ulong)constInt.Value),
+                AST.Const.ConstInt constInt => new Operand.Imm((ulong)(long)constInt.Value),
                 AST.Const.ConstLong constLong => new Operand.Imm((ulong)constLong.Value),
                 AST.Const.ConstUInt constUInt => new Operand.Imm((ulong)constUInt.Value),
                 AST.Const.ConstULong constULong => new Operand.Imm((ulong)constULong.Value),
-                AST.Const.ConstChar constChar => new Operand.Imm((ulong)constChar.Value),
+                AST.Const.ConstChar constChar => new Operand.Imm((ulong)(long)constChar.Value),
                 AST.Const.ConstUChar constUChar => new Operand.Imm((ulong)constUChar.Value),
                 _ => throw new NotImplementedException()
             },
