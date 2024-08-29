@@ -234,6 +234,8 @@ public class TackyOptimizer()
                                 case Type.ULong:
                                     result.Add(new Instruction.Copy(new Val.Constant(new Const.ConstULong((ulong)(long)smallC.Value)), se.Dst));
                                     break;
+                                default:
+                                    throw new NotImplementedException();
                             }
                         }
                         else if (seConst.Value is Const.ConstInt smallI)
@@ -268,6 +270,8 @@ public class TackyOptimizer()
                                 case Type.ULong:
                                     result.Add(new Instruction.Copy(new Val.Constant(new Const.ConstULong((ulong)smallC.Value)), ze.Dst));
                                     break;
+                                default:
+                                    throw new NotImplementedException();
                             }
                         }
                         else if (zeConst.Value is Const.ConstUInt smallI)
@@ -286,7 +290,7 @@ public class TackyOptimizer()
                 case Instruction.Truncate trun:
                     if (trun.Src is Val.Constant trunConst)
                     {
-                        long value = trunConst.Value switch 
+                        long value = trunConst.Value switch
                         {
                             Const.ConstLong c => (long)c.Value,
                             Const.ConstULong c => (long)c.Value,
@@ -429,7 +433,7 @@ public class TackyOptimizer()
                     _ => throw new NotImplementedException(),
                 };
             case Expression.BinaryOperator.Divide:
-                if (GetValue(c2.Value) == 0)
+                if (GetValue(c2.Value) == 0 && c1.Value is not Const.ConstDouble)
                 {
                     return new Val.Constant(c2.Value);
                 }
@@ -446,7 +450,7 @@ public class TackyOptimizer()
                     _ => throw new NotImplementedException(),
                 };
             case Expression.BinaryOperator.Remainder:
-                if (GetValue(c2.Value) == 0)
+                if (GetValue(c2.Value) == 0 && c1.Value is not Const.ConstDouble)
                 {
                     return new Val.Constant(c1.Value);
                 }
@@ -571,17 +575,17 @@ public class TackyOptimizer()
         }
     }
 
-    private ulong GetValue(Const value)
+    private long GetValue(Const value)
     {
         return value switch
         {
-            AST.Const.ConstInt constInt => (ulong)constInt.Value,
-            AST.Const.ConstLong constLong => (ulong)constLong.Value,
-            AST.Const.ConstUInt constUInt => (ulong)constUInt.Value,
-            AST.Const.ConstULong constULong => (ulong)constULong.Value,
-            AST.Const.ConstChar constChar => (ulong)constChar.Value,
-            AST.Const.ConstUChar constUChar => (ulong)constUChar.Value,
-            AST.Const.ConstDouble constDouble => (ulong)constDouble.Value,
+            AST.Const.ConstInt constInt => (long)constInt.Value,
+            AST.Const.ConstLong constLong => (long)constLong.Value,
+            AST.Const.ConstUInt constUInt => (long)constUInt.Value,
+            AST.Const.ConstULong constULong => (long)constULong.Value,
+            AST.Const.ConstChar constChar => (long)constChar.Value,
+            AST.Const.ConstUChar constUChar => (long)constUChar.Value,
+            AST.Const.ConstDouble constDouble => (long)constDouble.Value,
             _ => throw new NotImplementedException()
         };
     }
