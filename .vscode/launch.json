@@ -13,7 +13,7 @@
             "args": [
                 "-S",
                 "--pretty", 
-                "mcc2.Tests/Source/listing_19_5_more_types.c", 
+                "mcc2.Tests/Source/zero_neg_zero_different.c", 
                 "--optimize", 
             ],
             "cwd": "${workspaceFolder}",
