@@ -30,6 +30,8 @@ public class TackyOptimizer()
 
         while (true)
         {
+            var aliasedVars = AddressTakenAnalysis(instructions);
+
             List<Instruction> postConstantFolding = optimizations.HasFlag(CompilerDriver.Optimizations.FoldConstants) ? ConstantFolding(instructions) : instructions;
 
             Graph cfg = MakeControlFlowGraph(postConstantFolding);
@@ -38,10 +40,10 @@ public class TackyOptimizer()
                 cfg = UnreachableCodeElimination(cfg);
 
             if (optimizations.HasFlag(CompilerDriver.Optimizations.PropagateCopies))
-                cfg = CopyPropagation(cfg);
+                cfg = CopyPropagation(cfg, aliasedVars);
 
             if (optimizations.HasFlag(CompilerDriver.Optimizations.EliminateDeadStores))
-                cfg = DeadStoreElimination(cfg);
+                cfg = DeadStoreElimination(cfg, aliasedVars);
 
             List<Instruction> optimized = ControlFlowGraphToInstructions(cfg);
 
@@ -68,8 +70,20 @@ public class TackyOptimizer()
             else if (list1[i] != list2[i])
                 return false;
         }
-        
+
         return true;
+    }
+
+    private List<Val.Variable> AddressTakenAnalysis(List<Instruction> instructions)
+    {
+        List<Val.Variable> result = [];
+
+        foreach (var inst in instructions)
+        {
+            if (inst is Instruction.GetAddress getAddr)
+                result.Add((Val.Variable)getAddr.Src);
+        }
+        return result;
     }
 
     private List<Instruction> ConstantFolding(List<Instruction> instructions)
@@ -787,11 +801,11 @@ public class TackyOptimizer()
     private Dictionary<(int blockId, int instIndex), List<Instruction.Copy>> annotatedInstructions = [];
     private Dictionary<int, List<Instruction.Copy>> annotatedBlocks = [];
 
-    private Graph CopyPropagation(Graph cfg)
+    private Graph CopyPropagation(Graph cfg, List<Val.Variable> aliasedVars)
     {
         annotatedBlocks.Clear();
         annotatedInstructions.Clear();
-        FindReachingCopies(cfg);
+        FindReachingCopies(cfg, aliasedVars);
         foreach (var node in cfg.Nodes)
         {
             if (node is Node.BasicBlock basic)
@@ -846,26 +860,86 @@ public class TackyOptimizer()
                     return ret;
                 }
             case Instruction.JumpIfZero jz:
-            {
-                Val newSrc = ReplaceOperand(jz.Condition, reachingCopies);
-                return new Instruction.JumpIfZero(newSrc, jz.Target);
-            }
-            case Instruction.JumpIfNotZero jnz:
-            {
-                Val newSrc = ReplaceOperand(jnz.Condition, reachingCopies);
-                return new Instruction.JumpIfNotZero(newSrc, jnz.Target);
-            }
-            case Instruction.FunctionCall funCall:
-            {
-                List<Val> newArgs = [];
-                foreach (var arg in funCall.Arguments)
                 {
-                    Val newSrc = ReplaceOperand(arg, reachingCopies);
-                    newArgs.Add(newSrc);
+                    Val newSrc = ReplaceOperand(jz.Condition, reachingCopies);
+                    return new Instruction.JumpIfZero(newSrc, jz.Target);
                 }
-                return new Instruction.FunctionCall(funCall.Identifier, newArgs, funCall.Dst);
-            }
-            //todo: other instructions
+            case Instruction.JumpIfNotZero jnz:
+                {
+                    Val newSrc = ReplaceOperand(jnz.Condition, reachingCopies);
+                    return new Instruction.JumpIfNotZero(newSrc, jnz.Target);
+                }
+            case Instruction.FunctionCall funCall:
+                {
+                    List<Val> newArgs = [];
+                    foreach (var arg in funCall.Arguments)
+                    {
+                        Val newSrc = ReplaceOperand(arg, reachingCopies);
+                        newArgs.Add(newSrc);
+                    }
+                    return new Instruction.FunctionCall(funCall.Identifier, newArgs, funCall.Dst);
+                }
+            case Instruction.SignExtend sext:
+                {
+                    Val newSrc = ReplaceOperand(sext.Src, reachingCopies);
+                    return new Instruction.SignExtend(newSrc, sext.Dst);
+                }
+            case Instruction.Truncate trun:
+                {
+                    Val newSrc = ReplaceOperand(trun.Src, reachingCopies);
+                    return new Instruction.Truncate(newSrc, trun.Dst);
+                }
+            case Instruction.ZeroExtend zext:
+                {
+                    Val newSrc = ReplaceOperand(zext.Src, reachingCopies);
+                    return new Instruction.ZeroExtend(newSrc, zext.Dst);
+                }
+            case Instruction.DoubleToInt d2i:
+                {
+                    Val newSrc = ReplaceOperand(d2i.Src, reachingCopies);
+                    return new Instruction.DoubleToInt(newSrc, d2i.Dst);
+                }
+            case Instruction.DoubleToUInt d2u:
+                {
+                    Val newSrc = ReplaceOperand(d2u.Src, reachingCopies);
+                    return new Instruction.DoubleToUInt(newSrc, d2u.Dst);
+                }
+            case Instruction.IntToDouble i2d:
+                {
+                    Val newSrc = ReplaceOperand(i2d.Src, reachingCopies);
+                    return new Instruction.IntToDouble(newSrc, i2d.Dst);
+                }
+            case Instruction.UIntToDouble u2d:
+                {
+                    Val newSrc = ReplaceOperand(u2d.Src, reachingCopies);
+                    return new Instruction.UIntToDouble(newSrc, u2d.Dst);
+                }
+            case Instruction.Load load:
+                {
+                    Val newSrc = ReplaceOperand(load.SrcPtr, reachingCopies);
+                    return new Instruction.Load(newSrc, load.Dst);
+                }
+            case Instruction.Store store:
+                {
+                    Val newSrc = ReplaceOperand(store.Src, reachingCopies);
+                    return new Instruction.Store(newSrc, store.DstPtr);
+                }
+            case Instruction.AddPointer addp:
+                {
+                    Val newPtr = ReplaceOperand(addp.Pointer, reachingCopies);
+                    Val newIndex = ReplaceOperand(addp.Index, reachingCopies);
+                    return new Instruction.AddPointer(newPtr, newIndex, addp.Scale, addp.Dst);
+                }
+            case Instruction.CopyFromOffset cfo:
+                {
+                    Val newSrc = ReplaceOperand(new Val.Variable(cfo.Src), reachingCopies);
+                    return new Instruction.CopyFromOffset(((Val.Variable)newSrc).Name, cfo.Offset, cfo.Dst);
+                }
+            case Instruction.CopyToOffset cto:
+                {
+                    Val newSrc = ReplaceOperand(cto.Src, reachingCopies);
+                    return new Instruction.CopyToOffset(newSrc, cto.Dst, cto.Offset);
+                }
             default:
                 return instruction;
         }
@@ -890,7 +964,7 @@ public class TackyOptimizer()
         throw new Exception($"Optimizer Error: Couldn't find annotated instruction");
     }
 
-    private void FindReachingCopies(Graph graph)
+    private void FindReachingCopies(Graph graph, List<Val.Variable> aliasedVars)
     {
         List<Instruction.Copy> allCopies = graph.Nodes.FindAll(a => a is Node.BasicBlock)
                                                       .SelectMany(a => ((Node.BasicBlock)a).Instructions)
@@ -913,7 +987,7 @@ public class TackyOptimizer()
             var block = workList.Dequeue();
             var oldAnnotation = GetBlockAnnotation(block.Id);
             var incomingCopies = Meet(graph, block, allCopies);
-            Transfer(block, incomingCopies);
+            Transfer(block, incomingCopies, aliasedVars);
             if (!oldAnnotation.SequenceEqual(GetBlockAnnotation(block.Id)))
             {
                 foreach (var succId in block.Successors)
@@ -964,7 +1038,7 @@ public class TackyOptimizer()
         throw new Exception($"Optimizer Error: Couldn't find annotated block id {predId}");
     }
 
-    private void Transfer(Node.BasicBlock block, List<Instruction.Copy> initialReachingCopies)
+    private void Transfer(Node.BasicBlock block, List<Instruction.Copy> initialReachingCopies, List<Val.Variable> aliasedVars)
     {
         List<Instruction.Copy> currentReachingCopies = new(initialReachingCopies);
 
@@ -980,17 +1054,10 @@ public class TackyOptimizer()
                         if (currentReachingCopies.Contains(new Instruction.Copy(copyInst.Dst, copyInst.Src)))
                             continue;
 
-                        for (int i1 = 0; i1 < currentReachingCopies.Count; i1++)
-                        {
-                            Instruction.Copy? copy = currentReachingCopies[i1];
-                            if (copy.Src == copyInst.Dst || copy.Dst == copyInst.Dst)
-                            {
-                                currentReachingCopies.Remove(copy);
-                                i1--;
-                            }
-                        }
+                        KillCopy(currentReachingCopies, copyInst.Dst);
 
-                        currentReachingCopies.Add(copyInst);
+                        if ((GetType(copyInst.Src) == GetType(copyInst.Dst)) || (TypeChecker.IsSignedType(GetType(copyInst.Src)) == TypeChecker.IsSignedType(GetType(copyInst.Dst))))
+                            currentReachingCopies.Add(copyInst);
                     }
                     break;
                 case Instruction.FunctionCall funCall:
@@ -998,40 +1065,71 @@ public class TackyOptimizer()
                         for (int i1 = 0; i1 < currentReachingCopies.Count; i1++)
                         {
                             Instruction.Copy? copy = currentReachingCopies[i1];
-                            if (IsStatic(copy.Src) || IsStatic(copy.Dst) ||
-                                copy.Src == funCall.Dst || copy.Dst == funCall.Dst)
+                            if (IsAliased(aliasedVars, copy.Src) ||
+                                IsAliased(aliasedVars, copy.Dst) ||
+                                (copy.Dst != null &&
+                                (copy.Src == funCall.Dst ||
+                                copy.Dst == funCall.Dst)))
                             {
                                 currentReachingCopies.Remove(copy);
                                 i1--;
                             }
+                        }
+                    }
+                    break;
+                case Instruction.Store store:
+                    for (int i1 = 0; i1 < currentReachingCopies.Count; i1++)
+                    {
+                        Instruction.Copy? copy = currentReachingCopies[i1];
+                        if (IsAliased(aliasedVars, copy.Src) ||
+                            IsAliased(aliasedVars, copy.Dst))
+                        {
+                            currentReachingCopies.Remove(copy);
+                            i1--;
                         }
                     }
                     break;
                 case Instruction.Unary unary:
-                    {
-                        for (int i1 = 0; i1 < currentReachingCopies.Count; i1++)
-                        {
-                            Instruction.Copy? copy = currentReachingCopies[i1];
-                            if (copy.Src == unary.Dst || copy.Dst == unary.Dst)
-                            {
-                                currentReachingCopies.Remove(copy);
-                                i1--;
-                            }
-                        }
-                    }
+                    KillCopy(currentReachingCopies, unary.Dst);
                     break;
                 case Instruction.Binary binary:
-                    {
-                        for (int i1 = 0; i1 < currentReachingCopies.Count; i1++)
-                        {
-                            Instruction.Copy? copy = currentReachingCopies[i1];
-                            if (copy.Src == binary.Dst || copy.Dst == binary.Dst)
-                            {
-                                currentReachingCopies.Remove(copy);
-                                i1--;
-                            }
-                        }
-                    }
+                    KillCopy(currentReachingCopies, binary.Dst);
+                    break;
+                case Instruction.SignExtend sext:
+                    KillCopy(currentReachingCopies, sext.Dst);
+                    break;
+                case Instruction.Truncate trun:
+                    KillCopy(currentReachingCopies, trun.Dst);
+                    break;
+                case Instruction.ZeroExtend zext:
+                    KillCopy(currentReachingCopies, zext.Dst);
+                    break;
+                case Instruction.DoubleToInt d2i:
+                    KillCopy(currentReachingCopies, d2i.Dst);
+                    break;
+                case Instruction.DoubleToUInt d2u:
+                    KillCopy(currentReachingCopies, d2u.Dst);
+                    break;
+                case Instruction.IntToDouble i2d:
+                    KillCopy(currentReachingCopies, i2d.Dst);
+                    break;
+                case Instruction.UIntToDouble u2d:
+                    KillCopy(currentReachingCopies, u2d.Dst);
+                    break;
+                case Instruction.GetAddress addr:
+                    KillCopy(currentReachingCopies, addr.Dst);
+                    break;
+                case Instruction.Load load:
+                    KillCopy(currentReachingCopies, load.Dst);
+                    break;
+                case Instruction.AddPointer addp:
+                    KillCopy(currentReachingCopies, addp.Dst);
+                    break;
+                case Instruction.CopyFromOffset cfo:
+                    KillCopy(currentReachingCopies, cfo.Dst);
+                    break;
+                case Instruction.CopyToOffset cto:
+                    KillCopy(currentReachingCopies, new Val.Variable(cto.Dst));
                     break;
                 default:
                     continue;
@@ -1039,6 +1137,24 @@ public class TackyOptimizer()
         }
 
         AnnotateBlock(block.Id, currentReachingCopies);
+    }
+
+    private bool IsAliased(List<Val.Variable> aliasedVars, Val val)
+    {
+        return aliasedVars.Contains(val) || IsStatic(val);
+    }
+
+    private void KillCopy(List<Instruction.Copy> currentReachingCopies, Val Dst)
+    {
+        for (int i = 0; i < currentReachingCopies.Count; i++)
+        {
+            Instruction.Copy? copy = currentReachingCopies[i];
+            if (copy.Src == Dst || copy.Dst == Dst)
+            {
+                currentReachingCopies.Remove(copy);
+                i--;
+            }
+        }
     }
 
     private void AnnotateBlock(int id, List<Instruction.Copy> currentReachingCopies)
@@ -1056,7 +1172,7 @@ public class TackyOptimizer()
         annotatedInstructions[(blockId, instIndex)] = new(reachingCopies);
     }
 
-    private Graph DeadStoreElimination(Graph cfg)
+    private Graph DeadStoreElimination(Graph cfg, List<Val.Variable> aliasedVars)
     {
         return cfg;
     }

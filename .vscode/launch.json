@@ -13,7 +13,7 @@
             "args": [
                 "-S",
                 "--pretty", 
-                "mcc2.Tests/Source/constant_propagation.c", 
+                "mcc2.Tests/Source/zero_neg_zero_different.c", 
                 "--propagate-copies", 
             ],
             "cwd": "${workspaceFolder}",

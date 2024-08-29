@@ -1108,7 +1108,7 @@ public class TypeChecker
         return type switch
         {
             Type.Int or Type.Long or Type.Char or Type.SChar => true,
-            Type.UInt or Type.ULong or Type.UChar => false,
+            Type.UInt or Type.ULong or Type.UChar or Type.Pointer => false,
             _ => throw new NotImplementedException()
         };
     }
