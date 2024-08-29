@@ -988,7 +988,7 @@ public class TackyOptimizer()
             var oldAnnotation = GetCopyBlockAnnotation(block.Id);
             var incomingCopies = Meet(graph, block, allCopies);
             Transfer(block, incomingCopies, aliasedVars);
-            if (!oldAnnotation.SequenceEqual(GetCopyBlockAnnotation(block.Id)))
+            if (!new HashSet<Instruction.Copy>(oldAnnotation).SetEquals(GetCopyBlockAnnotation(block.Id)))
             {
                 foreach (var succId in block.Successors)
                 {
@@ -1330,7 +1330,7 @@ public class TackyOptimizer()
             var oldAnnotation = GetLiveBlockAnnotation(block.Id);
             var incomingCopies = Meet(graph, block, allStaticVariables);
             Transfer(block, incomingCopies, staticAndAliasedVars);
-            if (!oldAnnotation.SequenceEqual(GetLiveBlockAnnotation(block.Id)))
+            if (!new HashSet<Val.Variable>(oldAnnotation).SetEquals(GetLiveBlockAnnotation(block.Id)))
             {
                 foreach (var predId in block.Predecessors)
                 {

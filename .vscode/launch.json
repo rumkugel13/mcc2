@@ -13,7 +13,7 @@
             "args": [
                 "-S",
                 "--pretty", 
-                "mcc2.Tests/Source/fig_19_11.c", 
+                "mcc2.Tests/Source/nested_loops.c", 
                 "--eliminate-dead-stores", 
             ],
             "cwd": "${workspaceFolder}",
