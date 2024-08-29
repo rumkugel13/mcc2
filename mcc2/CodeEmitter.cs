@@ -115,17 +115,17 @@ public class CodeEmitter
         }
     }
 
-    private ulong GetValue(StaticInit staticInit)
+    private long GetValue(StaticInit staticInit)
     {
         return staticInit switch {
-            StaticInit.IntInit init => (ulong)init.Value,
-            StaticInit.LongInit init => (ulong)init.Value,
-            StaticInit.UIntInit init => (ulong)init.Value,
-            StaticInit.ULongInit init => (ulong)init.Value,
-            StaticInit.DoubleInit init => BitConverter.DoubleToUInt64Bits(init.Value),
-            StaticInit.ZeroInit init => (ulong)init.Bytes,
-            StaticInit.CharInit init => (ulong)init.Value,
-            StaticInit.UCharInit init => (ulong)init.Value,
+            StaticInit.IntInit init => (long)init.Value,
+            StaticInit.LongInit init => (long)init.Value,
+            StaticInit.UIntInit init => (long)init.Value,
+            StaticInit.ULongInit init => (long)init.Value,
+            StaticInit.DoubleInit init => (long)BitConverter.DoubleToInt64Bits(init.Value),
+            StaticInit.ZeroInit init => (long)init.Bytes,
+            StaticInit.CharInit init => (long)init.Value,
+            StaticInit.UCharInit init => (long)init.Value,
             _ => throw new NotImplementedException()
         };
     }
