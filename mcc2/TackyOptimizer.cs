@@ -1364,13 +1364,13 @@ public class TackyOptimizer()
             switch (FindNode(graph, succId))
             {
                 case Node.ExitNode:
-                    liveVars.AddRange(allStaticVariables);
+                    liveVars = liveVars.Union(allStaticVariables).ToList();
                     break;
                 case Node.EntryNode:
                     throw new Exception("Optimizer Error: Malformed control-flow graph");
                 case Node.BasicBlock basic:
                     var succLiveVars = GetLiveBlockAnnotation(succId);
-                    liveVars.AddRange(succLiveVars);
+                    liveVars = liveVars.Union(succLiveVars).ToList();
                     break;
             }
         }
@@ -1439,7 +1439,7 @@ public class TackyOptimizer()
                             if (arg is Val.Variable var)
                                 currentLiveVariables.Add(var);
                         }
-                        currentLiveVariables.AddRange(allStaticVariables);
+                        currentLiveVariables = currentLiveVariables.Union(allStaticVariables).ToList();
                         break;
                     }
                 case Instruction.Return ret:
@@ -1526,7 +1526,7 @@ public class TackyOptimizer()
                             currentLiveVariables.Remove(dst);
                         if (load.SrcPtr is Val.Variable var1)
                             currentLiveVariables.Add(var1);
-                        currentLiveVariables.AddRange(allStaticVariables);
+                        currentLiveVariables = currentLiveVariables.Union(allStaticVariables).ToList();
                         break;
                     }
                 case Instruction.Store store:
@@ -1550,10 +1550,10 @@ public class TackyOptimizer()
                         currentLiveVariables.Add(new Val.Variable(cfo.Src));
                         break;
                     }
-                default:
-                    throw new NotImplementedException();
             }
         }
+
+        AnnotateLiveBlock(block.Id, currentLiveVariables);
     }
 
     private void AnnotateLiveInstruction(int id, int i, List<Val.Variable> currentLiveVariables)

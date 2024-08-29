@@ -13,8 +13,8 @@
             "args": [
                 "-S",
                 "--pretty", 
-                "mcc2.Tests/Source/zero_neg_zero_different.c", 
-                "--propagate-copies", 
+                "mcc2.Tests/Source/fig_19_11.c", 
+                "--eliminate-dead-stores", 
             ],
             "cwd": "${workspaceFolder}",
             "stopAtEntry": false,
