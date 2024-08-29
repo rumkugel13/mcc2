@@ -134,7 +134,7 @@ public class TackyOptimizer()
                         switch (i2dConst.Value)
                         {
                             case Const.ConstChar c:
-                                result.Add(new Instruction.Copy(new Val.Constant(new Const.ConstDouble((double)c.Value)), i2d.Dst));
+                                result.Add(new Instruction.Copy(new Val.Constant(new Const.ConstDouble((double)(sbyte)c.Value)), i2d.Dst));
                                 break;
                             case Const.ConstInt c:
                                 result.Add(new Instruction.Copy(new Val.Constant(new Const.ConstDouble((double)c.Value)), i2d.Dst));
@@ -155,7 +155,7 @@ public class TackyOptimizer()
                         switch (u2dConst.Value)
                         {
                             case Const.ConstUChar c:
-                                result.Add(new Instruction.Copy(new Val.Constant(new Const.ConstDouble((double)c.Value)), u2d.Dst));
+                                result.Add(new Instruction.Copy(new Val.Constant(new Const.ConstDouble((double)(byte)c.Value)), u2d.Dst));
                                 break;
                             case Const.ConstUInt c:
                                 result.Add(new Instruction.Copy(new Val.Constant(new Const.ConstDouble((double)c.Value)), u2d.Dst));
@@ -176,10 +176,10 @@ public class TackyOptimizer()
                         switch (GetType(d2i.Dst))
                         {
                             case Type.Char c:
-                                result.Add(new Instruction.Copy(new Val.Constant(new Const.ConstChar((char)dval.Value)), d2i.Dst));
+                                result.Add(new Instruction.Copy(new Val.Constant(new Const.ConstChar((sbyte)dval.Value)), d2i.Dst));
                                 break;
                             case Type.SChar c:
-                                result.Add(new Instruction.Copy(new Val.Constant(new Const.ConstChar((char)dval.Value)), d2i.Dst));
+                                result.Add(new Instruction.Copy(new Val.Constant(new Const.ConstChar((sbyte)dval.Value)), d2i.Dst));
                                 break;
                             case Type.Int i:
                                 result.Add(new Instruction.Copy(new Val.Constant(new Const.ConstInt((int)dval.Value)), d2i.Dst));
@@ -223,16 +223,16 @@ public class TackyOptimizer()
                             switch (GetType(se.Dst))
                             {
                                 case Type.Int:
-                                    result.Add(new Instruction.Copy(new Val.Constant(new Const.ConstInt((int)smallC.Value)), se.Dst));
+                                    result.Add(new Instruction.Copy(new Val.Constant(new Const.ConstInt((int)(sbyte)smallC.Value)), se.Dst));
                                     break;
                                 case Type.UInt:
-                                    result.Add(new Instruction.Copy(new Val.Constant(new Const.ConstUInt((uint)(int)smallC.Value)), se.Dst));
+                                    result.Add(new Instruction.Copy(new Val.Constant(new Const.ConstUInt((uint)(int)(sbyte)smallC.Value)), se.Dst));
                                     break;
                                 case Type.Long:
-                                    result.Add(new Instruction.Copy(new Val.Constant(new Const.ConstLong((long)smallC.Value)), se.Dst));
+                                    result.Add(new Instruction.Copy(new Val.Constant(new Const.ConstLong((long)(sbyte)smallC.Value)), se.Dst));
                                     break;
                                 case Type.ULong:
-                                    result.Add(new Instruction.Copy(new Val.Constant(new Const.ConstULong((ulong)(long)smallC.Value)), se.Dst));
+                                    result.Add(new Instruction.Copy(new Val.Constant(new Const.ConstULong((ulong)(long)(sbyte)smallC.Value)), se.Dst));
                                     break;
                                 default:
                                     throw new NotImplementedException();
@@ -242,8 +242,10 @@ public class TackyOptimizer()
                         {
                             if (GetType(se.Dst) is Type.Long)
                                 result.Add(new Instruction.Copy(new Val.Constant(new Const.ConstLong((long)smallI.Value)), se.Dst));
-                            else
+                            else if (GetType(se.Dst) is Type.ULong or Type.Pointer)
                                 result.Add(new Instruction.Copy(new Val.Constant(new Const.ConstULong((ulong)(long)smallI.Value)), se.Dst));
+                            else
+                                throw new NotImplementedException();
                         }
                         else
                             result.Add(inst);
@@ -259,16 +261,16 @@ public class TackyOptimizer()
                             switch (GetType(ze.Dst))
                             {
                                 case Type.Int:
-                                    result.Add(new Instruction.Copy(new Val.Constant(new Const.ConstInt((int)(uint)smallC.Value)), ze.Dst));
+                                    result.Add(new Instruction.Copy(new Val.Constant(new Const.ConstInt((int)(uint)(byte)smallC.Value)), ze.Dst));
                                     break;
                                 case Type.UInt:
-                                    result.Add(new Instruction.Copy(new Val.Constant(new Const.ConstUInt((uint)smallC.Value)), ze.Dst));
+                                    result.Add(new Instruction.Copy(new Val.Constant(new Const.ConstUInt((uint)(byte)smallC.Value)), ze.Dst));
                                     break;
                                 case Type.Long:
-                                    result.Add(new Instruction.Copy(new Val.Constant(new Const.ConstLong((long)(ulong)smallC.Value)), ze.Dst));
+                                    result.Add(new Instruction.Copy(new Val.Constant(new Const.ConstLong((long)(ulong)(byte)smallC.Value)), ze.Dst));
                                     break;
                                 case Type.ULong:
-                                    result.Add(new Instruction.Copy(new Val.Constant(new Const.ConstULong((ulong)smallC.Value)), ze.Dst));
+                                    result.Add(new Instruction.Copy(new Val.Constant(new Const.ConstULong((ulong)(byte)smallC.Value)), ze.Dst));
                                     break;
                                 default:
                                     throw new NotImplementedException();
@@ -278,8 +280,10 @@ public class TackyOptimizer()
                         {
                             if (GetType(ze.Dst) is Type.Long)
                                 result.Add(new Instruction.Copy(new Val.Constant(new Const.ConstLong((long)(ulong)smallI.Value)), ze.Dst));
-                            else
+                            else if (GetType(ze.Dst) is Type.ULong or Type.Pointer)
                                 result.Add(new Instruction.Copy(new Val.Constant(new Const.ConstULong((ulong)smallI.Value)), ze.Dst));
+                            else
+                                throw new NotImplementedException();
                         }
                         else
                             result.Add(inst);
