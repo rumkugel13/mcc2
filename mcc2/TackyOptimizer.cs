@@ -307,8 +307,11 @@ public class TackyOptimizer()
                             case Type.UInt:
                                 result.Add(new Instruction.Copy(new Val.Constant(new Const.ConstUInt((uint)value)), trun.Dst));
                                 break;
-                            case Type.Char or Type.SChar:
-                                result.Add(new Instruction.Copy(new Val.Constant(new Const.ConstChar((char)value)), trun.Dst));
+                            case Type.Char:
+                                result.Add(new Instruction.Copy(new Val.Constant(new Const.ConstChar((byte)value)), trun.Dst));
+                                break;
+                            case Type.SChar:
+                                result.Add(new Instruction.Copy(new Val.Constant(new Const.ConstChar((sbyte)value)), trun.Dst));
                                 break;
                             case Type.UChar:
                                 result.Add(new Instruction.Copy(new Val.Constant(new Const.ConstUChar((byte)value)), trun.Dst));
