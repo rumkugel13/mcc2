@@ -1181,7 +1181,7 @@ public class TackyOptimizer()
         annotatedLiveBlocks.Clear();
         annotatedLiveInstructions.Clear();
 
-        LivenessAnalysis(cfg, staticVars);
+        LivenessAnalysis(cfg, staticVars, aliasedVars);
         foreach (var node in cfg.Nodes)
         {
             if (node is Node.BasicBlock basic)
@@ -1201,29 +1201,99 @@ public class TackyOptimizer()
 
     private bool IsDeadStore(Instruction instruction, int blockId, int instIndex)
     {
-        if (instruction is Instruction.FunctionCall)
+        if (instruction is Instruction.FunctionCall or Instruction.Store)
             return false;
 
+        List<Val.Variable> liveVars = GetInstructionLiveAnnotation(blockId, instIndex);
         switch (instruction)
         {
             case Instruction.Binary binary:
                 {
-                    List<Val.Variable> liveVars = GetInstructionLiveAnnotation(blockId, instIndex);
                     if (!liveVars.Contains(binary.Dst))
                         return true;
                     break;
                 }
             case Instruction.Unary unary:
                 {
-                    List<Val.Variable> liveVars = GetInstructionLiveAnnotation(blockId, instIndex);
                     if (!liveVars.Contains(unary.Dst))
                         return true;
                     break;
                 }
             case Instruction.Copy copy:
                 {
-                    List<Val.Variable> liveVars = GetInstructionLiveAnnotation(blockId, instIndex);
                     if (copy.Dst is Val.Variable var && !liveVars.Contains(var))
+                        return true;
+                    break;
+                }
+            case Instruction.SignExtend se:
+                {
+                    if (se.Dst is Val.Variable var && !liveVars.Contains(var))
+                        return true;
+                    break;
+                }
+            case Instruction.Truncate trun:
+                {
+                    if (trun.Dst is Val.Variable var && !liveVars.Contains(var))
+                        return true;
+                    break;
+                }
+            case Instruction.ZeroExtend ze:
+                {
+                    if (ze.Dst is Val.Variable var && !liveVars.Contains(var))
+                        return true;
+                    break;
+                }
+            case Instruction.DoubleToInt d2i:
+                {
+                    if (d2i.Dst is Val.Variable var && !liveVars.Contains(var))
+                        return true;
+                    break;
+                }
+            case Instruction.DoubleToUInt d2u:
+                {
+                    if (d2u.Dst is Val.Variable var && !liveVars.Contains(var))
+                        return true;
+                    break;
+                }
+            case Instruction.IntToDouble i2d:
+                {
+                    if (i2d.Dst is Val.Variable var && !liveVars.Contains(var))
+                        return true;
+                    break;
+                }
+            case Instruction.UIntToDouble u2d:
+                {
+                    if (u2d.Dst is Val.Variable var && !liveVars.Contains(var))
+                        return true;
+                    break;
+                }
+            case Instruction.GetAddress getA:
+                {
+                    if (getA.Dst is Val.Variable var && !liveVars.Contains(var))
+                        return true;
+                    break;
+                }
+            case Instruction.Load load:
+                {
+                    if (load.Dst is Val.Variable var && !liveVars.Contains(var))
+                        return true;
+                    break;
+                }
+            case Instruction.AddPointer addP:
+                {
+                    if (addP.Dst is Val.Variable var && !liveVars.Contains(var))
+                        return true;
+                    break;
+                }
+            case Instruction.CopyToOffset cto:
+                {
+                    if (!liveVars.Contains(new Val.Variable(cto.Dst)))
+                        return true;
+                    break;
+                }
+            case Instruction.CopyFromOffset cfo:
+                {
+                    if (cfo.Dst is Val.Variable var && !liveVars.Contains(var))
                         return true;
                     break;
                 }
@@ -1239,8 +1309,9 @@ public class TackyOptimizer()
         throw new Exception($"Optimizer Error: Couldn't find annotated instruction");
     }
 
-    private void LivenessAnalysis(Graph graph, List<Val.Variable> allStaticVariables)
+    private void LivenessAnalysis(Graph graph, List<Val.Variable> allStaticVariables, List<Val.Variable> aliasedVars)
     {
+        List<Val.Variable> staticAndAliasedVars = allStaticVariables.Union(aliasedVars).ToList();
         List<Val.Variable> allLive = [];
         Queue<Node.BasicBlock> workList = [];
 
@@ -1257,8 +1328,8 @@ public class TackyOptimizer()
         {
             var block = workList.Dequeue();
             var oldAnnotation = GetLiveBlockAnnotation(block.Id);
-            var incomingCopies = Meet(graph, block, allLive);
-            Transfer(block, incomingCopies, allStaticVariables);
+            var incomingCopies = Meet(graph, block, allStaticVariables);
+            Transfer(block, incomingCopies, staticAndAliasedVars);
             if (!oldAnnotation.SequenceEqual(GetLiveBlockAnnotation(block.Id)))
             {
                 foreach (var predId in block.Predecessors)
@@ -1375,6 +1446,108 @@ public class TackyOptimizer()
                     {
                         if (ret.Value != null && ret.Value is Val.Variable var1)
                             currentLiveVariables.Add(var1);
+                        break;
+                    }
+                case Instruction.SignExtend se:
+                    {
+                        if (se.Dst is Val.Variable var)
+                            currentLiveVariables.Remove(var);
+                        if (se.Src is Val.Variable var1)
+                            currentLiveVariables.Add(var1);
+                        break;
+                    }
+                case Instruction.ZeroExtend ze:
+                    {
+                        if (ze.Dst is Val.Variable var)
+                            currentLiveVariables.Remove(var);
+                        if (ze.Src is Val.Variable var1)
+                            currentLiveVariables.Add(var1);
+                        break;
+                    }
+                case Instruction.Truncate trun:
+                    {
+                        if (trun.Dst is Val.Variable var)
+                            currentLiveVariables.Remove(var);
+                        if (trun.Src is Val.Variable var1)
+                            currentLiveVariables.Add(var1);
+                        break;
+                    }
+                case Instruction.DoubleToInt d2i:
+                    {
+                        if (d2i.Dst is Val.Variable var)
+                            currentLiveVariables.Remove(var);
+                        if (d2i.Src is Val.Variable var1)
+                            currentLiveVariables.Add(var1);
+                        break;
+                    }
+                case Instruction.DoubleToUInt d2u:
+                    {
+                        if (d2u.Dst is Val.Variable var)
+                            currentLiveVariables.Remove(var);
+                        if (d2u.Src is Val.Variable var1)
+                            currentLiveVariables.Add(var1);
+                        break;
+                    }
+                case Instruction.IntToDouble i2d:
+                    {
+                        if (i2d.Dst is Val.Variable var)
+                            currentLiveVariables.Remove(var);
+                        if (i2d.Src is Val.Variable var1)
+                            currentLiveVariables.Add(var1);
+                        break;
+                    }
+                case Instruction.UIntToDouble u2d:
+                    {
+                        if (u2d.Dst is Val.Variable var)
+                            currentLiveVariables.Remove(var);
+                        if (u2d.Src is Val.Variable var1)
+                            currentLiveVariables.Add(var1);
+                        break;
+                    }
+                case Instruction.AddPointer addP:
+                    {
+                        if (addP.Dst is Val.Variable var)
+                            currentLiveVariables.Remove(var);
+                        if (addP.Pointer is Val.Variable var1)
+                            currentLiveVariables.Add(var1);
+                        if (addP.Index is Val.Variable var2)
+                            currentLiveVariables.Add(var2);
+                        break;
+                    }
+                case Instruction.GetAddress getA:
+                    {
+                        if (getA.Dst is Val.Variable var)
+                            currentLiveVariables.Remove(var);
+                        break;
+                    }
+                case Instruction.Load load:
+                    {
+                        if (load.Dst is Val.Variable dst)
+                            currentLiveVariables.Remove(dst);
+                        if (load.SrcPtr is Val.Variable var1)
+                            currentLiveVariables.Add(var1);
+                        currentLiveVariables.AddRange(allStaticVariables);
+                        break;
+                    }
+                case Instruction.Store store:
+                    {
+                        if (store.Src is Val.Variable var1)
+                            currentLiveVariables.Add(var1);
+                        if (store.DstPtr is Val.Variable var2)
+                            currentLiveVariables.Add(var2);
+                        break;
+                    }
+                case Instruction.CopyToOffset cto:
+                    {
+                        if (cto.Src is Val.Variable var1)
+                            currentLiveVariables.Add(var1);
+                        break;
+                    }
+                case Instruction.CopyFromOffset cfo:
+                    {
+                        if (cfo.Dst is Val.Variable dst)
+                            currentLiveVariables.Remove(dst);
+                        currentLiveVariables.Add(new Val.Variable(cfo.Src));
                         break;
                     }
                 default:
