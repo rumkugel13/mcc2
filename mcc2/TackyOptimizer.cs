@@ -231,7 +231,7 @@ public class TackyOptimizer()
                                 case Type.Long:
                                     result.Add(new Instruction.Copy(new Val.Constant(new Const.ConstLong((long)(sbyte)smallC.Value)), se.Dst));
                                     break;
-                                case Type.ULong:
+                                case Type.ULong or Type.Pointer:
                                     result.Add(new Instruction.Copy(new Val.Constant(new Const.ConstULong((ulong)(long)(sbyte)smallC.Value)), se.Dst));
                                     break;
                                 default:
@@ -269,7 +269,7 @@ public class TackyOptimizer()
                                 case Type.Long:
                                     result.Add(new Instruction.Copy(new Val.Constant(new Const.ConstLong((long)(ulong)(byte)smallC.Value)), ze.Dst));
                                     break;
-                                case Type.ULong:
+                                case Type.ULong or Type.Pointer:
                                     result.Add(new Instruction.Copy(new Val.Constant(new Const.ConstULong((ulong)(byte)smallC.Value)), ze.Dst));
                                     break;
                                 default:
