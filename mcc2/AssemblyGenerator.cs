@@ -21,12 +21,15 @@ public class AssemblyGenerator
         {
             if (entry.Value.IdentifierAttributes is IdentifierAttributes.Function funAttr)
             {
-                bool returnsOnStack = false;
                 if (entry.Value.Type is Type.FunctionType funcType && (TypeChecker.IsComplete(funcType.Return, typeTable) || funcType.Return is Type.Void))
                 {
-                    returnsOnStack = ReturnsOnStack(entry.Key);
+                    bool returnsOnStack = ReturnsOnStack(entry.Key);
+                    List<Operand.RegisterName> paramRegisters = ClassifyParameterTypes(funcType.Parameters, returnsOnStack);
+                    List<Operand.RegisterName> returnRegisters = ClassifyReturnTypes(funcType.Return, returnsOnStack);
+                    AsmSymbolTable[entry.Key] = new AsmSymbolTableEntry.FunctionEntry(funAttr.Defined, returnsOnStack, paramRegisters, returnRegisters);
                 }
-                AsmSymbolTable[entry.Key] = new AsmSymbolTableEntry.FunctionEntry(funAttr.Defined, returnsOnStack);
+                else
+                    AsmSymbolTable[entry.Key] = new AsmSymbolTableEntry.FunctionEntry(funAttr.Defined, false, [], []);
             }
             else if (entry.Value.IdentifierAttributes is IdentifierAttributes.Constant constant)
             {
@@ -41,6 +44,26 @@ public class AssemblyGenerator
                 AsmSymbolTable[entry.Key] = new AsmSymbolTableEntry.ObjectEntry(GetAssemblyType(entry.Value.Type), entry.Value.IdentifierAttributes is IdentifierAttributes.Static, false);
             }
         }
+    }
+
+    private List<Operand.RegisterName> ClassifyParameterTypes(List<Type> parameters, bool returnsOnStack)
+    {
+        (var ints, var doubles, _) = ClassifyParameters(parameters.Select(a => (a, (Operand)new Operand.PseudoMemory("DUMMY", 0))).ToList(), returnsOnStack);
+        var intRegs = ABIRegisters.Take(ints.Count);
+        var dblRegs = ABIFloatRegisters.Take(doubles.Count);
+        return intRegs.Concat(dblRegs).ToList();
+    }
+
+    private List<Operand.RegisterName> ClassifyReturnTypes(Type returnType, bool returnsOnStack)
+    {
+        if (returnType is Type.Void)
+            return [];
+        (var ints, var doubles, var onStack) = ClassifyReturnValue(returnType, TypeChecker.IsScalar(returnType) ? new Operand.Pseudo("DUMMY") : (Operand)new Operand.PseudoMemory("DUMMY", 0));
+        if (onStack)
+            return [Operand.RegisterName.AX];
+        var intRegs = new List<Operand.RegisterName>([Operand.RegisterName.AX, Operand.RegisterName.DX])[0..ints.Count];
+        var dblRegs = new List<Operand.RegisterName>([Operand.RegisterName.XMM0, Operand.RegisterName.XMM1])[0..doubles.Count];
+        return intRegs.Concat(dblRegs).ToList();
     }
 
     public AssemblyProgram Generate(TAC.TACProgam program)
@@ -129,7 +152,7 @@ public class AssemblyGenerator
         List<TAC.Val> vals = [];
         foreach (var param in parameters)
             vals.Add(new TAC.Val.Variable(param));
-        (List<(AssemblyType, Operand)> intRegArgs, List<Operand> doubleRegArgs, List<(AssemblyType, Operand)> stackArgs) = ClassifyParameters(vals, returnInMemory);
+        (List<(AssemblyType, Operand)> intRegArgs, List<Operand> doubleRegArgs, List<(AssemblyType, Operand)> stackArgs) = ClassifyParameters(vals.Select(a => (GetType(a), GenerateOperand(a))).ToList(), returnInMemory);
 
         var regIndex = 0;
 
@@ -172,24 +195,24 @@ public class AssemblyGenerator
         return align * ((bytes + align - 1) / align);
     }
 
-    private (List<(AssemblyType, Operand)> intRetVals, List<Operand> doubleRetVals, bool returnedInMemory) ClassifyReturnValue(TAC.Val returnValue)
+    private (List<(AssemblyType, Operand)> intRetVals, List<Operand> doubleRetVals, bool returnedInMemory) ClassifyReturnValue(Type retType, Operand retOperand)
     {
-        AssemblyType assemblyType = GetAssemblyType(returnValue);
+        AssemblyType assemblyType = GetAssemblyType(retType);
 
         if (assemblyType is AssemblyType.Double)
         {
-            var operand = GenerateOperand(returnValue);
+            var operand = retOperand;
             return ([], [operand], false);
         }
-        else if (IsScalar(returnValue))
+        else if (TypeChecker.IsScalar(retType))
         {
-            var typedOperand = (assemblyType, GenerateOperand(returnValue));
+            var typedOperand = (assemblyType, retOperand);
             return ([typedOperand], [], false);
         }
         else
         {
-            var parameterName = ((TAC.Val.Variable)returnValue).Name;
-            var structDef = typeTable[((Type.Structure)(symbolTable[parameterName]).Type).Identifier];
+            var parameterName = ((Operand.PseudoMemory)retOperand).Identifier;
+            var structDef = typeTable[((Type.Structure)retType).Identifier];
             var classes = ClassifyStructure(structDef);
             var structSize = structDef.Size;
             if (classes[0] == Operand.ClassType.Memory)
@@ -218,7 +241,7 @@ public class AssemblyGenerator
         }
     }
 
-    private (List<(AssemblyType, Operand)> intRegArgs, List<Operand> doubleRegArgs, List<(AssemblyType, Operand)> stackArgs) ClassifyParameters(List<TAC.Val> parameters, bool returnInMemory)
+    private (List<(AssemblyType, Operand)> intRegArgs, List<Operand> doubleRegArgs, List<(AssemblyType, Operand)> stackArgs) ClassifyParameters(List<(Type paramType, Operand paramOperand)> parameters, bool returnInMemory)
     {
         List<(AssemblyType, Operand)> intRegArgs = [];
         List<Operand> doubleRegArgs = [];
@@ -228,8 +251,8 @@ public class AssemblyGenerator
 
         for (int i = 0; i < parameters.Count; i++)
         {
-            AssemblyType assemblyType = GetAssemblyType(parameters[i]);
-            var operand = GenerateOperand(parameters[i]);
+            AssemblyType assemblyType = GetAssemblyType(parameters[i].paramType);
+            var operand = parameters[i].paramOperand;
             var typedOperand = (assemblyType, operand);
             if (assemblyType is AssemblyType.Double)
             {
@@ -238,7 +261,7 @@ public class AssemblyGenerator
                 else
                     stackArgs.Add(typedOperand);
             }
-            else if (IsScalar(parameters[i]))
+            else if (TypeChecker.IsScalar(parameters[i].paramType))
             {
                 if (intRegArgs.Count < intRegsAvailable)
                     intRegArgs.Add(typedOperand);
@@ -247,8 +270,8 @@ public class AssemblyGenerator
             }
             else
             {
-                var parameterName = ((TAC.Val.Variable)parameters[i]).Name;
-                var structDef = typeTable[((Type.Structure)(symbolTable[parameterName]).Type).Identifier];
+                var parameterName = ((Operand.PseudoMemory)operand).Identifier;
+                var structDef = typeTable[((Type.Structure)parameters[i].paramType).Identifier];
                 var classes = ClassifyStructure(structDef);
                 bool useStack = true;
                 var structSize = structDef.Size;
@@ -368,7 +391,7 @@ public class AssemblyGenerator
         long regIndex = 0;
 
         if (functionCall.Dst != null)
-            (intDests, doubleDests, returnInMemory) = ClassifyReturnValue(functionCall.Dst);
+            (intDests, doubleDests, returnInMemory) = ClassifyReturnValue(GetType(functionCall.Dst), GenerateOperand(functionCall.Dst));
 
         if (returnInMemory)
         {
@@ -377,7 +400,7 @@ public class AssemblyGenerator
             regIndex = 1;
         }
 
-        (List<(AssemblyType, Operand)> intRegArgs, List<Operand> doubleRegArgs, List<(AssemblyType, Operand)> stackArgs) = ClassifyParameters(functionCall.Arguments, returnInMemory);
+        (List<(AssemblyType, Operand)> intRegArgs, List<Operand> doubleRegArgs, List<(AssemblyType, Operand)> stackArgs) = ClassifyParameters(functionCall.Arguments.Select(a => (GetType(a), GenerateOperand(a))).ToList(), returnInMemory);
 
         var stackPadding = stackArgs.Count % 2 != 0 ? 8 : 0;
 
@@ -493,7 +516,7 @@ public class AssemblyGenerator
                             break;
                         }
 
-                        (List<(AssemblyType, Operand)> intRetVals, List<Operand> doubleRetVals, bool returnedInMemory) = ClassifyReturnValue(ret.Value);
+                        (List<(AssemblyType, Operand)> intRetVals, List<Operand> doubleRetVals, bool returnedInMemory) = ClassifyReturnValue(GetType(ret.Value), GenerateOperand(ret.Value));
 
                         if (returnedInMemory)
                         {
@@ -880,6 +903,26 @@ public class AssemblyGenerator
                 _ => throw new NotImplementedException()
             },
             TAC.Val.Variable var => GetAssemblyType(symbolTable[var.Name].Type),
+            _ => throw new NotImplementedException()
+        };
+    }
+
+    private Type GetType(TAC.Val val)
+    {
+        return val switch
+        {
+            TAC.Val.Constant constant => constant.Value switch
+            {
+                AST.Const.ConstInt => new Type.Int(),
+                AST.Const.ConstLong => new Type.Long(),
+                AST.Const.ConstUInt => new Type.UInt(),
+                AST.Const.ConstULong => new Type.ULong(),
+                AST.Const.ConstDouble => new Type.Double(),
+                AST.Const.ConstChar => new Type.Char(),
+                AST.Const.ConstUChar => new Type.UChar(),
+                _ => throw new NotImplementedException()
+            },
+            TAC.Val.Variable var => symbolTable[var.Name].Type,
             _ => throw new NotImplementedException()
         };
     }
