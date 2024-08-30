@@ -327,6 +327,37 @@ public class TackyOptimizer()
                     else
                         result.Add(inst);
                     break;
+                case Instruction.Copy copy:
+                    if (copy.Src is Val.Constant copyConst)
+                    {
+                        switch (copyConst.Value)
+                        {
+                            case Const.ConstChar constChar when GetType(copy.Dst) is Type.UChar:
+                                result.Add(new Instruction.Copy(new Val.Constant(new Const.ConstUChar(constChar.Value)), copy.Dst));
+                                break;
+                            case Const.ConstUChar constUChar when GetType(copy.Dst) is Type.Char or Type.SChar:
+                                result.Add(new Instruction.Copy(new Val.Constant(new Const.ConstChar(constUChar.Value)), copy.Dst));
+                                break;
+                            case Const.ConstInt constInt when GetType(copy.Dst) is Type.UInt:
+                                result.Add(new Instruction.Copy(new Val.Constant(new Const.ConstUInt((uint)constInt.Value)), copy.Dst));
+                                break;
+                            case Const.ConstUInt constUInt when GetType(copy.Dst) is Type.Int:
+                                result.Add(new Instruction.Copy(new Val.Constant(new Const.ConstInt((int)constUInt.Value)), copy.Dst));
+                                break;
+                            case Const.ConstLong constLong when GetType(copy.Dst) is Type.ULong:
+                                result.Add(new Instruction.Copy(new Val.Constant(new Const.ConstULong((ulong)constLong.Value)), copy.Dst));
+                                break;
+                            case Const.ConstULong constULong when GetType(copy.Dst) is Type.Long:
+                                result.Add(new Instruction.Copy(new Val.Constant(new Const.ConstLong((long)constULong.Value)), copy.Dst));
+                                break;
+                            default:
+                                result.Add(inst);
+                                break;
+                        }
+                    }
+                    else
+                        result.Add(inst);
+                    break;
                 default:
                     result.Add(inst);
                     break;
