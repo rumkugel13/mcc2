@@ -150,12 +150,6 @@ public class TypeChecker
 
         if (structDecl.Members.Any(a => !IsComplete(a.MemberType, typeTable)))
             throw new Exception("Type Error: Struct members can't be incomplete");
-
-        // if (structDecl.Members.Any(a => a.MemberType is Type.Array array && !IsComplete(array.Element, typeTable)))
-        //     throw new Exception("Type Error: Struct members can't be array of incomplete type");
-
-        // if (structDecl.Members.Any(a => a.MemberType is Type.Pointer && !IsPointerToComplete(a.MemberType, typeTable)))
-        //     throw new Exception("Type Error: Struct members can't be pointer to incomplete type");
     }
 
     private Block TypeCheckBlock(Block block, Dictionary<string, SymbolEntry> symbolTable, Dictionary<string, StructEntry> typeTable)

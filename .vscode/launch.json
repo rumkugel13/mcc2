@@ -13,7 +13,7 @@
             "args": [
                 "-S",
                 "--pretty", 
-                "mcc2.Tests/Source/signed_unsigned_conversion.c", 
+                "mcc2.Tests/Source/explicit_casts.c", 
                 "--optimize", 
             ],
             "cwd": "${workspaceFolder}",
