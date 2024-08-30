@@ -50,11 +50,18 @@ Besides having fun and learning how compilers and C work, these are some of the 
   - [X] 18: Structures
     - [ ] Extra: Unions
 - [ ] Part III: Optimizations
-  - [ ] 19: Optimizing TACKY Programs
+  - [X] 19: Optimizing TACKY Programs
   - [ ] 20: Register Allocation
 
 ## Bugs
 
-Chapter 18:
+Compiling the following test files produces wrong results:
 
-There is one test (tests/chapter_18/valid/no_structure_parameters/libraries/initializers/nested_static_struct_initializers_client) which doesn't work correctly due to double type conversions. In the function "test_implicit_conversions" the check "converted.four_d != 9223372036854777856.0" fails due to converted.four_d not having the same double type value. "converted.four_d" was initialized with a "9223372036854776833ul", which should produce the same double value (9223372036854777856.0), but somehow doesn't. I don't know why this happens, especially when all the previous tests for double in chapter 13 do not fail, so there's that.
+chapter_19/valid/constant_folding/all_types/fold_cast_to_double
+    expected 0 got 4
+chapter_18/valid/no_structure_parameters/libraries/initializers/nested_static_struct_initializers_client
+    expected 0 got 4
+chapter_13/valid/floating_expressions/logical
+    expected 0 got 14
+
+These are due to floating point (double) errors, to be fixed later
