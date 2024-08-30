@@ -72,68 +72,72 @@ namespace mcc2
         }
 
         // note: pattern order needs to match tokentype order
-        private readonly string[] patterns = [
-            "[a-zA-Z_]\\w*\\b",
-            @"([0-9]+)[^\w.]",
-            @"([0-9]+[lL])[^\w.]",
-            @"([0-9]+[uU])[^\w.]",
-            @"([0-9]+([lL][uU]|[uU][lL]))[^\w.]",
-            @"(([0-9]*\.[0-9]+|[0-9]+\.?)[Ee][+-]?[0-9]+|[0-9]*\.[0-9]+|[0-9]+\.)[^\w.]",
+        private readonly Regex[] patterns = [
+            new Regex("\\G[a-zA-Z_]\\w*\\b"),
+            new Regex(@"\G([0-9]+)[^\w.]"),
+            new Regex(@"\G([0-9]+[lL])[^\w.]"),
+            new Regex(@"\G([0-9]+[uU])[^\w.]"),
+            new Regex(@"\G([0-9]+([lL][uU]|[uU][lL]))[^\w.]"),
+            new Regex(@"\G(([0-9]*\.[0-9]+|[0-9]+\.?)[Ee][+-]?[0-9]+|[0-9]*\.[0-9]+|[0-9]+\.)[^\w.]"),
+            new Regex(
             """
-            '([^'\\\n]|\\['"?\\abfnrtv])'
-            """,
+            \G'([^'\\\n]|\\['"?\\abfnrtv])'
             """
-            "([^"\\\n]|\\['"\\?abfnrtv])*"
-            """,
-            "int\\b",
-            "void\\b",
-            "return\\b",
-            "if\\b",
-            "else\\b",
-            "do\\b",
-            "while\\b",
-            "for\\b",
-            "break\\b",
-            "continue\\b",
-            "static\\b",
-            "extern\\b",
-            "long\\b",
-            "signed\\b",
-            "unsigned\\b",
-            "double\\b",
-            "char\\b",
-            "sizeof\\b",
-            "struct\\b",
-            "--",
-            "&&",
-            "\\|\\|",
-            "==",
-            "!=",
-            "<=",
-            ">=",
-            "\\(",
-            "\\)",
-            "{",
-            "}",
-            ";",
-            "-",
-            "~",
-            "\\+",
-            "\\*",
-            "\\/",
-            "%",
-            "!",
-            "<",
-            ">",
-            "=",
-            "\\?",
-            ":",
-            ",",
-            "&",
-            "\\[",
-            "\\]",
-            "\\.(?![0-9])",
-            "->",
+            ),
+            new Regex(
+            """
+            \G"([^"\\\n]|\\['"\\?abfnrtv])*"
+            """
+            ),
+            new Regex("\\Gint\\b"),
+            new Regex("\\Gvoid\\b"),
+            new Regex("\\Greturn\\b"),
+            new Regex("\\Gif\\b"),
+            new Regex("\\Gelse\\b"),
+            new Regex("\\Gdo\\b"),
+            new Regex("\\Gwhile\\b"),
+            new Regex("\\Gfor\\b"),
+            new Regex("\\Gbreak\\b"),
+            new Regex("\\Gcontinue\\b"),
+            new Regex("\\Gstatic\\b"),
+            new Regex("\\Gextern\\b"),
+            new Regex("\\Glong\\b"),
+            new Regex("\\Gsigned\\b"),
+            new Regex("\\Gunsigned\\b"),
+            new Regex("\\Gdouble\\b"),
+            new Regex("\\Gchar\\b"),
+            new Regex("\\Gsizeof\\b"),
+            new Regex("\\Gstruct\\b"),
+            new Regex("\\G--"),
+            new Regex("\\G&&"),
+            new Regex("\\G\\|\\|"),
+            new Regex("\\G=="),
+            new Regex("\\G!="),
+            new Regex("\\G<="),
+            new Regex("\\G>="),
+            new Regex("\\G\\("),
+            new Regex("\\G\\)"),
+            new Regex("\\G{"),
+            new Regex("\\G}"),
+            new Regex("\\G;"),
+            new Regex("\\G-"),
+            new Regex("\\G~"),
+            new Regex("\\G\\+"),
+            new Regex("\\G\\*"),
+            new Regex("\\G\\/"),
+            new Regex("\\G%"),
+            new Regex("\\G!"),
+            new Regex("\\G<"),
+            new Regex("\\G>"),
+            new Regex("\\G="),
+            new Regex("\\G\\?"),
+            new Regex("\\G:"),
+            new Regex("\\G,"),
+            new Regex("\\G&"),
+            new Regex("\\G\\["),
+            new Regex("\\G\\]"),
+            new Regex("\\G\\.(?![0-9])"),
+            new Regex("\\G->"),
         ];
 
         public List<Token> Lex(string source)
@@ -157,7 +161,7 @@ namespace mcc2
 
                 for (int i = 0; i < patterns.Length; i++)
                 {
-                    Regex regex = new($"\\G{patterns[i]}");
+                    Regex regex = patterns[i];
                     Match match = regex.Match(source, pos);
                     if (match.Success)
                     {
