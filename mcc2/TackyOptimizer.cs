@@ -36,7 +36,7 @@ public class TackyOptimizer()
                 new ConstantFolding().Fold(instructions) :
                 instructions;
 
-            Graph graph = MakeControlFlowGraph(postConstantFolding);
+            Graph graph = new Graph(postConstantFolding);
 
             if (optimizations.HasFlag(CompilerDriver.Optimizations.EliminateUnreachableCode))
                 graph = new UnreachableCodeElimination().Eliminate(graph);
@@ -47,7 +47,7 @@ public class TackyOptimizer()
             if (optimizations.HasFlag(CompilerDriver.Optimizations.EliminateDeadStores))
                 graph = new DeadStoreElimination().Eliminate(graph, aliasedVars);
 
-            List<Instruction> optimized = ControlFlowGraphToInstructions(graph);
+            List<Instruction> optimized = graph.ToInstructions();
 
             if (AreEqual(optimized, instructions) || optimized.Count == 0)
                 return optimized;
@@ -86,52 +86,5 @@ public class TackyOptimizer()
         }
 
         return true;
-    }
-
-    private Graph MakeControlFlowGraph(List<Instruction> instructions)
-    {
-        var partitions = PartitionIntoBasicBlocks(instructions);
-        List<Node> blocks = [new Node.EntryNode([]), new Node.ExitNode([])];
-        int counter = (int)Node.BlockId.START;
-        foreach (var part in partitions)
-        {
-            blocks.Add(new Node.BasicBlock(counter++, part, [], []));
-        }
-        Graph graph = new Graph(blocks);
-        graph.AddAllEdges();
-        return graph;
-    }
-
-    private List<List<Instruction>> PartitionIntoBasicBlocks(List<Instruction> instructions)
-    {
-        List<List<Instruction>> finishedBlocks = [];
-        List<Instruction> currentBlock = [];
-        foreach (var inst in instructions)
-        {
-            if (inst is Instruction.Label)
-            {
-                if (currentBlock.Count != 0)
-                    finishedBlocks.Add(currentBlock);
-                currentBlock = [inst];
-            }
-            else if (inst is Instruction.Jump or Instruction.JumpIfZero or Instruction.JumpIfNotZero or Instruction.Return)
-            {
-                currentBlock.Add(inst);
-                finishedBlocks.Add(currentBlock);
-                currentBlock = [];
-            }
-            else
-                currentBlock.Add(inst);
-        }
-
-        if (currentBlock.Count != 0)
-            finishedBlocks.Add(currentBlock);
-
-        return finishedBlocks;
-    }
-
-    private List<Instruction> ControlFlowGraphToInstructions(Graph graph)
-    {
-        return graph.Nodes[(int)Node.BlockId.START..].SelectMany(a => ((Node.BasicBlock)a).Instructions).ToList();
     }
 }

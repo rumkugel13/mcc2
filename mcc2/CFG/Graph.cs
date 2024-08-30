@@ -4,11 +4,47 @@ namespace mcc2.CFG;
 
 public class Graph
 {
-    public List<Node> Nodes;
+    public List<Node> Nodes = [];
 
-    public Graph(List<Node> nodes)
+    public Graph(List<Instruction> instructions)
     {
-        this.Nodes = nodes;
+        var partitions = PartitionIntoBasicBlocks(instructions);
+        List<Node> blocks = [new Node.EntryNode([]), new Node.ExitNode([])];
+        int counter = (int)Node.BlockId.START;
+        foreach (var part in partitions)
+        {
+            blocks.Add(new Node.BasicBlock(counter++, part, [], []));
+        }
+        Nodes = blocks;
+        AddAllEdges();
+    }
+
+    private List<List<Instruction>> PartitionIntoBasicBlocks(List<Instruction> instructions)
+    {
+        List<List<Instruction>> finishedBlocks = [];
+        List<Instruction> currentBlock = [];
+        foreach (var inst in instructions)
+        {
+            if (inst is Instruction.Label)
+            {
+                if (currentBlock.Count != 0)
+                    finishedBlocks.Add(currentBlock);
+                currentBlock = [inst];
+            }
+            else if (inst is Instruction.Jump or Instruction.JumpIfZero or Instruction.JumpIfNotZero or Instruction.Return)
+            {
+                currentBlock.Add(inst);
+                finishedBlocks.Add(currentBlock);
+                currentBlock = [];
+            }
+            else
+                currentBlock.Add(inst);
+        }
+
+        if (currentBlock.Count != 0)
+            finishedBlocks.Add(currentBlock);
+
+        return finishedBlocks;
     }
 
     public void AddAllEdges()
@@ -119,5 +155,10 @@ public class Graph
                     return basic;
             }
         throw new Exception($"Optimizer Error: Couldn't find block with id {id}");
+    }
+
+    public List<Instruction> ToInstructions()
+    {
+        return Nodes[(int)Node.BlockId.START..].SelectMany(a => ((Node.BasicBlock)a).Instructions).ToList();
     }
 }
