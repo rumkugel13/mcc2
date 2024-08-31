@@ -75,11 +75,11 @@ namespace mcc2
         // note: pattern order needs to match tokentype order
         private readonly Regex[] patterns = [
             new Regex("\\G[a-zA-Z_]\\w*\\b"),
-            new Regex(@"\G([0-9]+)[^\w.]"),
-            new Regex(@"\G([0-9]+[lL])[^\w.]"),
-            new Regex(@"\G([0-9]+[uU])[^\w.]"),
-            new Regex(@"\G([0-9]+([lL][uU]|[uU][lL]))[^\w.]"),
-            new Regex(@"\G(([0-9]*\.[0-9]+|[0-9]+\.?)[Ee][+-]?[0-9]+|[0-9]*\.[0-9]+|[0-9]+\.)[^\w.]"),
+            new Regex(@"\G([0-9]+)(?![\w.])"),
+            new Regex(@"\G([0-9]+[lL])(?![\w.])"),
+            new Regex(@"\G([0-9]+[uU])(?![\w.])"),
+            new Regex(@"\G([0-9]+([lL][uU]|[uU][lL]))(?![\w.])"),
+            new Regex(@"\G(([0-9]*\.[0-9]+|[0-9]+\.?)[Ee][+-]?[0-9]+|[0-9]*\.[0-9]+|[0-9]+\.)(?![\w.])"),
             new Regex(
             """
             \G'([^'\\\n]|\\['"?\\abfnrtv])'
@@ -162,24 +162,12 @@ namespace mcc2
 
                 for (int i = 0; i < patterns.Length; i++)
                 {
-                    Regex regex = patterns[i];
-                    Match match = regex.Match(source, pos);
-                    if (match.Success)
+                    Match match = patterns[i].Match(source, pos);
+                    // note: >= matches keywords of the same length as identifiers afterwards
+                    if (match.Success && match.Length >= maxLength)
                     {
-                        if (match.Groups.Count > 1 && (i is not (int)TokenType.CharacterConstant and not (int)TokenType.StringLiteral))
-                        {
-                            if (match.Groups[1].Length >= maxLength)
-                            {
-                                maxLength = match.Groups[1].Length;
-                                longestPattern = i;
-                            }
-                        }
-                        // note: >= matches keywords of the same length as identifiers afterwards
-                        else if (match.Length >= maxLength)
-                        {
-                            maxLength = match.Length;
-                            longestPattern = i;
-                        }
+                        maxLength = match.Length;
+                        longestPattern = i;
                     }
                 }
 
