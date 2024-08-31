@@ -8,6 +8,7 @@ namespace mcc2
         {
             public TokenType Type;
             public int Position;
+            public int End;
         }
 
         public enum TokenType
@@ -156,7 +157,7 @@ namespace mcc2
                     continue;
                 }
 
-                int longest = 0;
+                int maxLength = 0;
                 int longestPattern = 0;
 
                 for (int i = 0; i < patterns.Length; i++)
@@ -167,28 +168,28 @@ namespace mcc2
                     {
                         if (match.Groups.Count > 1 && (i is not (int)TokenType.CharacterConstant and not (int)TokenType.StringLiteral))
                         {
-                            if (match.Groups[1].Length >= longest)
+                            if (match.Groups[1].Length >= maxLength)
                             {
-                                longest = match.Groups[1].Length;
+                                maxLength = match.Groups[1].Length;
                                 longestPattern = i;
                             }
                         }
                         // note: >= matches keywords of the same length as identifiers afterwards
-                        else if (match.Length >= longest)
+                        else if (match.Length >= maxLength)
                         {
-                            longest = match.Length;
+                            maxLength = match.Length;
                             longestPattern = i;
                         }
                     }
                 }
 
-                if (longest == 0)
+                if (maxLength == 0)
                 {
                     throw new Exception($"Lexing Error: Invalid Token: {source[pos]} at line {line}");
                 }
 
-                tokens.Add(new Token() { Type = (TokenType)longestPattern, Position = pos });
-                pos += longest;
+                tokens.Add(new Token() { Type = (TokenType)longestPattern, Position = pos, End = pos + maxLength });
+                pos += maxLength;
             }
 
             return tokens;

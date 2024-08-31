@@ -1,6 +1,5 @@
 namespace mcc2;
 
-using System.Diagnostics;
 using System.Text.RegularExpressions;
 using mcc2.AST;
 using Token = Lexer.Token;
@@ -761,17 +760,14 @@ public class Parser
     private Expression.String ParseStringLiteral(List<Token> tokens)
     {
         Token token = TakeToken(tokens);
-        Regex regex = new("""
-            "([^"\\\n]|\\['"\\?abfnrtv])*"
-            """);
-        Match match = regex.Match(source, token.Position);
-        var unescaped = Regex.Unescape(match.Value);
+        var constString = source[token.Position..token.End];
+        var unescaped = Regex.Unescape(constString);
         string result = unescaped[1..^1];
         while (Peek(tokens).Type == Lexer.TokenType.StringLiteral)
         {
             token = TakeToken(tokens);
-            match = regex.Match(source, token.Position);
-            unescaped = Regex.Unescape(match.Value);
+            constString = source[token.Position..token.End];
+            unescaped = Regex.Unescape(constString);
             result = string.Concat(result, unescaped[1..^1]);
         }
         return new Expression.String(result, Type.None);
@@ -968,58 +964,43 @@ public class Parser
 
     private string GetIdentifier(Token token, string source)
     {
-        Regex regex = new($"\\G[a-zA-Z_]\\w*\\b");
-        Match match = regex.Match(source, token.Position);
-        Debug.Assert(match.Success, "There should be an Identifier");
-        return match.Value;
+        var constString = source[token.Position..token.End];
+        return constString;
     }
 
     private Const GetConstant(Token token, string source)
     {
+        var constString = source[token.Position..token.End];
         if (token.Type == Lexer.TokenType.CharacterConstant)
         {
-            Regex regex = new("""
-            '([^'\\\n]|\\['"?\\abfnrtv])'
-            """);
-            Match match = regex.Match(source, token.Position);
-            var unescaped = Regex.Unescape(match.Value);
+            var unescaped = Regex.Unescape(constString);
             return new Const.ConstInt(Convert.ToInt32(unescaped[1]));
         }
 
         if (token.Type == Lexer.TokenType.DoubleConstant)
         {
-            Regex regex = new(@"(([0-9]*\.[0-9]+|[0-9]+\.?)[Ee][+-]?[0-9]+|[0-9]*\.[0-9]+|[0-9]+\.)[^\w.]");
-            Match match = regex.Match(source, token.Position);
-            return new Const.ConstDouble(double.Parse(match.Groups[1].Value, System.Globalization.CultureInfo.InvariantCulture));
+            return new Const.ConstDouble(double.Parse(constString, System.Globalization.CultureInfo.InvariantCulture));
         }
 
         System.Numerics.BigInteger value;
         if (token.Type == Lexer.TokenType.IntConstant)
         {
-            Regex regex = new(@"([0-9]+)[^\w.]");
-            Match match = regex.Match(source, token.Position);
-            value = System.Numerics.BigInteger.Parse(match.Groups[1].Value);
+            value = System.Numerics.BigInteger.Parse(constString);
         }
         else if (token.Type == Lexer.TokenType.LongConstant)
         {
-            Regex regex = new(@"([0-9]+[lL])[^\w.]");
-            Match match = regex.Match(source, token.Position);
             // note: this does not parse the l suffix, so we remove it
-            value = System.Numerics.BigInteger.Parse(match.Groups[1].Value[0..^1]);
+            value = System.Numerics.BigInteger.Parse(constString[0..^1]);
         }
         else if (token.Type == Lexer.TokenType.UnsignedIntConstant)
         {
-            Regex regex = new(@"([0-9]+[uU])[^\w.]");
-            Match match = regex.Match(source, token.Position);
             // note: this does not parse the u suffix, so we remove it
-            value = System.Numerics.BigInteger.Parse(match.Groups[1].Value[0..^1]);
+            value = System.Numerics.BigInteger.Parse(constString[0..^1]);
         }
         else
         {
-            Regex regex = new(@"([0-9]+([lL][uU]|[uU][lL]))[^\w.]");
-            Match match = regex.Match(source, token.Position);
             // note: this does not parse the ul/lu suffix, so we remove it
-            value = System.Numerics.BigInteger.Parse(match.Groups[1].Value[0..^2]);
+            value = System.Numerics.BigInteger.Parse(constString[0..^2]);
         }
 
         if (token.Type == Lexer.TokenType.UnsignedIntConstant || token.Type == Lexer.TokenType.UnsignedLongConstant)
