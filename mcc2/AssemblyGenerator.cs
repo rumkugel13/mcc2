@@ -115,6 +115,8 @@ public class AssemblyGenerator
 
     private TopLevel.Function GenerateFunction(TAC.TopLevel.Function function)
     {
+        var aliasedVars = AddressTakenAnalysis(function.Instructions);
+
         List<Instruction> instructions = [];
 
         SetupParameters(function.Parameters, ReturnsOnStack(function.Name), instructions);
@@ -126,19 +128,28 @@ public class AssemblyGenerator
             AsmSymbolTable[cons.Key] = new AsmSymbolTableEntry.ObjectEntry(new AssemblyType.Double(), true, true);
         }
 
-        PseudoReplacer stackAllocator = new PseudoReplacer(function.Name);
-        long bytesToAllocate = stackAllocator.Replace(fn.Instructions);
+        RegisterAllocator registerAllocator = new RegisterAllocator(function.Name);
+        registerAllocator.Allocate(fn.Instructions, aliasedVars);
 
-        // note: chapter 9 says we should store this per function in symboltable or ast
-        // in order to round it up but we can do that here as well
-        bytesToAllocate = AlignTo(bytesToAllocate, 16);
-        fn.Instructions.Insert(0, new Instruction.Binary(Instruction.BinaryOperator.Sub, new AssemblyType.Quadword(),
-            new Operand.Imm((ulong)bytesToAllocate), new Operand.Reg(Operand.RegisterName.SP)));
+        PseudoReplacer stackAllocator = new PseudoReplacer(function.Name);
+        long bytesForLocals = stackAllocator.Replace(fn.Instructions);
 
         InstructionFixer instructionFixer = new InstructionFixer();
-        instructionFixer.Fix(fn.Instructions);
+        instructionFixer.Fix(fn.Instructions, function.Name, bytesForLocals);
 
         return fn;
+    }
+
+    private List<TAC.Val.Variable> AddressTakenAnalysis(List<TAC.Instruction> instructions)
+    {
+        List<TAC.Val.Variable> result = [];
+
+        foreach (var inst in instructions)
+        {
+            if (inst is TAC.Instruction.GetAddress getAddr)
+                result.Add((TAC.Val.Variable)getAddr.Src);
+        }
+        return result;
     }
 
     private bool ReturnsOnStack(string funcName)

@@ -4,8 +4,18 @@ namespace mcc2;
 
 public class InstructionFixer
 {
-    public void Fix(List<Instruction> instructions)
+    public void Fix(List<Instruction> instructions, string functionName, long bytesForLocals)
     {
+        var calleeSavedRegs = RegisterAllocator.CalleeSavedRegs[functionName];
+        var allocateBytes = CalculateStackAdjustment(bytesForLocals, calleeSavedRegs.Count);
+        instructions.Insert(0, new Instruction.Binary(Instruction.BinaryOperator.Sub, new AssemblyType.Quadword(),
+            new Operand.Imm((ulong)allocateBytes), new Operand.Reg(Operand.RegisterName.SP)));
+
+        for (int i = 0; i < calleeSavedRegs.Count; i++)
+        {
+            instructions.Insert(i + 1, new Instruction.Push(new Operand.Reg(calleeSavedRegs[i])));
+        }
+
         for (int i = 0; i < instructions.Count; i++)
         {
             Operand.Reg srcReg = new Operand.Reg(Operand.RegisterName.R10);
@@ -292,8 +302,27 @@ public class InstructionFixer
                     }
                     break;
                 }
+
+                case Instruction.Ret ret:
+                {
+                    for (int j = 0; j < calleeSavedRegs.Count; j++)
+                    {
+                        instructions.Insert(i, new Instruction.Pop(calleeSavedRegs[j]));
+                    }
+                    i += calleeSavedRegs.Count;
+                    break;
+                }
             }
         }
+    }
+
+    private long CalculateStackAdjustment(long bytesForLocals, long calleeSavedCount)
+    {
+        var calleeSavedBytes = 8 * calleeSavedCount;
+        var totalStackBytes = calleeSavedBytes + bytesForLocals;
+        var adjustedStackBytes = AssemblyGenerator.AlignTo(totalStackBytes, 16);
+        var stackAdjustment = adjustedStackBytes - calleeSavedBytes;
+        return stackAdjustment;
     }
 
     private bool IsMemory(Operand operand)
