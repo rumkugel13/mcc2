@@ -206,6 +206,9 @@ public class CodeEmitter
             case Instruction.Push push:
                 builder.AppendLine($"\tpushq {EmitOperand(push.Operand, new AssemblyType.Quadword())}");
                 break;
+            case Instruction.Pop pop:
+                builder.AppendLine($"\tpopq {EmitRegister(pop.Register, new AssemblyType.Quadword())}");
+                break;
             case Instruction.Call call:
                 builder.AppendLine($"\tcall {call.Identifier}{(!((AsmSymbolTableEntry.FunctionEntry)AssemblyGenerator.AsmSymbolTable[call.Identifier]).Defined && OperatingSystem.IsLinux() ? "@PLT" : "")}");
                 break;

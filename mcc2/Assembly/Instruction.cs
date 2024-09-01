@@ -55,6 +55,7 @@ public abstract record Instruction
     public record Push(Operand Operand) : Instruction;
     public record Call(string Identifier) : Instruction;
     public record Ret() : Instruction;
+    public record Pop(Operand.RegisterName Register) : Instruction;
 
     private Instruction() { }
 }
