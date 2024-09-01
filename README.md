@@ -15,7 +15,8 @@ Also check out my first version based on the blog only: [mcc](https://github.com
 
 Besides having fun and learning how compilers and C work, these are some of the goals I plan on reaching:
 
-- [ ] Implement every Chapter from the book and successfully run the [provided tests](https://github.com/nlsandler/writing-a-c-compiler-tests)
+- [X] Implement every Chapter from the book
+- [X] Successfully run the [provided tests](https://github.com/nlsandler/writing-a-c-compiler-tests)* (see [bugs](#Bugs))
 - [ ] Implement the additional exercises
 - [ ] Add arm64 backend
 - [ ] Add riscv64 backend
@@ -49,19 +50,19 @@ Besides having fun and learning how compilers and C work, these are some of the 
   - [X] 17: Supporting Dynamic Memory Allocation
   - [X] 18: Structures
     - [ ] Extra: Unions
-- [ ] Part III: Optimizations
+- [X] Part III: Optimizations
   - [X] 19: Optimizing TACKY Programs
-  - [ ] 20: Register Allocation
+  - [X] 20: Register Allocation
 
 ## Bugs
 
 Compiling the following test files produces wrong results:
 
 chapter_19/valid/constant_folding/all_types/fold_cast_to_double
-    expected 0 got 4
+  (expected 0 got 4)
 chapter_18/valid/no_structure_parameters/libraries/initializers/nested_static_struct_initializers_client
-    expected 0 got 4
+  (expected 0 got 4)
 chapter_13/valid/floating_expressions/logical
-    expected 0 got 14
+  (expected 0 got 14)
 
 These are due to floating point (double) errors, to be fixed later
