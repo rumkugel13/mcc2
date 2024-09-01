@@ -121,7 +121,7 @@ public class AssemblyGenerator
 
         SetupParameters(function.Parameters, ReturnsOnStack(function.Name), instructions);
 
-        TopLevel.Function fn = new TopLevel.Function(function.Name, function.Global, GenerateInstructions(function.Instructions, instructions));
+        instructions = GenerateInstructions(function.Instructions, instructions);
 
         foreach (var cons in staticConstants)
         {
@@ -129,15 +129,15 @@ public class AssemblyGenerator
         }
 
         RegisterAllocator registerAllocator = new RegisterAllocator(function.Name);
-        registerAllocator.Allocate(fn.Instructions, aliasedVars);
+        instructions = registerAllocator.Allocate(instructions, aliasedVars);
 
         PseudoReplacer stackAllocator = new PseudoReplacer(function.Name);
-        long bytesForLocals = stackAllocator.Replace(fn.Instructions);
+        long bytesForLocals = stackAllocator.Replace(instructions);
 
         InstructionFixer instructionFixer = new InstructionFixer();
-        instructionFixer.Fix(fn.Instructions, function.Name, bytesForLocals);
+        instructionFixer.Fix(instructions, function.Name, bytesForLocals);
 
-        return fn;
+        return new TopLevel.Function(function.Name, function.Global, instructions);
     }
 
     private List<TAC.Val.Variable> AddressTakenAnalysis(List<TAC.Instruction> instructions)

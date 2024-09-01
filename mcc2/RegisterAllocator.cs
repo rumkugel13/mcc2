@@ -37,21 +37,178 @@ public class RegisterAllocator
         this.functionName = name;
     }
 
-    public void Allocate(List<Instruction> instructions, List<TAC.Val.Variable> aliasedVars)
+    public List<Instruction> Allocate(List<Instruction> instructions, List<TAC.Val.Variable> aliasedVars)
     {
-        AllocateRegs(instructions, aliasedVars, false);
+        instructions = AllocateRegs(instructions, aliasedVars, false);
         annotatedInstructions.Clear();
         annotatedBlocks.Clear();
-        AllocateRegs(instructions, aliasedVars, true);
+        instructions = AllocateRegs(instructions, aliasedVars, true);
+        return instructions;
     }
 
-    private void AllocateRegs(List<Instruction> instructions, List<TAC.Val.Variable> aliasedVars, bool useDoubleRegs)
+    private List<Instruction> AllocateRegs(List<Instruction> instructions, List<TAC.Val.Variable> aliasedVars, bool useDoubleRegs)
     {
-        List<GraphNode> interferenceGraph = BuildGraph(instructions, aliasedVars, useDoubleRegs);
+        List<GraphNode> interferenceGraph;
+        while (true)
+        {
+            interferenceGraph = BuildGraph(instructions, aliasedVars, useDoubleRegs); 
+            DisjointSets coalescedRegs = Coalesce(interferenceGraph, instructions, useDoubleRegs);
+            if (coalescedRegs.NothingWasCoalesced())
+                break;
+            instructions = RewriteCoalesced(instructions, coalescedRegs);
+        }
         AddSpillCosts(interferenceGraph, instructions);
         ColorGraph(interferenceGraph, useDoubleRegs);
         var registerMap = CreateRegisterMap(interferenceGraph, useDoubleRegs);
         ReplacePseudoregs(instructions, registerMap);
+        return instructions;
+    }
+
+    private List<Instruction> RewriteCoalesced(List<Instruction> instructions, DisjointSets coalescedRegs)
+    {
+        List<Instruction> result = [];
+        for (int i = 0; i < instructions.Count; i++)
+        {
+            Instruction? inst = instructions[i];
+            switch (inst)
+            {
+                case Instruction.Mov Mov:
+                    var src = coalescedRegs.Find(Mov.Src);
+                    var dst = coalescedRegs.Find(Mov.Dst);
+                    if (src != dst)
+                        result.Add(new Instruction.Mov(Mov.Type, src, dst));
+                    break;
+                case Instruction.Movsx Movsx:
+                    result.Add(new Instruction.Movsx(Movsx.SrcType, Movsx.DstType, coalescedRegs.Find(Movsx.Src), coalescedRegs.Find(Movsx.Dst)));
+                    break;
+                case Instruction.MovZeroExtend MovZeroExtend:
+                    result.Add(new Instruction.MovZeroExtend(MovZeroExtend.SrcType, MovZeroExtend.DstType, coalescedRegs.Find(MovZeroExtend.Src), coalescedRegs.Find(MovZeroExtend.Dst)));
+                    break;
+                case Instruction.Lea Lea:
+                    result.Add(new Instruction.Lea(coalescedRegs.Find(Lea.Src), coalescedRegs.Find(Lea.Dst)));
+                    break;
+                case Instruction.Cvttsd2si Cvttsd2si:
+                    result.Add(new Instruction.Cvttsd2si(Cvttsd2si.DstType, coalescedRegs.Find(Cvttsd2si.Src), coalescedRegs.Find(Cvttsd2si.Dst)));
+                    break;
+                case Instruction.Cvtsi2sd Cvtsi2sd:
+                    result.Add(new Instruction.Cvtsi2sd(Cvtsi2sd.SrcType, coalescedRegs.Find(Cvtsi2sd.Src), coalescedRegs.Find(Cvtsi2sd.Dst)));
+                    break;
+                case Instruction.Unary Unary:
+                    result.Add(new Instruction.Unary(Unary.Operator, Unary.Type, coalescedRegs.Find(Unary.Operand)));
+                    break;
+                case Instruction.Binary Binary:
+                    result.Add(new Instruction.Binary(Binary.Operator, Binary.Type, coalescedRegs.Find(Binary.SrcOperand), coalescedRegs.Find(Binary.DstOperand)));
+                    break;
+                case Instruction.Cmp Cmp:
+                    result.Add(new Instruction.Cmp(Cmp.Type, coalescedRegs.Find(Cmp.OperandA), coalescedRegs.Find(Cmp.OperandB)));
+                    break;
+                case Instruction.Idiv Idiv:
+                    result.Add(new Instruction.Idiv(Idiv.Type, coalescedRegs.Find(Idiv.Operand)));
+                    break;
+                case Instruction.Div Div:
+                    result.Add(new Instruction.Div(Div.Type, coalescedRegs.Find(Div.Operand)));
+                    break;
+                case Instruction.SetCC SetCC:
+                    result.Add(new Instruction.SetCC(SetCC.Condition, coalescedRegs.Find(SetCC.Operand)));
+                    break;
+                case Instruction.Push Push:
+                    result.Add(new Instruction.Push(coalescedRegs.Find(Push.Operand)));
+                    break;
+                default:
+                    result.Add(inst);
+                    break;
+            }
+        }
+        return result;
+    }
+
+    private DisjointSets Coalesce(List<GraphNode> interferenceGraph, List<Instruction> instructions, bool useDoubleRegs)
+    {
+        DisjointSets coalescedRegs = new DisjointSets();
+
+        foreach (var inst in instructions)
+        {
+            if (inst is Instruction.Mov mov)
+            {
+                var src = coalescedRegs.Find(mov.Src);
+                var dst = coalescedRegs.Find(mov.Dst);
+
+                if (interferenceGraph.Any(a => a.Id == src)
+                    && interferenceGraph.Any(b => b.Id == dst)
+                    && src != dst
+                    && !interferenceGraph.Find(c => c.Id == src)!.Neighbors.Contains(dst)
+                    && ConservativeCoalesce(interferenceGraph, src, dst, useDoubleRegs))
+                {
+                    (Operand toKeep, Operand toMerge) = src is Operand.Reg ? (src, dst) : (dst, src);
+                    coalescedRegs.Union(toMerge, toKeep);
+                    UpdateGraph(interferenceGraph, toMerge, toKeep);
+                }
+            }
+        }
+
+        return coalescedRegs;
+    }
+
+    private bool ConservativeCoalesce(List<GraphNode> interferenceGraph, Operand src, Operand dst, bool useDoubleRegs)
+    {
+        if (BriggsTest(interferenceGraph, src, dst, useDoubleRegs))
+            return true;
+        if (src is Operand.Reg)
+            return GeorgeTest(interferenceGraph, src, dst, useDoubleRegs);
+        if (dst is Operand.Reg)
+            return GeorgeTest(interferenceGraph, dst, src, useDoubleRegs);
+        return false;
+    }
+
+    private bool GeorgeTest(List<GraphNode> interferenceGraph, Operand hardReg, Operand pseudoReg, bool useDoubleRegs)
+    {
+        var pseudoNode = interferenceGraph.Find(node => node.Id == pseudoReg)!;
+        int k = useDoubleRegs ? DoubleRegs.Length : GeneralRegs.Length;
+        foreach (var neighbor in pseudoNode.Neighbors)
+        {
+            var neighborNode = interferenceGraph.Find(node => node.Id == neighbor)!;
+            if (neighborNode.Neighbors.Contains(hardReg))
+                continue;
+
+            if (neighborNode.Neighbors.Count < k)
+                continue;
+
+            return false;
+        }
+        return true;
+    }
+
+    private bool BriggsTest(List<GraphNode> interferenceGraph, Operand src, Operand dst, bool useDoubleRegs)
+    {
+        int significandNeighbors = 0;
+
+        var xNode = interferenceGraph.Find(node => node.Id == src)!;
+        var yNode = interferenceGraph.Find(node => node.Id == dst)!;
+
+        var combinedNeighbors = xNode.Neighbors.Union(yNode.Neighbors);
+        int k = useDoubleRegs ? DoubleRegs.Length : GeneralRegs.Length;
+        foreach (var n in combinedNeighbors)
+        {
+            var neighborNode = interferenceGraph.Find(node => node.Id == n)!;
+            var degree = neighborNode.Neighbors.Count;
+            if (xNode.Neighbors.Contains(n) && yNode.Neighbors.Contains(n))
+                degree -= 1;
+            if (degree >= k)
+                significandNeighbors += 1;
+        }
+
+        return significandNeighbors < k;
+    }
+
+    private void UpdateGraph(List<GraphNode> interferenceGraph, Operand x, Operand y)
+    {
+        var nodeToRemove = interferenceGraph.Find(a => a.Id == x)!;
+        foreach (var neighbor in nodeToRemove.Neighbors)
+        {
+            AddEdge(interferenceGraph, y, neighbor);
+            RemoveEdge(interferenceGraph, x, neighbor);
+        }
+        interferenceGraph.Remove(nodeToRemove);
     }
 
     private void ReplacePseudoregs(List<Instruction> instructions, Dictionary<Operand.Pseudo, RegName> registerMap)
@@ -264,6 +421,12 @@ public class RegisterAllocator
     {
         interferenceGraph.Find(a => a.Id == opA)!.Neighbors.Add(opB);
         interferenceGraph.Find(a => a.Id == opB)!.Neighbors.Add(opA);
+    }
+
+    private void RemoveEdge(List<GraphNode> interferenceGraph, Operand a, Operand b)
+    {
+        interferenceGraph.Find(node => node.Id == a)!.Neighbors.Remove(b);
+        interferenceGraph.Find(node => node.Id == b)!.Neighbors.Remove(a);
     }
 
     private void AnalyzeLiveness(AssGraph graph, bool useDoubleRegs)
@@ -567,5 +730,34 @@ public class RegisterAllocator
         }
         graphNodes.ForEach(a => a.Neighbors.UnionWith(graphNodes.Where(b => b.Id != a.Id).Select(b => b.Id)));
         return graphNodes;
+    }
+
+    private class DisjointSets
+    {
+        private  Dictionary<Operand, Operand> regMap;
+
+        public DisjointSets()
+        {
+            regMap = [];
+        }
+
+        public void Union(Operand x, Operand y)
+        {
+            regMap.Add(x, y);
+        }
+
+        public Operand Find(Operand r)
+        {
+            if (regMap.TryGetValue(r, out Operand? result))
+            {
+                return Find(result);
+            }
+            return r;
+        }
+
+        public bool NothingWasCoalesced()
+        {
+            return regMap.Count == 0;
+        }
     }
 }
