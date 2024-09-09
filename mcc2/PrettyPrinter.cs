@@ -13,16 +13,16 @@ public class PrettyPrinter
         this.typeTable = typeTable;
     }
 
-    public void Print(ASTProgram program, string source)
+    public void Print(ASTProgram program)
     {
-        PrintProgram(program, source, 0);
+        PrintProgram(program, 0);
     }
 
-    private void PrintProgram(ASTProgram program, string source, int indent)
+    private void PrintProgram(ASTProgram program, int indent)
     {
         PrintLine("Program(", indent);
         foreach (var fun in program.Declarations)
-            PrintDeclaration(fun, source, indent + 1);
+            PrintDeclaration(fun, indent + 1);
         foreach (var entry in symbolTable)
         {
             PrintLine("Symbols(", indent + 1);
@@ -49,20 +49,20 @@ public class PrettyPrinter
         PrintLine(")", indent);
     }
 
-    private void PrintDeclaration(Declaration declaration, string source, int indent)
+    private void PrintDeclaration(Declaration declaration, int indent)
     {
         switch (declaration)
         {
             case Declaration.FunctionDeclaration functionDeclaration:
-                PrintFunctionDefinition(functionDeclaration, source, indent);
+                PrintFunctionDefinition(functionDeclaration, indent);
                 break;
             case Declaration.VariableDeclaration variableDeclaration:
-                PrintBlockItem(variableDeclaration, source, indent);
+                PrintBlockItem(variableDeclaration, indent);
                 break;
         }
     }
 
-    private void PrintFunctionDefinition(Declaration.FunctionDeclaration functionDefinition, string source, int indent)
+    private void PrintFunctionDefinition(Declaration.FunctionDeclaration functionDefinition, int indent)
     {
         Type.FunctionType funcType = (Type.FunctionType)symbolTable[functionDefinition.Identifier].Type;
 
@@ -84,17 +84,17 @@ public class PrettyPrinter
         if (functionDefinition.Body != null)
         {
             foreach (var item in functionDefinition.Body.BlockItems)
-                PrintBlockItem(item, source, indent + 2);
+                PrintBlockItem(item, indent + 2);
         }
         PrintEndLine(2, indent);
     }
 
-    private void PrintBlockItem(BlockItem blockItem, string source, int indent)
+    private void PrintBlockItem(BlockItem blockItem, int indent)
     {
         switch (blockItem)
         {
             case Statement statement:
-                PrintStatement(statement, source, indent);
+                PrintStatement(statement, indent);
                 break;
             case Declaration.VariableDeclaration declaration:
                 PrintLine($"Declare(", indent);
@@ -103,41 +103,41 @@ public class PrettyPrinter
                 if (declaration.Initializer != null)
                 {
                     PrintLine("init=(", indent + 1);
-                    PrintInitializer(declaration.Initializer, source, indent + 2);
+                    PrintInitializer(declaration.Initializer, indent + 2);
                     PrintLine(")", indent + 1);
                 }
                 PrintLine(")", indent);
                 break;
             case Declaration.FunctionDeclaration fun:
-                PrintFunctionDefinition(fun, source, indent);
+                PrintFunctionDefinition(fun, indent);
                 break;
         }
     }
 
-    private void PrintInitializer(Initializer initializer, string source, int indent)
+    private void PrintInitializer(Initializer initializer, int indent)
     {
         switch (initializer)
         {
             case Initializer.SingleInitializer single:
-                PrintExpression(single.Expression, source, indent);
+                PrintExpression(single.Expression, indent);
                 break;
             case Initializer.CompoundInitializer compound:
                 PrintLine("Compound{", indent);
                 foreach (var init in compound.Initializers)
-                    PrintInitializer(init, source, indent + 1);
+                    PrintInitializer(init, indent + 1);
                 PrintLine("}", indent);
                 break;
         }
     }
 
-    private void PrintStatement(Statement statement, string source, int indent)
+    private void PrintStatement(Statement statement, int indent)
     {
         switch (statement)
         {
             case Statement.ReturnStatement ret:
                 PrintLine($"Return(", indent);
                 if (ret.Expression != null)
-                    PrintExpression(ret.Expression, source, indent + 1);
+                    PrintExpression(ret.Expression, indent + 1);
                 else
                     PrintLine("void", indent + 1);
                 PrintLine(")", indent);
@@ -145,14 +145,14 @@ public class PrettyPrinter
             case Statement.IfStatement ifStatement:
                 PrintLine($"If(", indent);
                 PrintLine("condition=", indent + 1);
-                PrintExpression(ifStatement.Condition, source, indent + 2);
+                PrintExpression(ifStatement.Condition, indent + 2);
                 PrintLine($"Then(", indent + 1);
-                PrintStatement(ifStatement.Then, source, indent + 2);
+                PrintStatement(ifStatement.Then, indent + 2);
                 PrintLine(")", indent + 1);
                 if (ifStatement.Else != null)
                 {
                     PrintLine($"Else(", indent + 1);
-                    PrintStatement(ifStatement.Else, source, indent + 2);
+                    PrintStatement(ifStatement.Else, indent + 2);
                     PrintLine(")", indent + 1);
                 }
                 PrintLine(")", indent);
@@ -160,50 +160,50 @@ public class PrettyPrinter
             case Statement.CompoundStatement compoundStatement:
                 PrintLine($"Compound(", indent);
                 foreach (var item in compoundStatement.Block.BlockItems)
-                    PrintBlockItem(item, source, indent + 1);
+                    PrintBlockItem(item, indent + 1);
                 PrintLine(")", indent);
                 break;
             case Statement.ExpressionStatement expressionStatement:
-                PrintExpression(expressionStatement.Expression, source, indent);
+                PrintExpression(expressionStatement.Expression, indent);
                 break;
             case Statement.WhileStatement whileStatement:
                 PrintLine($"While(", indent);
                 PrintLine("condition=", indent + 1);
-                PrintExpression(whileStatement.Condition, source, indent + 2);
+                PrintExpression(whileStatement.Condition, indent + 2);
                 PrintLine(")", indent + 1);
                 PrintLine("body=", indent + 1);
-                PrintStatement(whileStatement.Body, source, indent + 2);
+                PrintStatement(whileStatement.Body, indent + 2);
                 PrintEndLine(2, indent);
                 break;
             case Statement.DoWhileStatement doWhileStatement:
                 PrintLine($"DoWhile(", indent);
                 PrintLine("body=", indent + 1);
-                PrintStatement(doWhileStatement.Body, source, indent + 2);
+                PrintStatement(doWhileStatement.Body, indent + 2);
                 PrintLine(")", indent + 1);
                 PrintLine("condition=", indent + 1);
-                PrintExpression(doWhileStatement.Condition, source, indent + 2);
+                PrintExpression(doWhileStatement.Condition, indent + 2);
                 PrintEndLine(2, indent);
                 break;
             case Statement.ForStatement forStatement:
                 PrintLine($"For(", indent);
                 PrintLine("init=", indent + 1);
                 if (forStatement.Init is ForInit.InitDeclaration initDeclaration)
-                    PrintDeclaration(initDeclaration.Declaration, source, indent + 2);
+                    PrintDeclaration(initDeclaration.Declaration, indent + 2);
                 else if (forStatement.Init is ForInit.InitExpression initExpression && initExpression.Expression != null)
-                    PrintExpression(initExpression.Expression, source, indent + 2);
+                    PrintExpression(initExpression.Expression, indent + 2);
                 PrintLine(")", indent + 1);
                 PrintLine("condition=", indent + 1);
                 if (forStatement.Condition != null)
-                    PrintExpression(forStatement.Condition, source, indent + 2);
+                    PrintExpression(forStatement.Condition, indent + 2);
                 else
                     PrintLine("true", indent + 2);
                 PrintLine(")", indent + 1);
                 PrintLine("post=", indent + 1);
                 if (forStatement.Post != null)
-                    PrintExpression(forStatement.Post, source, indent + 2);
+                    PrintExpression(forStatement.Post, indent + 2);
                 PrintLine(")", indent + 1);
                 PrintLine("body=", indent + 1);
-                PrintStatement(forStatement.Body, source, indent + 2);
+                PrintStatement(forStatement.Body, indent + 2);
                 PrintEndLine(2, indent);
                 break;
             case Statement.ContinueStatement continueStatement:
@@ -215,7 +215,7 @@ public class PrettyPrinter
         }
     }
 
-    private void PrintExpression(Expression expression, string source, int indent)
+    private void PrintExpression(Expression expression, int indent)
     {
         switch (expression)
         {
@@ -225,14 +225,14 @@ public class PrettyPrinter
             case Expression.Unary unary:
                 PrintLine($"Unary(", indent);
                 PrintLine($"{unary.Operator}(", indent + 1);
-                PrintExpression(unary.Expression, source, indent + 2);
+                PrintExpression(unary.Expression, indent + 2);
                 PrintEndLine(2, indent);
                 break;
             case Expression.Binary binary:
                 PrintLine($"Binary(", indent);
-                PrintExpression(binary.Left, source, indent + 2);
+                PrintExpression(binary.Left, indent + 2);
                 PrintLine($"operator=\"{binary.Operator}\"", indent + 1);
-                PrintExpression(binary.Right, source, indent + 2);
+                PrintExpression(binary.Right, indent + 2);
                 PrintEndLine(2, indent);
                 break;
             case Expression.Variable variable:
@@ -243,21 +243,21 @@ public class PrettyPrinter
                 break;
             case Expression.Assignment assignment:
                 PrintLine($"Assign(", indent);
-                PrintExpression(assignment.Left, source, indent + 1);
+                PrintExpression(assignment.Left, indent + 1);
                 PrintLine($"Equals(", indent + 1);
-                PrintExpression(assignment.Right, source, indent + 2);
+                PrintExpression(assignment.Right, indent + 2);
                 PrintEndLine(2, indent);
                 break;
             case Expression.Conditional conditional:
                 PrintLine($"Conditional(", indent);
-                PrintExpression(conditional.Condition, source, indent + 1);
+                PrintExpression(conditional.Condition, indent + 1);
                 PrintLine($"Then(", indent + 1);
-                PrintExpression(conditional.Then, source, indent + 2);
+                PrintExpression(conditional.Then, indent + 2);
                 PrintLine(")", indent + 1);
                 if (conditional.Else != null)
                 {
                     PrintLine($"Else(", indent + 1);
-                    PrintExpression(conditional.Else, source, indent + 2);
+                    PrintExpression(conditional.Else, indent + 2);
                     PrintLine(")", indent + 1);
                 }
                 PrintLine(")", indent);
@@ -270,7 +270,7 @@ public class PrettyPrinter
                     PrintLine($"args=(", indent + 1);
                     foreach (var arg in functionCall.Arguments)
                     {
-                        PrintExpression(arg, source, indent + 2);
+                        PrintExpression(arg, indent + 2);
                     }
                     PrintLine(")", indent + 1);
                 }
@@ -281,25 +281,25 @@ public class PrettyPrinter
             case Expression.Cast cast:
                 PrintLine($"Cast(", indent);
                 PrintLine($"target=\"{cast.TargetType}\"", indent + 1);
-                PrintExpression(cast.Expression, source, indent + 1);
+                PrintExpression(cast.Expression, indent + 1);
                 PrintLine(")", indent);
                 break;
             case Expression.Dereference dereference:
                 PrintLine($"Dereference(", indent);
-                PrintExpression(dereference.Expression, source, indent + 1);
+                PrintExpression(dereference.Expression, indent + 1);
                 PrintLine(")", indent);
                 break;
             case Expression.AddressOf addressOf:
                 PrintLine($"AddressOf(", indent);
-                PrintExpression(addressOf.Expression, source, indent + 1);
+                PrintExpression(addressOf.Expression, indent + 1);
                 PrintLine(")", indent);
                 break;
             case Expression.Subscript subscript:
                 PrintLine($"Subscript(", indent);
                 PrintLine($"target=", indent + 1);
-                PrintExpression(subscript.Left, source, indent + 2);
+                PrintExpression(subscript.Left, indent + 2);
                 PrintLine($"index=", indent + 1);
-                PrintExpression(subscript.Right, source, indent + 2);
+                PrintExpression(subscript.Right, indent + 2);
                 PrintEndLine(2, indent);
                 break;
             case Expression.String str:
@@ -309,7 +309,7 @@ public class PrettyPrinter
                 break;
             case Expression.SizeOf sizeofExp:
                 PrintLine("SizeOf(", indent);
-                PrintExpression(sizeofExp.Expression, source, indent + 1);
+                PrintExpression(sizeofExp.Expression, indent + 1);
                 PrintLine(")", indent);
                 break;
             case Expression.SizeOfType sizeofType:
@@ -320,7 +320,7 @@ public class PrettyPrinter
             case Expression.Dot dot:
                 PrintLine($"Dot(", indent);
                 PrintLine($"structure=(", indent + 1);
-                PrintExpression(dot.Structure, source, indent + 2);
+                PrintExpression(dot.Structure, indent + 2);
                 PrintLine(")", indent + 1);
                 PrintLine($"member=\"{dot.Member}\"", indent + 1);
                 PrintLine(")", indent);
@@ -328,7 +328,7 @@ public class PrettyPrinter
             case Expression.Arrow arrow:
                 PrintLine($"Arrow(", indent);
                 PrintLine($"pointer=(", indent + 1);
-                PrintExpression(arrow.Pointer, source, indent + 2);
+                PrintExpression(arrow.Pointer, indent + 2);
                 PrintLine(")", indent + 1);
                 PrintLine($"member=\"{arrow.Member}\"", indent + 1);
                 PrintLine(")", indent);

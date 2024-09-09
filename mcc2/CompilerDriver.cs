@@ -74,7 +74,7 @@ namespace mcc2
             new SemanticAnalyzer().Analyze(programAST, symbolTable, typeTable);
 
             if (compilerOptions.PrettyPrint)
-                new PrettyPrinter(symbolTable, typeTable).Print(programAST, source);
+                new PrettyPrinter(symbolTable, typeTable).Print(programAST);
 
             if (compilerOptions.Stages < Stages.Tacky)
                 return output;
