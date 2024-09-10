@@ -181,9 +181,9 @@ public class Parser
 
     private Declaration ParseDeclaration(List<Token> tokens)
     {
-        if (Peek(tokens).Type == Lexer.TokenType.StructKeyword && 
-            PeekAhead(tokens, 1).Type == Lexer.TokenType.Identifier && 
-            (PeekAhead(tokens, 2).Type == Lexer.TokenType.OpenBrace || 
+        if (Peek(tokens).Type == Lexer.TokenType.StructKeyword &&
+            PeekAhead(tokens, 1).Type == Lexer.TokenType.Identifier &&
+            (PeekAhead(tokens, 2).Type == Lexer.TokenType.OpenBrace ||
             PeekAhead(tokens, 2).Type == Lexer.TokenType.Semicolon))
         {
             TakeToken(tokens);
@@ -200,7 +200,7 @@ public class Parser
                     memberDeclarations.Add(member);
                 }
                 Expect(Lexer.TokenType.CloseBrace, tokens);
-                
+
                 if (memberDeclarations.Count == 0)
                     throw ParseError("Cannot define struct without members");
             }
@@ -252,15 +252,13 @@ public class Parser
         {
             TakeToken(tokens);
             List<Initializer> initializers = [];
-            initializers.Add(ParseInitializer(tokens));
-            if (Peek(tokens).Type == Lexer.TokenType.Comma)
-                TakeToken(tokens);
-            while (Peek(tokens).Type != Lexer.TokenType.CloseBrace)
+            do
             {
                 initializers.Add(ParseInitializer(tokens));
+
                 if (Peek(tokens).Type == Lexer.TokenType.Comma)
                     TakeToken(tokens);
-            }
+            } while (Peek(tokens).Type != Lexer.TokenType.CloseBrace);
             Expect(Lexer.TokenType.CloseBrace, tokens);
             return new Initializer.CompoundInitializer(initializers, Type.None);
         }
