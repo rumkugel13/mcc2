@@ -40,7 +40,7 @@ public class IdentifierResolver
         if (identifierMap.TryGetValue(functionDeclaration.Identifier, out MapEntry prevEntry))
         {
             if (prevEntry.FromCurrentScope && !prevEntry.HasLinkage)
-                throw new Exception("Semantic Error: Duplicate declaration");
+                throw SemanticError("Duplicate declaration");
         }
 
         var newType = ResolveType(functionDeclaration.FunctionType, structMap);
@@ -66,7 +66,7 @@ public class IdentifierResolver
     private string ResolveParameter(string parameter, Dictionary<string, MapEntry> identifierMap, Dictionary<string, StructMapEntry> structMap)
     {
         if (identifierMap.TryGetValue(parameter, out MapEntry newVariable) && newVariable.FromCurrentScope)
-            throw new Exception("Semantic Error: Duplicate parameter declaration");
+            throw SemanticError("Duplicate parameter declaration");
 
         var uniqueName = MakeTemporary(parameter);
         identifierMap[parameter] = new MapEntry() { NewName = uniqueName, FromCurrentScope = true };
@@ -113,7 +113,7 @@ public class IdentifierResolver
             else if (item is Declaration.FunctionDeclaration functionDeclaration)
             {
                 if (functionDeclaration.Body != null)
-                    throw new Exception("Semantic Error: Local function definition");
+                    throw SemanticError("Local function definition");
 
                 newItems.Add(ResolveFunctionDeclaration(functionDeclaration, identifierMap, structMap));
             }
@@ -223,7 +223,7 @@ public class IdentifierResolver
                 if (identifierMap.TryGetValue(variable.Identifier, out MapEntry newVariable))
                     return new Expression.Variable(newVariable.NewName, variable.Type);
                 else
-                    throw new Exception("Semantic Error: Undeclared variable");
+                    throw SemanticError("Undeclared variable");
             case Expression.Unary unary:
                 {
                     var exp = ResolveExpression(unary.Expression, identifierMap, structMap);
@@ -254,7 +254,7 @@ public class IdentifierResolver
                     return new Expression.FunctionCall(newFunName, newArgs, functionCall.Type);
                 }
                 else
-                    throw new Exception("Semantic Error: Undeclared function");
+                    throw SemanticError("Undeclared function");
             case Expression.Cast cast:
                 {
                     var newType = ResolveType(cast.TargetType, structMap);
@@ -309,7 +309,7 @@ public class IdentifierResolver
         {
             if (prevEntry.FromCurrentScope)
                 if (!(prevEntry.HasLinkage && declaration.StorageClass == Declaration.StorageClasses.Extern))
-                    throw new Exception("Semantic Error: Conflicting local declarations");
+                    throw SemanticError("Conflicting local declarations");
         }
 
         var newType = ResolveType(declaration.VariableType, structMap);
@@ -355,7 +355,7 @@ public class IdentifierResolver
                     return new Type.Structure(uniqueTag);
                 }
                 else
-                    throw new Exception("Semantic Error: Specified an undeclared structure type");
+                    throw SemanticError("Specified an undeclared structure type");
             case Type.Pointer pointer:
                 var resolvedType = ResolveType(pointer.Referenced, structMap);
                 return new Type.Pointer(resolvedType);
@@ -399,5 +399,10 @@ public class IdentifierResolver
     private string MakeTemporary(string varName)
     {
         return $"var.{varName}.{varCounter++}";
+    }
+
+    private Exception SemanticError(string message)
+    {
+        return new Exception("Semantic Error: " + message);
     }
 }

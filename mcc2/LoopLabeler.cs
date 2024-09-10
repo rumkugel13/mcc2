@@ -65,11 +65,11 @@ public class LoopLabeler
                 return new Statement.CompoundStatement(LabelBlock(compoundStatement.Block, currentLabel));
             case Statement.BreakStatement breakStatement:
                 if (currentLabel == null)
-                    throw new Exception("Semantic Error: Break statement outside of loop");
+                    throw SemanticError("Break statement outside of loop");
                 return new Statement.BreakStatement(currentLabel);
             case Statement.ContinueStatement continueStatement:
                 if (currentLabel == null)
-                    throw new Exception("Semantic Error: Continue statement outside of loop");
+                    throw SemanticError("Continue statement outside of loop");
                 return new Statement.ContinueStatement(currentLabel);
             case Statement.WhileStatement whileStatement:
                 {
@@ -97,5 +97,10 @@ public class LoopLabeler
     private string MakeLabel()
     {
         return $"loop.{loopCounter++}";
+    }
+
+    private Exception SemanticError(string message)
+    {
+        return new Exception("Semantic Error: " + message);
     }
 }

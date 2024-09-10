@@ -26,7 +26,7 @@ public class TypeChecker
     {
         Type.FunctionType funType = (Type.FunctionType)functionDeclaration.FunctionType;
         if (funType.Return is Type.Array)
-            throw new Exception("Type Error: A function cannot return an array");
+            throw TypeError("A function cannot return an array");
         ValidateTypeSpecifier(funType, typeTable);
 
         List<Type> adjustedParams = [];
@@ -38,7 +38,7 @@ public class TypeChecker
                     adjustedParams.Add(new Type.Pointer(array.Element));
                     break;
                 case Type.Void:
-                    throw new Exception("Type Error: Parameters can't be of type void");
+                    throw TypeError("Parameters can't be of type void");
                 default:
                     adjustedParams.Add(t);
                     break;
@@ -57,20 +57,20 @@ public class TypeChecker
             // note: check correct type and number of parameters
             var prevFunType = (Type.FunctionType)prevEntry.Type;
             if (prevFunType is not Type.FunctionType funcA || funcA.Parameters.Count != funType.Parameters.Count || funcA.Return != funType.Return)
-                throw new Exception("Type Error: Incompatible function declarations");
+                throw TypeError("Incompatible function declarations");
 
             for (int i = 0; i < prevFunType.Parameters.Count; i++)
             {
                 if (prevFunType.Parameters[i] != funType.Parameters[i])
-                    throw new Exception("Type Error: Incompatible function declarations");
+                    throw TypeError("Incompatible function declarations");
             }
 
             alreadyDefined = attributes.Defined;
             if (alreadyDefined && hasBody)
-                throw new Exception("Type Error: Function is defined more than once");
+                throw TypeError("Function is defined more than once");
 
             if (attributes.Global && functionDeclaration.StorageClass == Declaration.StorageClasses.Static)
-                throw new Exception("Type Error: Static function declaration follows non-static");
+                throw TypeError("Static function declaration follows non-static");
 
             global = attributes.Global;
         }
@@ -80,11 +80,11 @@ public class TypeChecker
         if (functionDeclaration.Body != null)
         {
             if (funType.Return is not Type.Void && !IsComplete(funType.Return, typeTable))
-                throw new Exception("Type Error: Return type of function definition must be complete");
+                throw TypeError("Return type of function definition must be complete");
 
             foreach (var paramType in funType.Parameters)
                 if (!IsComplete(paramType, typeTable))
-                    throw new Exception("Type Error: Function parameter must be complete");
+                    throw TypeError("Function parameter must be complete");
 
             functionReturnType = funType.Return;
 
@@ -141,15 +141,15 @@ public class TypeChecker
     private void ValidateStructDefinition(Declaration.StructDeclaration structDecl, Dictionary<string, SymbolEntry> symbolTable, Dictionary<string, StructEntry> typeTable)
     {
         if (typeTable.ContainsKey(structDecl.Identifier))
-            throw new Exception("Type Error: Trying to redefine struct");
+            throw TypeError("Trying to redefine struct");
 
         if (structDecl.Members.Select(a => a.MemberName).Distinct().Count() != structDecl.Members.Count)
-            throw new Exception("Type Error: Struct members can't share the same identifier");
+            throw TypeError("Struct members can't share the same identifier");
 
         structDecl.Members.ForEach(a => ValidateTypeSpecifier(a.MemberType, typeTable));
 
         if (structDecl.Members.Any(a => !IsComplete(a.MemberType, typeTable)))
-            throw new Exception("Type Error: Struct members can't be incomplete");
+            throw TypeError("Struct members can't be incomplete");
     }
 
     private Block TypeCheckBlock(Block block, Dictionary<string, SymbolEntry> symbolTable, Dictionary<string, StructEntry> typeTable)
@@ -167,7 +167,7 @@ public class TypeChecker
                 if (functionDeclaration.StorageClass != Declaration.StorageClasses.Static)
                     newItems.Add(TypeCheckFunctionDeclaration(functionDeclaration, symbolTable, typeTable));
                 else
-                    throw new Exception("Type Error: StorageClass static used in block function declaration");
+                    throw TypeError("StorageClass static used in block function declaration");
             }
             else if (item is Declaration.StructDeclaration structDecl)
             {
@@ -186,11 +186,11 @@ public class TypeChecker
         InitialValue initialValue;
         ValidateTypeSpecifier(variableDeclaration.VariableType, typeTable);
         if (variableDeclaration.VariableType is Type.Void)
-            throw new Exception("Type Error: Variable declaration can't be of type void");
+            throw TypeError("Variable declaration can't be of type void");
         if (variableDeclaration.Initializer != null)
         {
             if (!IsComplete(variableDeclaration.VariableType, typeTable))
-                throw new Exception("Type Error: Type of variable definition must be complete");
+                throw TypeError("Type of variable definition must be complete");
             initialValue = new InitialValue.Initial(CreateStaticInitList(variableDeclaration.VariableType, variableDeclaration.Initializer, symbolTable, typeTable));
         }
         else if (variableDeclaration.Initializer == null)
@@ -198,12 +198,12 @@ public class TypeChecker
             if (variableDeclaration.StorageClass == Declaration.StorageClasses.Extern)
                 initialValue = new InitialValue.NoInitializer();
             else if (!IsComplete(variableDeclaration.VariableType, typeTable))
-                throw new Exception("Type Error: Type of variable definition must be complete");
+                throw TypeError("Type of variable definition must be complete");
             else
                 initialValue = new InitialValue.Tentative();
         }
         else
-            throw new Exception("Type Error: Non-Constant initializer");
+            throw TypeError("Non-Constant initializer");
 
         var global = variableDeclaration.StorageClass != Declaration.StorageClasses.Static;
 
@@ -211,15 +211,15 @@ public class TypeChecker
         {
             var attributes = (IdentifierAttributes.Static)prevEntry.IdentifierAttributes;
             if (prevEntry.Type != variableDeclaration.VariableType)
-                throw new Exception("Type Error: Function redeclared as variable");
+                throw TypeError("Function redeclared as variable");
             if (variableDeclaration.StorageClass == Declaration.StorageClasses.Extern)
                 global = attributes.Global;
             else if (attributes.Global != global)
-                throw new Exception("Type Error: Conflicting variable linkage");
+                throw TypeError("Conflicting variable linkage");
 
             if (attributes.InitialValue is InitialValue.Initial)
                 if (initialValue is InitialValue.Initial)
-                    throw new Exception("Type Error: Conflicting file scope variable definitions");
+                    throw TypeError("Conflicting file scope variable definitions");
                 else
                     initialValue = attributes.InitialValue;
             else if (initialValue is not InitialValue.Initial && attributes.InitialValue is InitialValue.Tentative)
@@ -234,15 +234,15 @@ public class TypeChecker
     {
         ValidateTypeSpecifier(variableDeclaration.VariableType, typeTable);
         if (variableDeclaration.VariableType is Type.Void)
-            throw new Exception("Type Error: Variable declaration can't be of type void");
+            throw TypeError("Variable declaration can't be of type void");
         if (variableDeclaration.StorageClass == Declaration.StorageClasses.Extern)
         {
             if (variableDeclaration.Initializer != null)
-                throw new Exception("Type Error: Initializer on local extern variable declaration");
+                throw TypeError("Initializer on local extern variable declaration");
             if (symbolTable.TryGetValue(variableDeclaration.Identifier, out SymbolEntry prevEntry))
             {
                 if (prevEntry.Type != variableDeclaration.VariableType)
-                    throw new Exception("Type Error: Function redeclared as variable");
+                    throw TypeError("Function redeclared as variable");
             }
             else
                 symbolTable.Add(variableDeclaration.Identifier, new SymbolEntry() { Type = variableDeclaration.VariableType, IdentifierAttributes = new IdentifierAttributes.Static(new InitialValue.NoInitializer(), true) });
@@ -250,7 +250,7 @@ public class TypeChecker
         else if (variableDeclaration.StorageClass == Declaration.StorageClasses.Static)
         {
             if (!IsComplete(variableDeclaration.VariableType, typeTable))
-                throw new Exception("Type Error: Type of variable definition must be complete");
+                throw TypeError("Type of variable definition must be complete");
             InitialValue initialValue;
             if (variableDeclaration.Initializer != null)
             {
@@ -259,13 +259,13 @@ public class TypeChecker
             else if (variableDeclaration.Initializer == null)
                 initialValue = new InitialValue.Initial([new StaticInit.ZeroInit(GetTypeSize(variableDeclaration.VariableType, typeTable))]);
             else
-                throw new Exception("Type Error: Non-constant initializer on local static variable");
+                throw TypeError("Non-constant initializer on local static variable");
             symbolTable[variableDeclaration.Identifier] = new SymbolEntry() { Type = variableDeclaration.VariableType, IdentifierAttributes = new IdentifierAttributes.Static(initialValue, false) };
         }
         else
         {
             if (!IsComplete(variableDeclaration.VariableType, typeTable))
-                throw new Exception("Type Error: Type of variable definition must be complete");
+                throw TypeError("Type of variable definition must be complete");
             symbolTable[variableDeclaration.Identifier] = new SymbolEntry() { Type = variableDeclaration.VariableType, IdentifierAttributes = new IdentifierAttributes.Local() };
             if (variableDeclaration.Initializer != null)
             {
@@ -283,7 +283,7 @@ public class TypeChecker
                 {
                     var structDef = typeTable[structure.Identifier];
                     if (init.Initializers.Count > structDef.Members.Count)
-                        throw new Exception("Type Error: Too many elements in structure initializer");
+                        throw TypeError("Too many elements in structure initializer");
 
                     long currentOffset = 0;
                     List<StaticInit> staticInits = [];
@@ -303,11 +303,11 @@ public class TypeChecker
                     return staticInits;
                 }
             case (Type.Structure structure, Initializer.SingleInitializer init):
-                throw new Exception("Type Error: Cannot initialize static structure with scalar expression");
+                throw TypeError("Cannot initialize static structure with scalar expression");
             case (Type.Array array, Initializer.CompoundInitializer compound):
                 {
                     if (compound.Initializers.Count > array.Size)
-                        throw new Exception("Type Error: Wrong number of values in initializer");
+                        throw TypeError("Wrong number of values in initializer");
 
                     List<StaticInit> staticInits = [];
                     List<StaticInit> typeCheckedInits = [];
@@ -326,7 +326,7 @@ public class TypeChecker
                     if (IsCharacterType(array.Element) && init.Expression is Expression.String stringExp)
                     {
                         if (stringExp.StringVal.Length > array.Size)
-                            throw new Exception("Type Error: Too many characters in string literal");
+                            throw TypeError("Too many characters in string literal");
 
                         List<StaticInit> staticInits = [];
                         staticInits.Add(new StaticInit.StringInit(stringExp.StringVal, stringExp.StringVal.Length < array.Size));
@@ -336,7 +336,7 @@ public class TypeChecker
                         return staticInits;
                     }
                     else
-                        throw new Exception("Type Error: Can't initialize array from scalar value");
+                        throw TypeError("Can't initialize array from scalar value");
                 }
             case (Type.Pointer pointer, Initializer.SingleInitializer init):
                 if ((pointer.Referenced is Type.Char) && init.Expression is Expression.String strExp)
@@ -351,7 +351,7 @@ public class TypeChecker
                 else if (init.Expression is Expression.Constant constantInit && IsZeroInteger(constantInit.Value))
                     return [ConvertConstantToInit(targetType, constantInit.Value, typeTable)];
                 else if (pointer.Referenced is not Type.Void || init.Expression is not Expression.String)
-                    throw new Exception("Type Error: Invalid pointer initialization");
+                    throw TypeError("Invalid pointer initialization");
                 else return [];
             case (_, Initializer.SingleInitializer single):
                 if (single.Expression is Expression.Constant constant)
@@ -362,9 +362,9 @@ public class TypeChecker
                     return [ConvertConstantToInit(targetType, constant.Value, typeTable)];
                 }
                 else
-                    throw new Exception("Type Error: Non-Static initializer");
+                    throw TypeError("Non-Static initializer");
             default:
-                throw new Exception("Type Error: Can't initialize a scalar object with a compound initializer");
+                throw TypeError("Can't initialize a scalar object with a compound initializer");
         }
     }
 
@@ -376,7 +376,7 @@ public class TypeChecker
                 {
                     var structDef = typeTable[structure.Identifier];
                     if (init.Initializers.Count > structDef.Members.Count)
-                        throw new Exception("Type Error: Too many elements in structure initializer");
+                        throw TypeError("Too many elements in structure initializer");
 
                     int i = 0;
                     List<Initializer> typeCheckedInits = [];
@@ -400,13 +400,13 @@ public class TypeChecker
                     if (init.Expression is Expression.String stringExp)
                     {
                         if (!IsCharacterType(array.Element))
-                            throw new Exception("Type Error: Can't initialize a non-character type with a string literal");
+                            throw TypeError("Can't initialize a non-character type with a string literal");
                         if (stringExp.StringVal.Length > array.Size)
-                            throw new Exception("Type Error: Too many characters in string literal");
+                            throw TypeError("Too many characters in string literal");
                         return new Initializer.SingleInitializer(stringExp, array);
                     }
                     else
-                        throw new Exception("Type Error: Cannot initialize array with scalar initializer");
+                        throw TypeError("Cannot initialize array with scalar initializer");
                 }
             case (_, Initializer.SingleInitializer single):
                 {
@@ -416,7 +416,7 @@ public class TypeChecker
                 }
             case (Type.Array array, Initializer.CompoundInitializer compound):
                 if (compound.Initializers.Count > array.Size)
-                    throw new Exception("Type Error: Wrong number of values in initializer");
+                    throw TypeError("Wrong number of values in initializer");
 
                 List<Initializer> typecheckedInits = [];
                 foreach (var init in compound.Initializers)
@@ -428,7 +428,7 @@ public class TypeChecker
                     typecheckedInits.Add(ZeroInitializer(array.Element, typeTable));
                 return new Initializer.CompoundInitializer(typecheckedInits, targetType);
             default:
-                throw new Exception("Type Error: Can't initialize a scalar object with a compound initializer");
+                throw TypeError("Can't initialize a scalar object with a compound initializer");
         }
     }
 
@@ -466,7 +466,7 @@ public class TypeChecker
                 }
                 return new Initializer.CompoundInitializer(structInits, element);
             default:
-                throw new Exception($"Type Error: Can't zero initialize with type {element}");
+                throw TypeError($"Can't zero initialize with type {element}");
         }
     }
 
@@ -478,7 +478,7 @@ public class TypeChecker
                 {
                     var typedLeft = TypeCheckAndConvertExpression(assignment.Left, symbolTable, typeTable);
                     if (!IsLvalue(typedLeft))
-                        throw new Exception("Type Error: Tried to assign to non-lvalue");
+                        throw TypeError("Tried to assign to non-lvalue");
                     var typedRight = TypeCheckAndConvertExpression(assignment.Right, symbolTable, typeTable);
                     var leftType = GetType(typedLeft);
                     var convertedRight = ConvertByAssignment(typedRight, leftType);
@@ -488,24 +488,24 @@ public class TypeChecker
                 {
                     var varType = symbolTable[variable.Identifier].Type;
                     if (varType is Type.FunctionType)
-                        throw new Exception("Type Error: Function name used as variable");
+                        throw TypeError("Function name used as variable");
                     return new Expression.Variable(variable.Identifier, varType);
                 }
             case Expression.Unary unary:
                 {
                     var unaryInner = TypeCheckAndConvertExpression(unary.Expression, symbolTable, typeTable);
                     if (unary.Operator is Expression.UnaryOperator.Negate && !IsArithmetic(GetType(unaryInner)))
-                        throw new Exception("Type Error: Can only negate arithmetic types");
+                        throw TypeError("Can only negate arithmetic types");
                     if (unary.Operator is Expression.UnaryOperator.Negate && IsCharacterType(GetType(unaryInner)))
                         unaryInner = ConvertTo(unaryInner, new Type.Int());
                     if (unary.Operator is Expression.UnaryOperator.Complement && !IsArithmetic(GetType(unaryInner)))
-                        throw new Exception("Type Error: Bitwise complement only valid for integer types");
+                        throw TypeError("Bitwise complement only valid for integer types");
                     if (unary.Operator is Expression.UnaryOperator.Complement && IsCharacterType(GetType(unaryInner)))
                         unaryInner = ConvertTo(unaryInner, new Type.Int());
                     if (unary.Operator == Expression.UnaryOperator.Complement && GetType(unaryInner) is Type.Double)
-                        throw new Exception("Type Error: Can't take the bitwise complement of a double");
+                        throw TypeError("Can't take the bitwise complement of a double");
                     if (unary.Operator == Expression.UnaryOperator.Not && !IsScalar(GetType(unaryInner)))
-                        throw new Exception("Type Error: Logical operators only apply to scalar expressions");
+                        throw TypeError("Logical operators only apply to scalar expressions");
                     return new Expression.Unary(unary.Operator, unaryInner, unary.Operator switch
                     {
                         Expression.UnaryOperator.Not => new Type.Int(),
@@ -519,7 +519,7 @@ public class TypeChecker
                     if (binary.Operator is Expression.BinaryOperator.And or Expression.BinaryOperator.Or)
                     {
                         if (!IsScalar(GetType(typedE1)) || !IsScalar(GetType(typedE2)))
-                            throw new Exception("Type Error: Logical operators only apply to scalar expressions");
+                            throw TypeError("Logical operators only apply to scalar expressions");
                         return new Expression.Binary(binary.Operator, typedE1, typedE2, new Type.Int());
                     }
                     var t1 = GetType(typedE1);
@@ -544,7 +544,7 @@ public class TypeChecker
                             return new Expression.Binary(binary.Operator, convertedLeft, typedE2, t2);
                         }
                         else
-                            throw new Exception("Type Error: Invalid operands for addition");
+                            throw TypeError("Invalid operands for addition");
                     }
                     if (binary.Operator == Expression.BinaryOperator.Subtract)
                     {
@@ -565,7 +565,7 @@ public class TypeChecker
                             return new Expression.Binary(binary.Operator, typedE1, typedE2, new Type.Long());
                         }
                         else
-                            throw new Exception("Type Error: Invalid operands for subtraction");
+                            throw TypeError("Invalid operands for subtraction");
                     }
                     if (binary.Operator is Expression.BinaryOperator.LessThan or Expression.BinaryOperator.LessOrEqual or
                         Expression.BinaryOperator.GreaterThan or Expression.BinaryOperator.GreaterOrEqual)
@@ -573,7 +573,7 @@ public class TypeChecker
                         var commonComp = (IsArithmetic(t1) && IsArithmetic(t2))
                             ? GetCommonType(t1, t2, typeTable)
                             : (t1 is Type.Pointer && t1 == t2) ?
-                            t1 : throw new Exception("Type Error: Invalid types for comparison");
+                            t1 : throw TypeError("Invalid types for comparison");
                         var convertedLeft = ConvertTo(typedE1, commonComp);
                         var convertedRight = ConvertTo(typedE2, commonComp);
                         return new Expression.Binary(binary.Operator, convertedLeft, convertedRight, new Type.Int());
@@ -584,7 +584,7 @@ public class TypeChecker
                             ? GetCommonPointerType(typedE1, typedE2)
                             : (IsArithmetic(t1) && IsArithmetic(t2)) ?
                             GetCommonType(t1, t2, typeTable)
-                            : throw new Exception("Type Error: Invalid operands for equality");
+                            : throw TypeError("Invalid operands for equality");
                         var convertedLeft = ConvertTo(typedE1, commonEquality);
                         var convertedRight = ConvertTo(typedE2, commonEquality);
                         return new Expression.Binary(binary.Operator, convertedLeft, convertedRight, new Type.Int());
@@ -595,12 +595,12 @@ public class TypeChecker
                         ? GetCommonPointerType(typedE1, typedE2)
                         : (IsArithmetic(t1) && IsArithmetic(t2)) ?
                         GetCommonType(t1, t2, typeTable)
-                        : throw new Exception("Type Error: Invalid operands for equality");
+                        : throw TypeError("Invalid operands for equality");
                     if (binary.Operator == Expression.BinaryOperator.Remainder && commonType is Type.Double)
-                        throw new Exception("Type Error: Can't apply remainder to double");
+                        throw TypeError("Can't apply remainder to double");
                     if (binary.Operator is Expression.BinaryOperator.Multiply or Expression.BinaryOperator.Divide or Expression.BinaryOperator.Remainder &&
                         !IsArithmetic(commonType))
-                        throw new Exception("Type Error: Can only multiply arithmetic types");
+                        throw TypeError("Can only multiply arithmetic types");
                     var convertedE1 = ConvertTo(typedE1, commonType);
                     var convertedE2 = ConvertTo(typedE2, commonType);
                     return new Expression.Binary(binary.Operator, convertedE1, convertedE2, commonType);
@@ -620,7 +620,7 @@ public class TypeChecker
                 var typedThen = TypeCheckAndConvertExpression(conditional.Then, symbolTable, typeTable);
                 var typedElse = TypeCheckAndConvertExpression(conditional.Else, symbolTable, typeTable);
                 if (!IsScalar(GetType(typedCond)))
-                    throw new Exception("Type Error: Conditional expression only applies to scalar expressions");
+                    throw TypeError("Conditional expression only applies to scalar expressions");
                 var typeThen = GetType(typedThen);
                 var typeElse = GetType(typedElse);
 
@@ -634,25 +634,25 @@ public class TypeChecker
                     common = GetCommonType(typeThen, typeElse, typeTable);
                 else if (typeThen is Type.Structure s1 && typeElse is Type.Structure s2)
                     if (s1.Identifier != s2.Identifier)
-                        throw new Exception("Type Error: Conditional branches must be the same struct type");
+                        throw TypeError("Conditional branches must be the same struct type");
                     else
                         common = s1;
                 else if (typeThen is Type.Structure || typeElse is Type.Structure)
-                    throw new Exception("Type Error: Conditional branches must both be a struct type or not");
+                    throw TypeError("Conditional branches must both be a struct type or not");
                 else if (typeThen is Type.Pointer || typeElse is Type.Pointer)
                     common = GetCommonPointerType(typedThen, typedElse);
                 else
-                    throw new Exception("Type Error: Cannot convert branches of conditional to a common type");
+                    throw TypeError("Cannot convert branches of conditional to a common type");
                 var convertedThen = ConvertTo(typedThen, common);
                 var convertedElse = ConvertTo(typedElse, common);
                 return new Expression.Conditional(typedCond, convertedThen, convertedElse, common);
             case Expression.FunctionCall functionCall:
                 var funType = symbolTable[functionCall.Identifier].Type;
                 if (funType is not Type.FunctionType)
-                    throw new Exception("Type Error: Variable used as function name");
+                    throw TypeError("Variable used as function name");
 
                 if (funType is Type.FunctionType functionType && functionType.Parameters.Count != functionCall.Arguments.Count)
-                    throw new Exception("Type Error: Function called with the wrong number of arguments");
+                    throw TypeError("Function called with the wrong number of arguments");
 
                 List<Expression> convertedArgs = [];
                 for (int i = 0; i < functionCall.Arguments.Count; i++)
@@ -667,15 +667,15 @@ public class TypeChecker
                     var typedInner = TypeCheckAndConvertExpression(cast.Expression, symbolTable, typeTable);
                     if (cast.TargetType is Type.Double && GetType(typedInner) is Type.Pointer ||
                         cast.TargetType is Type.Pointer && GetType(typedInner) is Type.Double)
-                        throw new Exception("Type Error: Cannot cast between pointer and double");
+                        throw TypeError("Cannot cast between pointer and double");
                     if (GetType(typedInner) is Type.Array)
-                        throw new Exception("Type Error: Cannot cast expression to array");
+                        throw TypeError("Cannot cast expression to array");
                     if (cast.TargetType is Type.Void)
                         return new Expression.Cast(cast.TargetType, typedInner, new Type.Void());
                     else if (!IsScalar(cast.TargetType))
-                        throw new Exception("Type Error: Can only cast to scalar type or void");
+                        throw TypeError("Can only cast to scalar type or void");
                     else if (!IsScalar(GetType(typedInner)))
-                        throw new Exception("Type Error: Cannot cast non-scalar expression to scalar type");
+                        throw TypeError("Cannot cast non-scalar expression to scalar type");
                     else
                         return new Expression.Cast(cast.TargetType, typedInner, cast.TargetType);
                 }
@@ -686,8 +686,8 @@ public class TypeChecker
                     {
                         Type.Pointer pointer => pointer.Referenced is not Type.Void ?
                             new Expression.Dereference(typedInner, pointer.Referenced) :
-                            throw new Exception("Type Error: Can't dereference pointer to void"),
-                        _ => throw new Exception("Type Error: Cannot dereference non-pointer"),
+                            throw TypeError("Can't dereference pointer to void"),
+                        _ => throw TypeError("Cannot dereference non-pointer"),
                     };
                 }
             case Expression.AddressOf addressOf:
@@ -699,7 +699,7 @@ public class TypeChecker
                         return new Expression.AddressOf(typedInner, new Type.Pointer(referencedType));
                     }
                     else
-                        throw new Exception("Type Error: Can't take the address of a non-lvalue");
+                        throw TypeError("Can't take the address of a non-lvalue");
                 }
             case Expression.Subscript subscript:
                 {
@@ -719,7 +719,7 @@ public class TypeChecker
                         typedE1 = ConvertTo(typedE1, new Type.Long());
                     }
                     else
-                        throw new Exception("Type Error: Subscript must have integer and pointer operands");
+                        throw TypeError("Subscript must have integer and pointer operands");
                     return new Expression.Subscript(typedE1, typedE2, ((Type.Pointer)pointerType).Referenced);
                 }
             case Expression.String stringExp:
@@ -730,14 +730,14 @@ public class TypeChecker
                 {
                     var typedInner = TypeCheckExpression(sizeofExp.Expression, symbolTable, typeTable);
                     if (!IsComplete(GetType(typedInner), typeTable))
-                        throw new Exception("Type Error: Can't get the size of an incomplete type");
+                        throw TypeError("Can't get the size of an incomplete type");
                     return new Expression.SizeOf(typedInner, new Type.ULong());
                 }
             case Expression.SizeOfType sizeofType:
                 {
                     ValidateTypeSpecifier(sizeofType.TargetType, typeTable);
                     if (!IsComplete(sizeofType.TargetType, typeTable))
-                        throw new Exception("Type Error: Can't get the size of an incomplete type");
+                        throw TypeError("Can't get the size of an incomplete type");
                     return new Expression.SizeOfType(sizeofType.TargetType, new Type.ULong());
                 }
             case Expression.Dot dot:
@@ -752,9 +752,9 @@ public class TypeChecker
                                 if (memberDef.MemberName == dot.Member)
                                     return new Expression.Dot(typedStructure, dot.Member, memberDef.MemberType);
                             }
-                            throw new Exception("Type Error: Could not find struct member");
+                            throw TypeError("Could not find struct member");
                         default:
-                            throw new Exception("Type Error: Tried to get member of non-structure");
+                            throw TypeError("Tried to get member of non-structure");
                     }
                 }
             case Expression.Arrow arrow:
@@ -770,12 +770,12 @@ public class TypeChecker
                                     if (memberDef.MemberName == arrow.Member)
                                         return new Expression.Arrow(typedStructure, arrow.Member, memberDef.MemberType);
                                 }
-                                throw new Exception("Type Error: Could not find struct member");
+                                throw TypeError("Could not find struct member");
                             default:
-                                throw new Exception("Type Error: Tried to get member of non-structure");
+                                throw TypeError("Tried to get member of non-structure");
                         }
                     else
-                        throw new Exception("Type Error: Tried to get member of non-pointer to structure");
+                        throw TypeError("Tried to get member of non-pointer to structure");
                 }
             default:
                 throw new NotImplementedException();
@@ -789,7 +789,7 @@ public class TypeChecker
         {
             Type.Array array => new Expression.AddressOf(typedExp, new Type.Pointer(array.Element)),
             Type.Structure structure => typeTable.ContainsKey(structure.Identifier) ? typedExp :
-                throw new Exception("Type Error: Invalid use of incomplete structure type"),
+                throw TypeError("Invalid use of incomplete structure type"),
             _ => typedExp,
         };
     }
@@ -807,7 +807,7 @@ public class TypeChecker
         else if (GetType(exp) is Type.Pointer pointer2 && pointer2.Referenced is Type.Void && targetType is Type.Pointer)
             return ConvertTo(exp, targetType);
         else
-            throw new Exception("Type Error: Cannot convert type for assignment");
+            throw TypeError("Cannot convert type for assignment");
     }
 
     private bool IsInteger(Type type)
@@ -870,7 +870,7 @@ public class TypeChecker
         else if (type2 is Type.Pointer pointer2 && pointer2.Referenced is Type.Void && type1 is Type.Pointer)
             return new Type.Pointer(new Type.Void());
         else
-            throw new Exception("Type Error: Expressions have incompatible types");
+            throw TypeError("Expressions have incompatible types");
     }
 
     private Statement TypeCheckStatement(Statement statement, Dictionary<string, SymbolEntry> symbolTable, Dictionary<string, StructEntry> typeTable)
@@ -889,7 +889,7 @@ public class TypeChecker
                     return new Statement.ReturnStatement(converted);
                 }
                 else
-                    throw new Exception("Type Error: Incompatible return type");
+                    throw TypeError("Incompatible return type");
             case Statement.ExpressionStatement expressionStatement:
                 return new Statement.ExpressionStatement(TypeCheckAndConvertExpression(expressionStatement.Expression, symbolTable, typeTable));
             case Statement.NullStatement nullStatement:
@@ -897,7 +897,7 @@ public class TypeChecker
             case Statement.IfStatement ifStatement:
                 var ifCond = TypeCheckAndConvertExpression(ifStatement.Condition, symbolTable, typeTable);
                 if (!IsScalar(GetType(ifCond)))
-                    throw new Exception("Type Error: Conditional expression only applies to scalar expressions");
+                    throw TypeError("Conditional expression only applies to scalar expressions");
                 var ifThen = TypeCheckStatement(ifStatement.Then, symbolTable, typeTable);
                 var ifElse = ifStatement.Else;
                 if (ifElse != null)
@@ -912,21 +912,21 @@ public class TypeChecker
             case Statement.WhileStatement whileStatement:
                 var whileCond = TypeCheckAndConvertExpression(whileStatement.Condition, symbolTable, typeTable);
                 if (!IsScalar(GetType(whileCond)))
-                    throw new Exception("Type Error: Conditional expression only applies to scalar expressions");
+                    throw TypeError("Conditional expression only applies to scalar expressions");
                 var whileBody = TypeCheckStatement(whileStatement.Body, symbolTable, typeTable);
                 return new Statement.WhileStatement(whileCond, whileBody, whileStatement.Label);
             case Statement.DoWhileStatement doWhileStatement:
                 var doBody = TypeCheckStatement(doWhileStatement.Body, symbolTable, typeTable);
                 var doCond = TypeCheckAndConvertExpression(doWhileStatement.Condition, symbolTable, typeTable);
                 if (!IsScalar(GetType(doCond)))
-                    throw new Exception("Type Error: Conditional expression only applies to scalar expressions");
+                    throw TypeError("Conditional expression only applies to scalar expressions");
                 return new Statement.DoWhileStatement(doBody, doCond, doWhileStatement.Label);
             case Statement.ForStatement forStatement:
                 {
                     var forInit = TypeCheckForInit(forStatement.Init, symbolTable, typeTable);
                     var cond = TypeCheckOptionalExpression(forStatement.Condition, symbolTable, typeTable);
                     if (cond != null && !IsScalar(GetType(cond)))
-                        throw new Exception("Type Error: Conditional expression only applies to scalar expressions");
+                        throw TypeError("Conditional expression only applies to scalar expressions");
                     var post = TypeCheckOptionalExpression(forStatement.Post, symbolTable, typeTable);
                     var body = TypeCheckStatement(forStatement.Body, symbolTable, typeTable);
                     return new Statement.ForStatement(forInit, cond, post, body, forStatement.Label);
@@ -946,7 +946,7 @@ public class TypeChecker
                 if (initDeclaration.Declaration.StorageClass == null)
                     return new ForInit.InitDeclaration(TypeCheckLocalVariableDeclaration(initDeclaration.Declaration, symbolTable, typeTable));
                 else
-                    throw new Exception("Type Error: StorageClass used in for loop init");
+                    throw TypeError("StorageClass used in for loop init");
             default:
                 throw new NotImplementedException();
         }
@@ -960,7 +960,7 @@ public class TypeChecker
             return null;
     }
 
-    public static StaticInit ConvertConstantToInit(Type target, Const constant, Dictionary<string, StructEntry> typeTable)
+    private StaticInit ConvertConstantToInit(Type target, Const constant, Dictionary<string, StructEntry> typeTable)
     {
         if (constant is Const.ConstDouble cd && target is Type.Double)
             return new StaticInit.DoubleInit(cd.Value);
@@ -978,7 +978,7 @@ public class TypeChecker
         };
 
         if (target is Type.Pointer && value != 0)
-            throw new Exception("Type Error: Invalid static initializer for pointer");
+            throw TypeError("Invalid static initializer for pointer");
 
         return target switch
         {
@@ -1032,7 +1032,7 @@ public class TypeChecker
         {
             case Type.Array array:
                 if (!IsComplete(array.Element, typeTable))
-                    throw new Exception("Type Error: Illegal array of incomplete type");
+                    throw TypeError("Illegal array of incomplete type");
                 ValidateTypeSpecifier(array.Element, typeTable);
                 break;
             case Type.Pointer pointer:
@@ -1129,5 +1129,10 @@ public class TypeChecker
             Expression.Arrow exp => exp.Type,
             _ => throw new NotImplementedException()
         };
+    }
+
+    private Exception TypeError(string message)
+    {
+        return new Exception("Type Error: " + message);
     }
 }
