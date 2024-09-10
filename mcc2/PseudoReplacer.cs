@@ -44,8 +44,8 @@ public class PseudoReplacer
                     }
                 case Instruction.Binary binary:
                     {
-                        var src = binary.SrcOperand;
-                        var dst = binary.DstOperand;
+                        var src = binary.Src;
+                        var dst = binary.Dst;
                         if (src is Operand.Pseudo or Operand.PseudoMemory)
                             src = ReplacePseudo(src);
 

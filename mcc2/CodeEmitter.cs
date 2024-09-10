@@ -166,12 +166,12 @@ public class CodeEmitter
                 if (binary.Type is AssemblyType.Double && binary.Operator is Instruction.BinaryOperator.Xor or Instruction.BinaryOperator.Mult)
                 {
                     if (binary.Operator == Instruction.BinaryOperator.Xor)
-                        builder.AppendLine($"\txorpd {EmitOperand(binary.SrcOperand, binary.Type)}, {EmitOperand(binary.DstOperand, binary.Type)}");
+                        builder.AppendLine($"\txorpd {EmitOperand(binary.Src, binary.Type)}, {EmitOperand(binary.Dst, binary.Type)}");
                     else if (binary.Operator == Instruction.BinaryOperator.Mult)
-                        builder.AppendLine($"\tmulsd {EmitOperand(binary.SrcOperand, binary.Type)}, {EmitOperand(binary.DstOperand, binary.Type)}");
+                        builder.AppendLine($"\tmulsd {EmitOperand(binary.Src, binary.Type)}, {EmitOperand(binary.Dst, binary.Type)}");
                 }
                 else
-                    builder.AppendLine($"\t{EmitBinaryOperator(binary.Operator)}{EmitTypeSuffix(binary.Type)} {EmitOperand(binary.SrcOperand, binary.Type)}, {EmitOperand(binary.DstOperand, binary.Type)}");
+                    builder.AppendLine($"\t{EmitBinaryOperator(binary.Operator)}{EmitTypeSuffix(binary.Type)} {EmitOperand(binary.Src, binary.Type)}, {EmitOperand(binary.Dst, binary.Type)}");
                 break;
             case Instruction.Idiv idiv:
                 builder.AppendLine($"\tidiv{EmitTypeSuffix(idiv.Type)} {EmitOperand(idiv.Operand, idiv.Type)}");

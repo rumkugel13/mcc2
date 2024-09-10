@@ -97,7 +97,7 @@ public class RegisterAllocator
                     result.Add(new Instruction.Unary(Unary.Operator, Unary.Type, coalescedRegs.Find(Unary.Operand)));
                     break;
                 case Instruction.Binary Binary:
-                    result.Add(new Instruction.Binary(Binary.Operator, Binary.Type, coalescedRegs.Find(Binary.SrcOperand), coalescedRegs.Find(Binary.DstOperand)));
+                    result.Add(new Instruction.Binary(Binary.Operator, Binary.Type, coalescedRegs.Find(Binary.Src), coalescedRegs.Find(Binary.Dst)));
                     break;
                 case Instruction.Cmp Cmp:
                     result.Add(new Instruction.Cmp(Cmp.Type, coalescedRegs.Find(Cmp.OperandA), coalescedRegs.Find(Cmp.OperandB)));
@@ -244,7 +244,7 @@ public class RegisterAllocator
                     instructions[i] = new Instruction.Unary(Unary.Operator, Unary.Type, Replace(Unary.Operand));
                     break;
                 case Instruction.Binary Binary:
-                    instructions[i] = new Instruction.Binary(Binary.Operator, Binary.Type, Replace(Binary.SrcOperand), Replace(Binary.DstOperand));
+                    instructions[i] = new Instruction.Binary(Binary.Operator, Binary.Type, Replace(Binary.Src), Replace(Binary.Dst));
                     break;
                 case Instruction.Cmp Cmp:
                     instructions[i] = new Instruction.Cmp(Cmp.Type, Replace(Cmp.OperandA), Replace(Cmp.OperandB));
@@ -522,8 +522,8 @@ public class RegisterAllocator
                 updated = [Cvttsd2si.Dst];
                 break;
             case Instruction.Binary binary:
-                used = [binary.SrcOperand, binary.DstOperand];
-                updated = [binary.DstOperand];
+                used = [binary.Src, binary.Dst];
+                updated = [binary.Dst];
                 break;
             case Instruction.Unary unary:
                 used = [unary.Operand];
@@ -696,8 +696,8 @@ public class RegisterAllocator
                     operands.Add(Unary.Operand);
                     break;
                 case Instruction.Binary Binary:
-                    operands.Add(Binary.SrcOperand);
-                    operands.Add(Binary.DstOperand);
+                    operands.Add(Binary.Src);
+                    operands.Add(Binary.Dst);
                     break;
                 case Instruction.Cmp Cmp:
                     operands.Add(Cmp.OperandA);

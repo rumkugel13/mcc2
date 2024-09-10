@@ -43,7 +43,7 @@ public abstract record Instruction
     public record Cvttsd2si(AssemblyType DstType, Operand Src, Operand Dst) : Instruction;
     public record Cvtsi2sd(AssemblyType SrcType, Operand Src, Operand Dst) : Instruction;
     public record Unary(UnaryOperator Operator, AssemblyType Type, Operand Operand) : Instruction;
-    public record Binary(BinaryOperator Operator, AssemblyType Type, Operand SrcOperand, Operand DstOperand) : Instruction;
+    public record Binary(BinaryOperator Operator, AssemblyType Type, Operand Src, Operand Dst) : Instruction;
     public record Cmp(AssemblyType Type, Operand OperandA, Operand OperandB) : Instruction;
     public record Idiv(AssemblyType Type, Operand Operand) : Instruction;
     public record Div(AssemblyType Type, Operand Operand) : Instruction;

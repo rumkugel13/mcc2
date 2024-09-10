@@ -120,53 +120,53 @@ public class InstructionFixer
 
                 case Instruction.Binary binary:
                     {
-                        if (binary.Type is AssemblyType.Double && binary.DstOperand is not Operand.Reg)
+                        if (binary.Type is AssemblyType.Double && binary.Dst is not Operand.Reg)
                         {
-                            Instruction.Mov moveDst = new Instruction.Mov(new AssemblyType.Double(), binary.DstOperand, dstFloatReg);
-                            instructions[i] = new Instruction.Binary(binary.Operator, new AssemblyType.Double(), binary.SrcOperand, dstFloatReg);
-                            Instruction.Mov moveAfter = new Instruction.Mov(new AssemblyType.Double(), dstFloatReg, binary.DstOperand);
+                            Instruction.Mov moveDst = new Instruction.Mov(new AssemblyType.Double(), binary.Dst, dstFloatReg);
+                            instructions[i] = new Instruction.Binary(binary.Operator, new AssemblyType.Double(), binary.Src, dstFloatReg);
+                            Instruction.Mov moveAfter = new Instruction.Mov(new AssemblyType.Double(), dstFloatReg, binary.Dst);
                             instructions.Insert(i + 1, moveAfter);
                             instructions.Insert(i, moveDst);
                         }
                         else if (binary.Operator == Instruction.BinaryOperator.Add || binary.Operator == Instruction.BinaryOperator.Sub ||
                             binary.Operator == Instruction.BinaryOperator.And || binary.Operator == Instruction.BinaryOperator.Or)
                         {
-                            if (IsMemory(binary.SrcOperand) && IsMemory(binary.DstOperand))
+                            if (IsMemory(binary.Src) && IsMemory(binary.Dst))
                             {
-                                Instruction.Mov moveBefore = new Instruction.Mov(binary.Type, binary.SrcOperand, srcReg);
-                                instructions[i] = new Instruction.Binary(binary.Operator, binary.Type, srcReg, binary.DstOperand);
+                                Instruction.Mov moveBefore = new Instruction.Mov(binary.Type, binary.Src, srcReg);
+                                instructions[i] = new Instruction.Binary(binary.Operator, binary.Type, srcReg, binary.Dst);
                                 instructions.Insert(i, moveBefore);
                             }
-                            else if (binary.SrcOperand is Operand.Imm immSrc && IsLargeInt(immSrc))
+                            else if (binary.Src is Operand.Imm immSrc && IsLargeInt(immSrc))
                             {
-                                Instruction.Mov moveBefore = new Instruction.Mov(new AssemblyType.Quadword(), binary.SrcOperand, srcReg);
-                                instructions[i] = new Instruction.Binary(binary.Operator, new AssemblyType.Quadword(), srcReg, binary.DstOperand);
+                                Instruction.Mov moveBefore = new Instruction.Mov(new AssemblyType.Quadword(), binary.Src, srcReg);
+                                instructions[i] = new Instruction.Binary(binary.Operator, new AssemblyType.Quadword(), srcReg, binary.Dst);
                                 instructions.Insert(i, moveBefore);
                             }
                         }
                         else if (binary.Operator == Instruction.BinaryOperator.Mult)
                         {
-                            if (binary.SrcOperand is Operand.Imm immSrc && IsMemory(binary.DstOperand) && IsLargeInt(immSrc))
+                            if (binary.Src is Operand.Imm immSrc && IsMemory(binary.Dst) && IsLargeInt(immSrc))
                             {
-                                Instruction.Mov moveSrc = new Instruction.Mov(new AssemblyType.Quadword(), binary.SrcOperand, srcReg);
-                                Instruction.Mov moveDst = new Instruction.Mov(new AssemblyType.Quadword(), binary.DstOperand, dstReg);
+                                Instruction.Mov moveSrc = new Instruction.Mov(new AssemblyType.Quadword(), binary.Src, srcReg);
+                                Instruction.Mov moveDst = new Instruction.Mov(new AssemblyType.Quadword(), binary.Dst, dstReg);
                                 instructions[i] = new Instruction.Binary(binary.Operator, new AssemblyType.Quadword(), srcReg, dstReg);
-                                Instruction.Mov moveAfter = new Instruction.Mov(new AssemblyType.Quadword(), dstReg, binary.DstOperand);
+                                Instruction.Mov moveAfter = new Instruction.Mov(new AssemblyType.Quadword(), dstReg, binary.Dst);
                                 instructions.Insert(i + 1, moveAfter);
                                 instructions.Insert(i, moveDst);
                                 instructions.Insert(i, moveSrc);
                             }
-                            else if (binary.SrcOperand is Operand.Imm immSrc2 && IsLargeInt(immSrc2))
+                            else if (binary.Src is Operand.Imm immSrc2 && IsLargeInt(immSrc2))
                             {
-                                Instruction.Mov moveBefore = new Instruction.Mov(new AssemblyType.Quadword(), binary.SrcOperand, srcReg);
-                                instructions[i] = new Instruction.Binary(binary.Operator, new AssemblyType.Quadword(), srcReg, binary.DstOperand);
+                                Instruction.Mov moveBefore = new Instruction.Mov(new AssemblyType.Quadword(), binary.Src, srcReg);
+                                instructions[i] = new Instruction.Binary(binary.Operator, new AssemblyType.Quadword(), srcReg, binary.Dst);
                                 instructions.Insert(i, moveBefore);
                             }
-                            else if (IsMemory(binary.DstOperand))
+                            else if (IsMemory(binary.Dst))
                             {
-                                Instruction.Mov moveBefore = new Instruction.Mov(binary.Type, binary.DstOperand, dstReg);
-                                instructions[i] = new Instruction.Binary(binary.Operator, binary.Type, binary.SrcOperand, dstReg);
-                                Instruction.Mov moveAfter = new Instruction.Mov(binary.Type, dstReg, binary.DstOperand);
+                                Instruction.Mov moveBefore = new Instruction.Mov(binary.Type, binary.Dst, dstReg);
+                                instructions[i] = new Instruction.Binary(binary.Operator, binary.Type, binary.Src, dstReg);
+                                Instruction.Mov moveAfter = new Instruction.Mov(binary.Type, dstReg, binary.Dst);
                                 instructions.Insert(i + 1, moveAfter);
                                 instructions.Insert(i, moveBefore);
                             }

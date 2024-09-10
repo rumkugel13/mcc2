@@ -16,7 +16,7 @@ public class ConstantFolding
                 case Instruction.Unary unary:
                     if (unary.Src is Val.Constant constant)
                     {
-                        result.Add(new Instruction.Copy(UnaryFold(unary.UnaryOperator, constant), unary.Dst));
+                        result.Add(new Instruction.Copy(UnaryFold(unary.Operator, constant), unary.Dst));
                     }
                     else
                         result.Add(inst);

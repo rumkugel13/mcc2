@@ -92,7 +92,7 @@ public class CopyPropagation
             case Instruction.Unary unary:
                 {
                     Val newSrc = ReplaceOperand(unary.Src, reachingCopies);
-                    return new Instruction.Unary(unary.UnaryOperator, newSrc, unary.Dst);
+                    return new Instruction.Unary(unary.Operator, newSrc, unary.Dst);
                 }
             case Instruction.Binary binary:
                 {

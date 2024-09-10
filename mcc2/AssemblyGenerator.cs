@@ -565,7 +565,7 @@ public class AssemblyGenerator
                     }
                     break;
                 case TAC.Instruction.Unary unary:
-                    if (unary.UnaryOperator == AST.Expression.UnaryOperator.Not)
+                    if (unary.Operator == AST.Expression.UnaryOperator.Not)
                     {
                         if (GetAssemblyType(unary.Src) is AssemblyType.Double)
                         {
@@ -581,7 +581,7 @@ public class AssemblyGenerator
                             instructions.Add(new Instruction.SetCC(Instruction.ConditionCode.E, GenerateOperand(unary.Dst)));
                         }
                     }
-                    else if (unary.UnaryOperator == AST.Expression.UnaryOperator.Negate && GetAssemblyType(unary.Src) is AssemblyType.Double)
+                    else if (unary.Operator == AST.Expression.UnaryOperator.Negate && GetAssemblyType(unary.Src) is AssemblyType.Double)
                     {
                         instructions.Add(new Instruction.Mov(new AssemblyType.Double(), GenerateOperand(unary.Src), GenerateOperand(unary.Dst)));
                         var constLabel = GenerateStaticConstant(new AST.Const.ConstDouble(-0.0), 16);
@@ -590,7 +590,7 @@ public class AssemblyGenerator
                     else
                     {
                         instructions.Add(new Instruction.Mov(GetAssemblyType(unary.Src), GenerateOperand(unary.Src), GenerateOperand(unary.Dst)));
-                        instructions.Add(new Instruction.Unary(ConvertUnary(unary.UnaryOperator), GetAssemblyType(unary.Src), GenerateOperand(unary.Dst)));
+                        instructions.Add(new Instruction.Unary(ConvertUnary(unary.Operator), GetAssemblyType(unary.Src), GenerateOperand(unary.Dst)));
                     }
                     break;
                 case TAC.Instruction.Binary binary:
