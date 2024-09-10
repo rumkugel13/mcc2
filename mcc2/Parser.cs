@@ -756,15 +756,12 @@ public class Parser
 
     private Expression.String ParseStringLiteral(List<Token> tokens)
     {
-        Token token = TakeToken(tokens);
-        var constString = source[token.Position..token.End];
-        var unescaped = Regex.Unescape(constString);
-        string result = unescaped[1..^1];
+        string result = string.Empty;
         while (Peek(tokens).Type == Lexer.TokenType.StringLiteral)
         {
-            token = TakeToken(tokens);
-            constString = source[token.Position..token.End];
-            unescaped = Regex.Unescape(constString);
+            Token token = TakeToken(tokens);
+            var constString = source[token.Position..token.End];
+            var unescaped = Regex.Unescape(constString);
             result = string.Concat(result, unescaped[1..^1]);
         }
         return new Expression.String(result, Type.None);
