@@ -19,7 +19,7 @@ public class Parser
         tokenPos = 0;
         var program = ParseProgram(tokens);
         if (tokenPos < tokens.Count)
-            throw new Exception("Parsing Error: Too many Tokens");
+            throw ParseError("Too many Tokens");
         return program;
     }
 
@@ -103,22 +103,22 @@ public class Parser
         if (types.Count == 0 ||
             (types.Select(a => a.Type).Distinct().Count() != types.Count) ||
             (Contains(types, Lexer.TokenType.SignedKeyword) && Contains(types, Lexer.TokenType.UnsignedKeyword)))
-            throw new Exception($"Parsing Error: Invalid type specifier");
+            throw ParseError("Invalid type specifier");
 
         if (types.Count == 1 && types[0].Type == Lexer.TokenType.Identifier)
             return new Type.Structure(GetIdentifier(types[0], source));
         if (types.Count > 1 && Contains(types, Lexer.TokenType.Identifier))
-            throw new Exception($"Parsing Error: Can't combine struct with other type specifiers");
+            throw ParseError("Can't combine struct with other type specifiers");
 
         if (types.Count == 1 && types[0].Type == Lexer.TokenType.VoidKeyword)
             return new Type.Void();
         if (types.Count > 1 && Contains(types, Lexer.TokenType.VoidKeyword))
-            throw new Exception($"Parsing Error: Can't combine void with other type specifiers");
+            throw ParseError("Can't combine void with other type specifiers");
 
         if (types.Count == 1 && types[0].Type == Lexer.TokenType.DoubleKeyword)
             return new Type.Double();
         if (types.Count > 1 && Contains(types, Lexer.TokenType.DoubleKeyword))
-            throw new Exception($"Parsing Error: Can't combine double with other type specifiers");
+            throw ParseError("Can't combine double with other type specifiers");
 
         if (types.Count == 1 && types[0].Type == Lexer.TokenType.CharKeyword)
             return new Type.Char();
@@ -127,7 +127,7 @@ public class Parser
         if (types.Count == 2 && Contains(types, Lexer.TokenType.CharKeyword) && Contains(types, Lexer.TokenType.UnsignedKeyword))
             return new Type.UChar();
         if (Contains(types, Lexer.TokenType.CharKeyword))
-            throw new Exception("Parsing Error: Cannot combine other types with char");
+            throw ParseError("Cannot combine other types with char");
 
         if (Contains(types, Lexer.TokenType.UnsignedKeyword) && Contains(types, Lexer.TokenType.LongKeyword))
             return new Type.ULong();
@@ -160,7 +160,7 @@ public class Parser
 
         Declaration.StorageClasses? storageClass;
         if (storageClasses.Count > 1)
-            throw new Exception($"Parsing Error: Invalid storage class count");
+            throw ParseError("Invalid storage class count");
         if (storageClasses.Count == 1)
             storageClass = ParseStorageClass(storageClasses[0]);
         else
@@ -175,7 +175,7 @@ public class Parser
         {
             Lexer.TokenType.ExternKeyword => Declaration.StorageClasses.Extern,
             Lexer.TokenType.StaticKeyword => Declaration.StorageClasses.Static,
-            _ => throw new Exception($"Parsing Error: Invalid storage class")
+            _ => throw ParseError("Invalid storage class")
         };
     }
 
@@ -196,13 +196,13 @@ public class Parser
                 {
                     MemberDeclaration member = ParseMemberDeclaration(tokens);
                     if (member.MemberType is Type.FunctionType)
-                        throw new Exception("Parsing Error: Cannot declare function in struct");
+                        throw ParseError("Cannot declare function in struct");
                     memberDeclarations.Add(member);
                 }
                 Expect(Lexer.TokenType.CloseBrace, tokens);
                 
                 if (memberDeclarations.Count == 0)
-                    throw new Exception("Parsing Error: Cannot define struct without members");
+                    throw ParseError("Cannot define struct without members");
             }
             Expect(Lexer.TokenType.Semicolon, tokens);
             return new Declaration.StructDeclaration(GetIdentifier(identifier, source), memberDeclarations);
@@ -307,7 +307,7 @@ public class Parser
                 TakeToken(tokens);
                 var constant = ParseConstant(tokens);
                 if (constant is Const.ConstDouble)
-                    throw new Exception("Parsing Error: Cannot declare array dimension with constant of type double");
+                    throw ParseError("Cannot declare array dimension with constant of type double");
                 Expect(Lexer.TokenType.CloseBracket, tokens);
                 result = new Declarator.ArrayDeclarator(result, GetValue(constant));
             }
@@ -327,7 +327,7 @@ public class Parser
             return GetConstant(constant, this.source);
         }
         else
-            throw new Exception("Parsing Error: Expected a constant token");
+            throw ParseError("Expected a constant token");
     }
 
     private long GetValue(Const constVal)
@@ -376,7 +376,7 @@ public class Parser
                         {
                             var (paramName, paramType, _) = ProcessDeclarator(funcParam.Declarator, funcParam.Type);
                             if (paramType is Type.FunctionType)
-                                throw new Exception("Parsing Error: Function pointers in parameters aren't supported");
+                                throw ParseError("Function pointers in parameters aren't supported");
 
                             paramNames.Add(paramName);
                             paramTypes.Add(paramType);
@@ -385,7 +385,7 @@ public class Parser
                         var newType = new Type.FunctionType(paramTypes, baseType);
                         return (nameDecl.Identifier, newType, paramNames);
                     default:
-                        throw new Exception("Parsing Error: Can't apply additional type derivations to a function type");
+                        throw ParseError("Can't apply additional type derivations to a function type");
                 }
             case Declarator.ArrayDeclarator array:
                 {
@@ -633,7 +633,7 @@ public class Parser
     {
         var nextToken = Peek(tokens);
         if (!IsUnaryOrPrimaryExpression(nextToken))
-            throw new Exception($"Parsing Error: Unsupported Token '{nextToken.Type}'");
+            throw ParseError("Unsupported Token '{nextToken.Type}'");
 
         if (IsUnaryOperator(nextToken))
         {
@@ -753,7 +753,7 @@ public class Parser
         }
         else
         {
-            throw new Exception($"Parsing Error: Unsupported Token '{nextToken.Type}'");
+            throw ParseError("Unsupported Token '{nextToken.Type}'");
         }
     }
 
@@ -806,7 +806,7 @@ public class Parser
                 TakeToken(tokens);
                 var constant = ParseConstant(tokens);
                 if (constant is Const.ConstDouble)
-                    throw new Exception("Parsing Error: Cannot declare array dimension with constant of type double");
+                    throw ParseError("Cannot declare array dimension with constant of type double");
                 Expect(Lexer.TokenType.CloseBracket, tokens);
                 inner = new AbstractDeclarator.AbstractArray(inner, GetValue(constant));
             }
@@ -817,7 +817,7 @@ public class Parser
             TakeToken(tokens);
             var constant = ParseConstant(tokens);
             if (constant is Const.ConstDouble)
-                throw new Exception("Parsing Error: Cannot declare array dimension with constant of type double");
+                throw ParseError("Cannot declare array dimension with constant of type double");
             Expect(Lexer.TokenType.CloseBracket, tokens);
             var inner = new AbstractDeclarator.AbstractBase();
             var outer = new AbstractDeclarator.AbstractArray(inner, GetValue(constant));
@@ -826,7 +826,7 @@ public class Parser
                 TakeToken(tokens);
                 constant = ParseConstant(tokens);
                 if (constant is Const.ConstDouble)
-                    throw new Exception("Parsing Error: Cannot declare array dimension with constant of type double");
+                    throw ParseError("Cannot declare array dimension with constant of type double");
                 Expect(Lexer.TokenType.CloseBracket, tokens);
                 outer = new AbstractDeclarator.AbstractArray(outer, GetValue(constant));
             }
@@ -873,7 +873,7 @@ public class Parser
             Lexer.TokenType.LessThanEquals => Expression.BinaryOperator.LessOrEqual,
             Lexer.TokenType.GreaterThan => Expression.BinaryOperator.GreaterThan,
             Lexer.TokenType.GreaterThanEquals => Expression.BinaryOperator.GreaterOrEqual,
-            _ => throw new Exception($"Parsing Error: Unknown Binary Operator: {current.Type}")
+            _ => throw ParseError("Unknown Binary Operator: {current.Type}")
         };
     }
 
@@ -887,7 +887,7 @@ public class Parser
             Lexer.TokenType.Exclamation => Expression.UnaryOperator.Not,
             Lexer.TokenType.Asterisk => Expression.UnaryOperator.Dereference,
             Lexer.TokenType.Ampersand => Expression.UnaryOperator.AddressOf,
-            _ => throw new Exception($"Parsing Error: Unknown Unary Operator: {current.Type}")
+            _ => throw ParseError("Unknown Unary Operator: {current.Type}")
         };
     }
 
@@ -932,7 +932,7 @@ public class Parser
     private Token Peek(List<Token> tokens)
     {
         if (tokenPos >= tokens.Count)
-            throw new Exception("Parsing Error: No more Tokens");
+            throw ParseError("No more Tokens");
 
         return tokens[tokenPos];
     }
@@ -940,7 +940,7 @@ public class Parser
     private Token PeekAhead(List<Token> tokens, int ahead)
     {
         if (tokenPos + ahead >= tokens.Count)
-            throw new Exception("Parsing Error: No more Tokens");
+            throw ParseError("No more Tokens");
 
         return tokens[tokenPos + ahead];
     }
@@ -949,7 +949,7 @@ public class Parser
     {
         Token actual = TakeToken(tokens);
         if (actual.Type != tokenType)
-            throw new Exception($"Parsing Error: Expected {tokenType}, got {actual.Type}");
+            throw ParseError("Expected {tokenType}, got {actual.Type}");
 
         return actual;
     }
@@ -957,7 +957,7 @@ public class Parser
     private Token TakeToken(List<Token> tokens)
     {
         if (tokenPos >= tokens.Count)
-            throw new Exception("Parsing Error: No more Tokens");
+            throw ParseError("No more Tokens");
 
         return tokens[tokenPos++];
     }
@@ -1006,7 +1006,7 @@ public class Parser
         if (token.Type == Lexer.TokenType.UnsignedIntConstant || token.Type == Lexer.TokenType.UnsignedLongConstant)
         {
             if (value > ulong.MaxValue)
-                throw new Exception("Parsing Error: Constant is too large to represent as an uint or ulong");
+                throw ParseError("Constant is too large to represent as an uint or ulong");
 
             if (token.Type == Lexer.TokenType.UnsignedIntConstant && value <= uint.MaxValue)
                 return new Const.ConstUInt((uint)value);
@@ -1016,12 +1016,17 @@ public class Parser
         else
         {
             if (value > long.MaxValue)
-                throw new Exception("Parsing Error: Constant is too large to represent as an int or long");
+                throw ParseError("Constant is too large to represent as an int or long");
 
             if (token.Type == Lexer.TokenType.IntConstant && value <= int.MaxValue)
                 return new Const.ConstInt((int)value);
 
             return new Const.ConstLong((long)value);
         }
+    }
+
+    private Exception ParseError(string message)
+    {
+        return new Exception("Parsing Error: " + message);
     }
 }
