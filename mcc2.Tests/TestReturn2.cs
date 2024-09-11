@@ -4,7 +4,7 @@ using mcc2.Assembly;
 namespace mcc2.Tests;
 
 [TestClass]
-public class TestChapter01
+public class TestReturn2
 {
     private string return2Source = """
     int main(void) {
