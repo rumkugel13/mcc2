@@ -729,13 +729,14 @@ public class Parser
                 TakeToken(tokens);
                 List<Expression> arguments = [];
 
-                while (Peek(tokens).Type != Lexer.TokenType.CloseParenthesis)
+                if (Peek(tokens).Type != Lexer.TokenType.CloseParenthesis)
                 {
                     arguments.Add(ParseExpression(tokens));
-                    if (Peek(tokens).Type == Lexer.TokenType.Comma)
+                    while (Peek(tokens).Type == Lexer.TokenType.Comma)
+                    {
                         TakeToken(tokens);
-                    else
-                        break;
+                        arguments.Add(ParseExpression(tokens));
+                    }
                 }
 
                 Expect(Lexer.TokenType.CloseParenthesis, tokens);
