@@ -1,5 +1,3 @@
-using System.Diagnostics;
-
 namespace mcc2.Tests;
 
 [TestClass]

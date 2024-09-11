@@ -167,4 +167,17 @@ public static class TestUtils
         process.WaitForExit();
         Assert.AreEqual(0, process.ExitCode, "Error running tests");
     }
+
+    internal static void TestExternalExtraCredit(int chapter, string extra)
+    {
+        var testRunner = "../../../../writing-a-c-compiler-tests/test_compiler";
+        var mcc2 = "../../../../mcc2/bin/Debug/net8.0/mcc2";
+
+        using Process process = new Process();
+        process.StartInfo.FileName = testRunner;
+        process.StartInfo.Arguments = $"{mcc2} --chapter {chapter} --latest-only {extra}";
+        process.Start();
+        process.WaitForExit();
+        Assert.AreEqual(0, process.ExitCode, "Error running tests");
+    }
 }
