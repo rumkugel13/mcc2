@@ -7,16 +7,16 @@ namespace mcc2.Tests;
 public class TestChapter01
 {
     private readonly List<Lexer.Token> return2tokens = [
-        new Lexer.Token(){Position = 0, Type = Lexer.TokenType.IntKeyword},
-        new Lexer.Token(){Position = 4, Type = Lexer.TokenType.Identifier},
-        new Lexer.Token(){Position = 8, Type = Lexer.TokenType.OpenParenthesis},
-        new Lexer.Token(){Position = 9, Type = Lexer.TokenType.VoidKeyword},
-        new Lexer.Token(){Position = 13, Type = Lexer.TokenType.CloseParenthesis},
-        new Lexer.Token(){Position = 15, Type = Lexer.TokenType.OpenBrace},
-        new Lexer.Token(){Position = 21, Type = Lexer.TokenType.ReturnKeyword},
-        new Lexer.Token(){Position = 28, Type = Lexer.TokenType.IntConstant},
-        new Lexer.Token(){Position = 29, Type = Lexer.TokenType.Semicolon},
-        new Lexer.Token(){Position = 31, Type = Lexer.TokenType.CloseBrace},
+        new Lexer.Token(){Position = 0, End = 3, Type = Lexer.TokenType.IntKeyword},
+        new Lexer.Token(){Position = 4, End = 8, Type = Lexer.TokenType.Identifier},
+        new Lexer.Token(){Position = 8, End = 9, Type = Lexer.TokenType.OpenParenthesis},
+        new Lexer.Token(){Position = 9, End = 13, Type = Lexer.TokenType.VoidKeyword},
+        new Lexer.Token(){Position = 13, End = 14, Type = Lexer.TokenType.CloseParenthesis},
+        new Lexer.Token(){Position = 15, End = 16, Type = Lexer.TokenType.OpenBrace},
+        new Lexer.Token(){Position = 21, End = 27, Type = Lexer.TokenType.ReturnKeyword},
+        new Lexer.Token(){Position = 28, End = 29, Type = Lexer.TokenType.IntConstant},
+        new Lexer.Token(){Position = 29, End = 30, Type = Lexer.TokenType.Semicolon},
+        new Lexer.Token(){Position = 31, End = 32, Type = Lexer.TokenType.CloseBrace},
     ];
 
     [TestMethod]
