@@ -19,6 +19,11 @@ public class TestChapter01
         new Lexer.Token(){Position = 31, End = 32, Type = Lexer.TokenType.CloseBrace},
     ];
 
+    private void ExpectToken(Lexer.Token expect, Lexer.Token got, int i)
+    {
+        Assert.IsTrue(got.Type == expect.Type, $"Invalid token at {i}, expected: {expect.Type}, got: {got.Type}");
+    }
+
     [TestMethod]
     public void TestLexerReturn2()
     {
@@ -30,9 +35,15 @@ public class TestChapter01
 
         for (int i = 0; i < list.Count; i++)
         {
-            Lexer.Token token = list[i];
-            Assert.IsTrue(token.Type == return2tokens[i].Type, $"Invalid token at {i}, expected: {return2tokens[i].Type}, got: {token.Type}");
+            ExpectToken(return2tokens[i], list[i], i);
         }
+    }
+
+    private T ExpectType<T>(object node, string type)
+    {
+        Assert.IsNotNull(node, $"Invalid {type} node");
+        Assert.IsInstanceOfType(node, typeof(T), $"Expected {type} type");
+        return (T)node;
     }
 
     [TestMethod]
@@ -42,17 +53,17 @@ public class TestChapter01
         Parser parser = new Parser(source);
         var ast = parser.Parse(return2tokens);
 
-        Assert.IsNotNull(ast, "Invalid Program node");
-        Assert.IsNotNull(ast.Declarations, "Invalid Function node");
-        Assert.AreEqual(((Declaration.FunctionDeclaration)ast.Declarations[0]).Identifier, "main", "Invalid Identifier");
-        Assert.IsNotNull(((Declaration.FunctionDeclaration)ast.Declarations[0]).Body, "Invalid Statement");
-        Assert.IsInstanceOfType(((Declaration.FunctionDeclaration)ast.Declarations[0]).Body, typeof(Block), "Expected Block type");
-        Assert.IsNotNull(((Declaration.FunctionDeclaration)ast.Declarations[0]).Body!.BlockItems[0], "Invalid Statement");
-        Assert.IsInstanceOfType(((Declaration.FunctionDeclaration)ast.Declarations[0]).Body!.BlockItems[0], typeof(Statement.ReturnStatement), "Expected ReturnStatement type");
-        Assert.IsNotNull(((Statement.ReturnStatement)((Declaration.FunctionDeclaration)ast.Declarations[0]).Body!.BlockItems[0]).Expression, "Invalid Expression");
-        Assert.IsInstanceOfType(((Statement.ReturnStatement)((Declaration.FunctionDeclaration)ast.Declarations[0]).Body!.BlockItems[0]).Expression, typeof(Expression.Constant), "Expected ConstantExpression type");
-        Assert.AreEqual(((Const.ConstInt)((Expression.Constant)((Statement.ReturnStatement)((Declaration.FunctionDeclaration)ast.Declarations[0]).Body!.BlockItems[0]).Expression!).Value).Value, 2, "Invalid Constant");
-    }
+        var program = ExpectType<ASTProgram>(ast, "Program");
+        var decls = ExpectType<List<Declaration>>(program.Declarations, "Declarations");
+        var funcDecl = ExpectType<Declaration.FunctionDeclaration>(decls[0], "FuncDecl");
+        Assert.AreEqual(funcDecl.Identifier, "main", "Invalid Identifier");
+        var funcBlock = ExpectType<Block>(funcDecl.Body!, "Block");
+        Assert.AreEqual(funcBlock.BlockItems.Count, 1, "Unexpected number of statements");
+        var stmt = ExpectType<Statement.ReturnStatement>(funcBlock.BlockItems[0], "ReturnStatemetnt");
+        var exp = ExpectType<Expression.Constant>(stmt.Expression!, "ConstantExpression");
+        var constInt = ExpectType<Const.ConstInt>(exp.Value, "ConstInt");
+        Assert.AreEqual(constInt.Value, 2, "Invalid Constant");
+}
 
     [TestMethod]
     public void TestGeneratorReturn2()
@@ -71,17 +82,21 @@ public class TestChapter01
         AssemblyGenerator assemblyGenerator = new AssemblyGenerator(symbolTable,typeTable);
         var assembly = assemblyGenerator.Generate(tacky);
 
-        Assert.IsNotNull(assembly, "Invalid Assembly node");
-        Assert.IsNotNull(assembly.TopLevel[0], "Invalid Function node");
-        Assert.AreEqual(((TopLevel.Function)assembly.TopLevel[0]).Name, "main", "Invalid Identifier");
-        Assert.AreEqual(((TopLevel.Function)assembly.TopLevel[0]).Instructions.Count, 3, "Invalid Instruction Count");
+        var program = ExpectType<AssemblyProgram>(assembly, "AssemblyProgram");
+        var topLevel = ExpectType<List<TopLevel>>(program.TopLevel, "TopLevel");
+        Assert.AreEqual(topLevel.Count, 1, "Unexpected number of toplevel declarations");
+        var func = ExpectType<TopLevel.Function>(topLevel[0], "Toplevel.Function");
+        Assert.AreEqual(func.Name, "main", "Invalid Identifier");
+        Assert.AreEqual(func.Instructions.Count, 3, "Invalid Instruction Count");
 
-        Assert.IsInstanceOfType(((TopLevel.Function)assembly.TopLevel[0]).Instructions[1], typeof(Instruction.Mov), "Expected Mov type");
-        Assert.IsInstanceOfType(((TopLevel.Function)assembly.TopLevel[0]).Instructions[2], typeof(Instruction.Ret), "Expected Mov type");
-
-        Assert.IsNotNull(((Instruction.Mov)((TopLevel.Function)assembly.TopLevel[0]).Instructions[1]).Src, "Invalid src");
-        Assert.IsInstanceOfType(((Instruction.Mov)((TopLevel.Function)assembly.TopLevel[0]).Instructions[1]).Src, typeof(Operand.Imm), "Expected Imm type");
-        Assert.AreEqual((long)((Operand.Imm)((Instruction.Mov)((TopLevel.Function)assembly.TopLevel[0]).Instructions[1]).Src).Value, 2, "Invalid Imm value");
+        var bin = ExpectType<Instruction.Binary>(func.Instructions[0], "Binary");
+        Assert.AreEqual(bin.Operator, Instruction.BinaryOperator.Sub, "Expected Sub operator");
+        var dst = ExpectType<Operand.Reg>(bin.Dst, "Reg");
+        Assert.AreEqual(dst.Register, Operand.RegisterName.SP, "Expected RSP Register");
+        var mov = ExpectType<Instruction.Mov>(func.Instructions[1], "Mov");
+        ExpectType<Instruction.Ret>(func.Instructions[2], "Ret");
+        var src = ExpectType<Operand.Imm>(mov.Src, "Operand.Imm");
+        Assert.AreEqual((long)src.Value, 2, "Invalid Imm value");
     }
 
     private string assembly = 
