@@ -6,6 +6,12 @@ namespace mcc2.Tests;
 [TestClass]
 public class TestChapter01
 {
+    private string return2Source = """
+    int main(void) {
+        return 2;
+    }
+    """;
+
     private readonly List<Lexer.Token> return2tokens = [
         new Lexer.Token(){Position = 0, End = 3, Type = Lexer.TokenType.IntKeyword},
         new Lexer.Token(){Position = 4, End = 8, Type = Lexer.TokenType.Identifier},
@@ -27,9 +33,8 @@ public class TestChapter01
     [TestMethod]
     public void TestLexerReturn2()
     {
-        string source = File.ReadAllText("../../../Source/return_2.c");
         Lexer lexer = new Lexer();
-        var list = lexer.Lex(source);
+        var list = lexer.Lex(return2Source);
 
         Assert.IsTrue(list.Count == 10, "Invalid number of tokens produced");
 
@@ -49,8 +54,7 @@ public class TestChapter01
     [TestMethod]
     public void TestParserReturn2()
     {
-        string source = File.ReadAllText("../../../Source/return_2.c");
-        Parser parser = new Parser(source);
+        Parser parser = new Parser(return2Source);
         var ast = parser.Parse(return2tokens);
 
         var program = ExpectType<ASTProgram>(ast, "Program");
@@ -68,8 +72,7 @@ public class TestChapter01
     [TestMethod]
     public void TestGeneratorReturn2()
     {
-        string source = File.ReadAllText("../../../Source/return_2.c");
-        Parser parser = new Parser(source);
+        Parser parser = new Parser(return2Source);
         var ast = parser.Parse(return2tokens);
 
         Dictionary<string, SemanticAnalyzer.SymbolEntry> symbolTable = [];
@@ -116,8 +119,7 @@ main:
     [TestMethod]
     public void TestEmitterReturn2()
     {
-        string source = File.ReadAllText("../../../Source/return_2.c");
-        Parser parser = new Parser(source);
+        Parser parser = new Parser(return2Source);
         var ast = parser.Parse(return2tokens);
 
         Dictionary<string, SemanticAnalyzer.SymbolEntry> symbolTable = [];
