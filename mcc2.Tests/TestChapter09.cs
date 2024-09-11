@@ -131,7 +131,12 @@ public class TestChapter09
     public void TestExecuteValidStackArguments()
     {
         // todo: use .s files
-        var files = Directory.GetFiles(TestUtils.TestsPath + "chapter_9/valid/stack_arguments").Where(a => a.EndsWith(".c"));
+        var files = Directory.GetFiles(TestUtils.TestsPath + "chapter_9/valid/stack_arguments")
+            .Where(a => a.EndsWith(".c") && !a.Contains("stack_alignment"));
         TestUtils.TestExecuteValid(files);
+
+        var special = TestUtils.TestsPath + "chapter_9/valid/stack_arguments/stack_alignment.c";
+        var extra = TestUtils.TestsPath + "chapter_9/valid/stack_arguments/stack_alignment_check_" + (OperatingSystem.IsMacOS() ? "osx.s" : "linux.s");
+        TestUtils.TestExecuteValidSpecial(special, extra);
     }
 }
