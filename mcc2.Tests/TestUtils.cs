@@ -34,11 +34,12 @@ public static class TestUtils
 
     internal static bool TestParse(string file)
     {
+        string source = File.ReadAllText(file);
         Lexer lexer = new Lexer();
         List<Lexer.Token> tokens = [];
         try
         {
-            tokens = lexer.Lex(File.ReadAllText(file));
+            tokens = lexer.Lex(source);
         }
         catch (Exception e)
         {
@@ -46,7 +47,7 @@ public static class TestUtils
             Assert.Fail($"Expected to pass Lexer for {file}");
         }
 
-        Parser parser = new Parser(file);
+        Parser parser = new Parser(source);
         try
         {
             parser.Parse(tokens);
@@ -68,6 +69,58 @@ public static class TestUtils
             var result = TestParse(preProcessed);
             File.Delete(preProcessed);
             Assert.IsFalse(result, $"Expected Parsing to fail for {file}");
+        }
+    }
+
+    internal static bool TestSemantics(string file)
+    {
+        string source = File.ReadAllText(file);
+        Lexer lexer = new Lexer();
+        List<Lexer.Token> tokens = [];
+        try
+        {
+            tokens = lexer.Lex(source);
+        }
+        catch (Exception e)
+        {
+            Console.WriteLine(e.Message);
+            Assert.Fail($"Expected to pass Lexer for {file}");
+        }
+
+        Parser parser = new Parser(source);
+        AST.ASTProgram program = new AST.ASTProgram([]);
+        try
+        {
+            program = parser.Parse(tokens);
+        }
+        catch (Exception e)
+        {
+            Console.WriteLine(e.Message);
+            Assert.Fail($"Expected to pass Parser for {file}");
+        }
+
+        SemanticAnalyzer semanticAnalyzer = new SemanticAnalyzer();
+        try
+        {
+            semanticAnalyzer.Analyze(program, [], []);
+        }
+        catch (Exception e)
+        {
+            Console.WriteLine(e.Message);
+            return false;
+        }
+        
+        return true;
+    }
+
+    internal static void TestInvalidSemantics(IEnumerable<string> files)
+    {
+        foreach (var file in files)
+        {
+            var preProcessed = CompilerDriver.Preprocessor(file);
+            var result = TestSemantics(preProcessed);
+            File.Delete(preProcessed);
+            Assert.IsFalse(result, $"Expected Semantic Analyzer to fail for {file}");
         }
     }
 
