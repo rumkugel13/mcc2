@@ -106,17 +106,29 @@ public class TestChapter09
     [TestMethod]
     public void TestExecuteValidLibraries()
     {
-        // todo: properly use multiple files
-        var files = Directory.GetFiles(TestUtils.TestsPath + "chapter_9/valid/libraries").Where(a => a.EndsWith(".c"));
-        TestUtils.TestExecuteValid(files);
+        var files = Directory.GetFiles(TestUtils.TestsPath + "chapter_9/valid/libraries")
+            .Where(a => a.EndsWith(".c") && a.Contains("addition")).ToList();
+        TestUtils.TestExecuteValidLibraryCall(files);
+
+        files = Directory.GetFiles(TestUtils.TestsPath + "chapter_9/valid/libraries")
+            .Where(a => a.EndsWith(".c") && a.Contains("many")).ToList();
+        TestUtils.TestExecuteValidLibraryCall(files);
+
+        files = Directory.GetFiles(TestUtils.TestsPath + "chapter_9/valid/libraries")
+            .Where(a => a.EndsWith(".c") && a.Contains("system")).ToList();
+        TestUtils.TestExecuteValidLibraryCall(files);
     }
 
     [TestMethod]
     public void TestExecuteValidLibrariesNoFunctionCalls()
     {
-        // todo: properly use multiple files
-        var files = Directory.GetFiles(TestUtils.TestsPath + "chapter_9/valid/libraries/no_function_calls").Where(a => a.EndsWith(".c"));
-        TestUtils.TestExecuteValid(files);
+        var files = Directory.GetFiles(TestUtils.TestsPath + "chapter_9/valid/libraries/no_function_calls")
+            .Where(a => a.EndsWith(".c") && a.Contains("division")).ToList();
+        TestUtils.TestExecuteValidLibraryCall(files);
+
+        files = Directory.GetFiles(TestUtils.TestsPath + "chapter_9/valid/libraries/no_function_calls")
+            .Where(a => a.EndsWith(".c") && a.Contains("local")).ToList();
+        TestUtils.TestExecuteValidLibraryCall(files);
     }
 
     [TestMethod]

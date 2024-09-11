@@ -260,6 +260,50 @@ public static class TestUtils
         Assert.AreEqual(expected, actual, $"Expected return values to match for {file}");
     }
 
+    internal static void TestExecuteValidLibraryCall(List<string> files)
+    {
+        CompilerDriver.CompilerOptions compilerOptions = new CompilerDriver.CompilerOptions();
+        compilerOptions.Optimizations = CompilerDriver.Optimizations.None;
+        compilerOptions.PrettyPrint = false;
+        compilerOptions.Stages = CompilerDriver.Stages.Emitter;
+
+        var sources = new List<string>(files);
+        var assemblies = new List<string>();
+        foreach (var file in sources)
+        {
+            var preProcessed = CompilerDriver.Preprocessor(file);
+            compilerOptions.File = preProcessed;
+
+            try
+            {
+                assemblies.Add(CompilerDriver.Compile(compilerOptions));
+            }
+            catch
+            {
+                Assert.Fail($"Expected compilation to pass for {preProcessed}");
+            }
+            finally
+            {
+                File.Delete(preProcessed);
+            }
+        }
+
+        // gcc first:
+        var expectedExe = CompilerDriver.AssembleAndLinkFiles(sources, files[0][..^2] + ".exp", "");
+        var expected = GetReturnVal(expectedExe);
+        // then mcc:
+        var actualExe = CompilerDriver.AssembleAndLinkFiles(assemblies, files[0][..^2] + ".act", "");
+        var actual = GetReturnVal(expectedExe);
+        // todo: mixed cases
+        Assert.AreEqual(expected, actual, $"Expected return values to match for {files[0]} and {files[1]}");
+
+        foreach(var file in assemblies)
+            File.Delete(file);
+
+        File.Delete(expectedExe);
+        File.Delete(actualExe);
+    }
+
     internal static void TestExternal(int chapter)
     {
         var testRunner = "../../../../writing-a-c-compiler-tests/test_compiler";
