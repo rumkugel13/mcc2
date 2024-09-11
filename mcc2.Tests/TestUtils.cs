@@ -109,7 +109,7 @@ public static class TestUtils
             Console.WriteLine(e.Message);
             return false;
         }
-        
+
         return true;
     }
 
@@ -164,9 +164,10 @@ public static class TestUtils
         using Process process = new Process();
         process.StartInfo.FileName = "gcc";
         process.StartInfo.Arguments = $"{file} -o {file}.out";
+        process.StartInfo.RedirectStandardError = true;
         process.Start();
         process.WaitForExit();
-        Assert.AreEqual(0, process.ExitCode, "Error running gcc");
+        Assert.AreEqual(0, process.ExitCode, "Error running gcc:\n" + process.StandardError.ReadToEnd());
 
         var expected = GetReturnVal($"{file}.out");
         File.Delete($"{file}.out");
@@ -201,8 +202,8 @@ public static class TestUtils
             var result = CompilerDriver.AssembleAndLink(assembly, "");
             File.Delete(assembly);
 
-            var expected = TestUtils.GetExpectedReturnVal(file);
-            var actual = TestUtils.GetReturnVal(result);
+            var expected = GetExpectedReturnVal(file);
+            var actual = GetReturnVal(result);
             File.Delete(result);
             Assert.AreEqual(expected, actual, $"Expected return values to match for {file}");
         }
