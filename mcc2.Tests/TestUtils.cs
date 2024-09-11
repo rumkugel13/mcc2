@@ -159,11 +159,11 @@ public static class TestUtils
         return process.ExitCode;
     }
 
-    internal static int GetExpectedReturnVal(string file)
+    internal static int GetExpectedReturnVal(string file, string linkOption = "")
     {
         using Process process = new Process();
         process.StartInfo.FileName = "gcc";
-        process.StartInfo.Arguments = $"{file} -o {file}.out";
+        process.StartInfo.Arguments = $"{file} -o {file}.out" + (string.IsNullOrEmpty(linkOption) ? "" : " " + linkOption);
         process.StartInfo.RedirectStandardError = true;
         process.Start();
         process.WaitForExit();
@@ -192,7 +192,7 @@ public static class TestUtils
         return expected;
     }
 
-    internal static void TestExecuteValid(IEnumerable<string> files)
+    internal static void TestExecuteValid(IEnumerable<string> files, string linkOption = "")
     {
         CompilerDriver.CompilerOptions compilerOptions = new CompilerDriver.CompilerOptions();
         compilerOptions.Optimizations = CompilerDriver.Optimizations.None;
@@ -217,10 +217,10 @@ public static class TestUtils
             {
                 File.Delete(preProcessed);
             }
-            var result = CompilerDriver.AssembleAndLink(assembly, "");
+            var result = CompilerDriver.AssembleAndLink(assembly, linkOption);
             File.Delete(assembly);
 
-            var expected = GetExpectedReturnVal(file);
+            var expected = GetExpectedReturnVal(file, linkOption);
             var actual = GetReturnVal(result);
             File.Delete(result);
             Assert.AreEqual(expected, actual, $"Expected return values to match for {file}");

@@ -141,8 +141,12 @@ public class TestChapter13
     [TestMethod]
     public void TestExecuteValidFunctionCalls()
     {
-        var files = Directory.GetFiles(TestUtils.TestsPath + "chapter_13/valid/function_calls").Where(a => a.EndsWith(".c"));
+        var files = Directory.GetFiles(TestUtils.TestsPath + "chapter_13/valid/function_calls")
+            .Where(a => a.EndsWith(".c") && !a.Contains("library_call"));
         TestUtils.TestExecuteValid(files);
+
+        var special = TestUtils.TestsPath + "chapter_13/valid/function_calls/standard_library_call.c";
+        TestUtils.TestExecuteValid(files, "-lm");   // link math library
     }
 
     [TestMethod]
