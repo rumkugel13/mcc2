@@ -46,7 +46,9 @@ public class TestChapter01
         Assert.IsNotNull(ast.Declarations, "Invalid Function node");
         Assert.AreEqual(((Declaration.FunctionDeclaration)ast.Declarations[0]).Identifier, "main", "Invalid Identifier");
         Assert.IsNotNull(((Declaration.FunctionDeclaration)ast.Declarations[0]).Body, "Invalid Statement");
-        Assert.IsInstanceOfType(((Declaration.FunctionDeclaration)ast.Declarations[0]).Body, typeof(Statement.ReturnStatement), "Expected ReturnStatement type");
+        Assert.IsInstanceOfType(((Declaration.FunctionDeclaration)ast.Declarations[0]).Body, typeof(Block), "Expected Block type");
+        Assert.IsNotNull(((Declaration.FunctionDeclaration)ast.Declarations[0]).Body!.BlockItems[0], "Invalid Statement");
+        Assert.IsInstanceOfType(((Declaration.FunctionDeclaration)ast.Declarations[0]).Body!.BlockItems[0], typeof(Statement.ReturnStatement), "Expected ReturnStatement type");
         Assert.IsNotNull(((Statement.ReturnStatement)((Declaration.FunctionDeclaration)ast.Declarations[0]).Body!.BlockItems[0]).Expression, "Invalid Expression");
         Assert.IsInstanceOfType(((Statement.ReturnStatement)((Declaration.FunctionDeclaration)ast.Declarations[0]).Body!.BlockItems[0]).Expression, typeof(Expression.Constant), "Expected ConstantExpression type");
         Assert.AreEqual(((Const.ConstInt)((Expression.Constant)((Statement.ReturnStatement)((Declaration.FunctionDeclaration)ast.Declarations[0]).Body!.BlockItems[0]).Expression!).Value).Value, 2, "Invalid Constant");
@@ -61,8 +63,10 @@ public class TestChapter01
 
         Dictionary<string, SemanticAnalyzer.SymbolEntry> symbolTable = [];
         Dictionary<string, SemanticAnalyzer.StructEntry> typeTable = [];
+        new SemanticAnalyzer().Analyze(ast, symbolTable, typeTable);
         TackyEmitter tackyEmitter = new TackyEmitter(symbolTable, typeTable);
         var tacky = tackyEmitter.Emit(ast);
+        tacky = new TackyOptimizer().Optimize(tacky, CompilerDriver.Optimizations.EliminateUnreachableCode);
 
         AssemblyGenerator assemblyGenerator = new AssemblyGenerator(symbolTable,typeTable);
         var assembly = assemblyGenerator.Generate(tacky);
@@ -70,20 +74,26 @@ public class TestChapter01
         Assert.IsNotNull(assembly, "Invalid Assembly node");
         Assert.IsNotNull(assembly.TopLevel[0], "Invalid Function node");
         Assert.AreEqual(((TopLevel.Function)assembly.TopLevel[0]).Name, "main", "Invalid Identifier");
-        Assert.AreEqual(((TopLevel.Function)assembly.TopLevel[0]).Instructions.Count, 2, "Invalid Instruction Count");
+        Assert.AreEqual(((TopLevel.Function)assembly.TopLevel[0]).Instructions.Count, 3, "Invalid Instruction Count");
 
-        Assert.IsInstanceOfType(((TopLevel.Function)assembly.TopLevel[0]).Instructions[0], typeof(Instruction.Mov), "Expected Mov type");
-        Assert.IsInstanceOfType(((TopLevel.Function)assembly.TopLevel[0]).Instructions[1], typeof(Instruction.Ret), "Expected Mov type");
+        Assert.IsInstanceOfType(((TopLevel.Function)assembly.TopLevel[0]).Instructions[1], typeof(Instruction.Mov), "Expected Mov type");
+        Assert.IsInstanceOfType(((TopLevel.Function)assembly.TopLevel[0]).Instructions[2], typeof(Instruction.Ret), "Expected Mov type");
 
-        Assert.IsNotNull(((Instruction.Mov)((TopLevel.Function)assembly.TopLevel[0]).Instructions[0]).Src, "Invalid src");
-        Assert.IsInstanceOfType(((Instruction.Mov)((TopLevel.Function)assembly.TopLevel[0]).Instructions[0]).Src, typeof(Operand.Imm), "Expected Imm type");
-        Assert.AreEqual((long)((Operand.Imm)((Instruction.Mov)((TopLevel.Function)assembly.TopLevel[0]).Instructions[0]).Src).Value, 2, "Invalid Imm value");
+        Assert.IsNotNull(((Instruction.Mov)((TopLevel.Function)assembly.TopLevel[0]).Instructions[1]).Src, "Invalid src");
+        Assert.IsInstanceOfType(((Instruction.Mov)((TopLevel.Function)assembly.TopLevel[0]).Instructions[1]).Src, typeof(Operand.Imm), "Expected Imm type");
+        Assert.AreEqual((long)((Operand.Imm)((Instruction.Mov)((TopLevel.Function)assembly.TopLevel[0]).Instructions[1]).Src).Value, 2, "Invalid Imm value");
     }
 
     private string assembly = 
 @"	.globl main
+	.text
 main:
-	movl $2,%eax
+	pushq %rbp
+	movq %rsp, %rbp
+	subq $0, %rsp
+	movl $2, %eax
+	movq %rbp, %rsp
+	popq %rbp
 	ret
 	.section .note.GNU-stack,"""",@progbits
 ";
@@ -97,9 +107,10 @@ main:
 
         Dictionary<string, SemanticAnalyzer.SymbolEntry> symbolTable = [];
         Dictionary<string, SemanticAnalyzer.StructEntry> typeTable = [];
+        new SemanticAnalyzer().Analyze(ast, symbolTable, typeTable);
         TackyEmitter tackyEmitter = new TackyEmitter(symbolTable, typeTable);
         var tacky = tackyEmitter.Emit(ast);
-
+        tacky = new TackyOptimizer().Optimize(tacky, CompilerDriver.Optimizations.EliminateUnreachableCode);
         AssemblyGenerator assemblyGenerator = new AssemblyGenerator(symbolTable, typeTable);
         var assembly = assemblyGenerator.Generate(tacky);
         
