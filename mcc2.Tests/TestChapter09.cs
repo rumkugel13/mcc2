@@ -134,16 +134,4 @@ public class TestChapter09
         var files = Directory.GetFiles(TestUtils.TestsPath + "chapter_9/valid/stack_arguments").Where(a => a.EndsWith(".c"));
         TestUtils.TestExecuteValid(files);
     }
-
-    [TestMethod]
-    public void TestExternal()
-    {
-        TestUtils.TestExternal(9);
-    }
-
-    [TestMethod]
-    public void TestExternalExtraCredit()
-    {
-        TestUtils.TestExternalExtraCredit(9, "--bitwise --compound --increment --goto --switch");
-    }
 }

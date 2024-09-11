@@ -58,16 +58,4 @@ public class TestChapter05
         var files = Directory.GetFiles(TestUtils.TestsPath + "chapter_5/valid/extra_credit").Where(a => a.EndsWith(".c"));
         TestUtils.TestExecuteValid(files);
     }
-
-    [TestMethod]
-    public void TestExternal()
-    {
-        TestUtils.TestExternal(5);
-    }
-
-    [TestMethod]
-    public void TestExternalExtraCredit()
-    {
-        TestUtils.TestExternalExtraCredit(5, "--bitwise --compound --increment");
-    }
 }

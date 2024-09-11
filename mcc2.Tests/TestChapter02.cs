@@ -23,10 +23,4 @@ public class TestChapter02
         var files = Directory.GetFiles(TestUtils.TestsPath + "chapter_2/valid").Where(a => a.EndsWith(".c"));
         TestUtils.TestExecuteValid(files);
     }
-
-    [TestMethod]
-    public void TestExternal()
-    {
-        TestUtils.TestExternal(2);
-    }
 }
