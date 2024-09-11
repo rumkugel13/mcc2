@@ -85,7 +85,6 @@ public class TestChapter09
     [TestMethod]
     public void TestCompileValidStackArguments()
     {
-        // todo: use .s files
         var files = Directory.GetFiles(TestUtils.TestsPath + "chapter_9/valid/stack_arguments").Where(a => a.EndsWith(".c"));
         TestUtils.TestCompileValid(files);
     }
@@ -130,7 +129,6 @@ public class TestChapter09
     [TestMethod]
     public void TestExecuteValidStackArguments()
     {
-        // todo: use .s files
         var files = Directory.GetFiles(TestUtils.TestsPath + "chapter_9/valid/stack_arguments")
             .Where(a => a.EndsWith(".c") && !a.Contains("stack_alignment"));
         TestUtils.TestExecuteValid(files);
