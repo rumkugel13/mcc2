@@ -206,4 +206,16 @@ public class TestExternal
     {
         TestUtils.TestExternalExtraCredit(18, "--bitwise --compound --increment --goto --switch --nan --union");
     }
+
+    [TestMethod]
+    public void TestChapter19()
+    {
+        TestUtils.TestExternal(19);
+    }
+
+    [TestMethod]
+    public void TestChapter19ExtraCredit()
+    {
+        TestUtils.TestExternalExtraCredit(19, "--bitwise --compound --increment --goto --switch --nan --union");
+    }
 }
