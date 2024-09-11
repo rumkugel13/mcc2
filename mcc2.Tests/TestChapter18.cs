@@ -372,8 +372,13 @@ public class TestChapter18
     [TestMethod]
     public void TestExecuteParameters()
     {
-        var files = Directory.GetFiles(TestUtils.TestsPath + chapter + "valid/parameters").Where(a => a.EndsWith(".c"));
+        var files = Directory.GetFiles(TestUtils.TestsPath + chapter + "valid/parameters")
+            .Where(a => a.EndsWith(".c") && !a.Contains("page_boundary"));
         TestUtils.TestExecuteValid(files);
+
+        var special = TestUtils.TestsPath + chapter + "valid/parameters/pass_args_on_page_boundary.c";
+        var extra = TestUtils.TestsPath + chapter + "valid/parameters/data_on_page_boundary_" + (OperatingSystem.IsMacOS() ? "osx.s" : "linux.s");
+        TestUtils.TestExecuteValidSpecial(special, extra);
     }
 
     [TestMethod]
@@ -400,8 +405,25 @@ public class TestChapter18
     [TestMethod]
     public void TestExecuteParamsAndReturns()
     {
-        var files = Directory.GetFiles(TestUtils.TestsPath + chapter + "valid/params_and_returns").Where(a => a.EndsWith(".c"));
+        var files = Directory.GetFiles(TestUtils.TestsPath + chapter + "valid/params_and_returns")
+            .Where(a => a.EndsWith(".c") && !a.Contains("page_boundary") && !a.Contains("space") && !a.Contains("pointer"));
         TestUtils.TestExecuteValid(files);
+
+        var special = TestUtils.TestsPath + chapter + "valid/params_and_returns/return_pointer_in_rax.c";
+        var extra = TestUtils.TestsPath + chapter + "valid/params_and_returns/validate_return_pointer_" + (OperatingSystem.IsMacOS() ? "osx.s" : "linux.s");
+        TestUtils.TestExecuteValidSpecial(special, extra);
+
+        special = TestUtils.TestsPath + chapter + "valid/params_and_returns/return_space_overlap.c";
+        extra = TestUtils.TestsPath + chapter + "valid/params_and_returns/return_space_address_overlap_" + (OperatingSystem.IsMacOS() ? "osx.s" : "linux.s");
+        TestUtils.TestExecuteValidSpecial(special, extra);
+
+        special = TestUtils.TestsPath + chapter + "valid/params_and_returns/return_struct_on_page_boundary.c";
+        extra = TestUtils.TestsPath + chapter + "valid/params_and_returns/data_on_page_boundary_" + (OperatingSystem.IsMacOS() ? "osx.s" : "linux.s");
+        TestUtils.TestExecuteValidSpecial(special, extra);
+
+        special = TestUtils.TestsPath + chapter + "valid/params_and_returns/return_big_struct_on_page_boundary.c";
+        extra = TestUtils.TestsPath + chapter + "valid/params_and_returns/big_data_on_page_boundary_" + (OperatingSystem.IsMacOS() ? "osx.s" : "linux.s");
+        TestUtils.TestExecuteValidSpecial(special, extra);
     }
 
     [TestMethod]
