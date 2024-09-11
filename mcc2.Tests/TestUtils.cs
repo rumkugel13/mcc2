@@ -216,9 +216,10 @@ public static class TestUtils
         using Process process = new Process();
         process.StartInfo.FileName = testRunner;
         process.StartInfo.Arguments = $"{mcc2} --chapter {chapter} --latest-only";
+        process.StartInfo.RedirectStandardError = true;
         process.Start();
         process.WaitForExit();
-        Assert.AreEqual(0, process.ExitCode, "Error running tests");
+        Assert.AreEqual(0, process.ExitCode, "Error running tests:\n" + process.StandardError.ReadToEnd());
     }
 
     internal static void TestExternalExtraCredit(int chapter, string extra)
@@ -229,8 +230,9 @@ public static class TestUtils
         using Process process = new Process();
         process.StartInfo.FileName = testRunner;
         process.StartInfo.Arguments = $"{mcc2} --chapter {chapter} --latest-only {extra}";
+        process.StartInfo.RedirectStandardError = true;
         process.Start();
         process.WaitForExit();
-        Assert.AreEqual(0, process.ExitCode, "Error running tests");
+        Assert.AreEqual(0, process.ExitCode, "Error running tests:\n" + process.StandardError.ReadToEnd());
     }
 }
