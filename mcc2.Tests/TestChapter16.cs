@@ -107,8 +107,13 @@ public class TestChapter16
     [TestMethod]
     public void TestExecuteValidChars()
     {
-        var files = Directory.GetFiles(TestUtils.TestsPath + chapter + "valid/chars").Where(a => a.EndsWith(".c"));
+        var files = Directory.GetFiles(TestUtils.TestsPath + chapter + "valid/chars")
+            .Where(a => a.EndsWith(".c") && !a.Contains("page_boundary"));
         TestUtils.TestExecuteValid(files);
+
+        var special = TestUtils.TestsPath + chapter + "valid/chars/push_arg_on_page_boundary.c";
+        var extra = TestUtils.TestsPath + chapter + "valid/chars/data_on_page_boundary_" + (OperatingSystem.IsMacOS() ? "osx.s" : "linux.s");
+        TestUtils.TestExecuteValidSpecial(special, extra);
     }
 
     [TestMethod]
