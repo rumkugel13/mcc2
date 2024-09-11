@@ -631,7 +631,7 @@ public class Parser
     {
         var nextToken = Peek(tokens);
         if (!IsUnaryOrPrimaryExpression(nextToken))
-            throw ParseError("Unsupported Token '{nextToken.Type}'");
+            throw ParseError($"Unsupported Token '{nextToken.Type}'");
 
         if (IsUnaryOperator(nextToken))
         {
@@ -944,7 +944,7 @@ public class Parser
     {
         Token actual = TakeToken(tokens);
         if (actual.Type != tokenType)
-            throw ParseError("Expected {tokenType}, got {actual.Type}");
+            throw ParseError($"Expected {tokenType}, got {actual.Type}");
 
         return actual;
     }
