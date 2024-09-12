@@ -119,9 +119,25 @@ public class TestChapter13
     [TestMethod]
     public void TestExecuteValidLibraries()
     {
-        // todo: properly use multiple files
-        var files = Directory.GetFiles(TestUtils.TestsPath + "chapter_13/valid/libraries").Where(a => a.EndsWith(".c"));
-        TestUtils.TestExecuteValid(files);
+        var files = Directory.GetFiles(TestUtils.TestsPath + "chapter_13/valid/libraries")
+            .Where(a => a.EndsWith(".c") && a.Contains("double_and")).ToList();
+        TestUtils.TestExecuteValidLibraryCall(files);
+
+        files = Directory.GetFiles(TestUtils.TestsPath + "chapter_13/valid/libraries")
+            .Where(a => a.EndsWith(".c") && a.Contains("double_parameters")).ToList();
+        TestUtils.TestExecuteValidLibraryCall(files);
+
+        files = Directory.GetFiles(TestUtils.TestsPath + "chapter_13/valid/libraries")
+            .Where(a => a.EndsWith(".c") && a.Contains("double_params")).ToList();
+        TestUtils.TestExecuteValidLibraryCall(files, "-lm");
+
+        files = Directory.GetFiles(TestUtils.TestsPath + "chapter_13/valid/libraries")
+            .Where(a => a.EndsWith(".c") && a.Contains("extern_double")).ToList();
+        TestUtils.TestExecuteValidLibraryCall(files);
+
+        files = Directory.GetFiles(TestUtils.TestsPath + "chapter_13/valid/libraries")
+            .Where(a => a.EndsWith(".c") && a.Contains("use_arg")).ToList();
+        TestUtils.TestExecuteValidLibraryCall(files);
     }
 
     [TestMethod]

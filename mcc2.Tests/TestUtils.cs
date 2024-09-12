@@ -260,7 +260,7 @@ public static class TestUtils
         Assert.AreEqual(expected, actual, $"Expected return values to match for {file}");
     }
 
-    internal static void TestExecuteValidLibraryCall(List<string> files)
+    internal static void TestExecuteValidLibraryCall(List<string> files, string linkOption = "")
     {
         Debug.Assert(files.Count == 2, "Only two supported for now");
         CompilerDriver.CompilerOptions compilerOptions = new CompilerDriver.CompilerOptions();
@@ -289,21 +289,21 @@ public static class TestUtils
             }
         }
 
-        var expectedExe = CompilerDriver.AssembleAndLinkFiles(sources, files[0][..^2] + ".exp", "");
+        var expectedExe = CompilerDriver.AssembleAndLinkFiles(sources, files[0][..^2] + ".exp", linkOption);
         var expected = GetReturnVal(expectedExe);
         File.Delete(expectedExe);
 
-        var actualExe = CompilerDriver.AssembleAndLinkFiles(assemblies, files[0][..^2] + ".act", "");
+        var actualExe = CompilerDriver.AssembleAndLinkFiles(assemblies, files[0][..^2] + ".act", linkOption);
         var actual = GetReturnVal(actualExe);
         File.Delete(actualExe);
 
         Assert.AreEqual(expected, actual, $"Expected return values to match for {files[0]} and {files[1]}");
 
-        var gccFirst = CompilerDriver.AssembleAndLinkFiles([assemblies[0],sources[1]], files[0][..^2] + ".exp", "");
+        var gccFirst = CompilerDriver.AssembleAndLinkFiles([assemblies[0],sources[1]], files[0][..^2] + ".exp", linkOption);
         var gccFirstVal = GetReturnVal(gccFirst);
         File.Delete(gccFirst);
 
-        var mccFirst = CompilerDriver.AssembleAndLinkFiles([sources[0],assemblies[1]], files[0][..^2] + ".exp", "");
+        var mccFirst = CompilerDriver.AssembleAndLinkFiles([sources[0],assemblies[1]], files[0][..^2] + ".exp", linkOption);
         var mccFirstVal = GetReturnVal(mccFirst);
         File.Delete(mccFirst);
         Assert.AreEqual(expected, gccFirstVal, $"Expected return values to match for mixed {files[0]} and {files[1]}");
