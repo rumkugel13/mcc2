@@ -107,9 +107,17 @@ public class TestChapter15
     [TestMethod]
     public void TestExecuteValidLibraries()
     {
-        // todo: properly use multiple files
-        var files = Directory.GetFiles(TestUtils.TestsPath + chapter + "valid/libraries").Where(a => a.EndsWith(".c"));
-        TestUtils.TestExecuteValid(files);
+        var files = Directory.GetFiles(TestUtils.TestsPath + chapter + "valid/libraries")
+            .Where(a => a.EndsWith(".c") && a.Contains("global_array")).ToList();
+        TestUtils.TestExecuteValidLibraryCall(files);
+
+        files = Directory.GetFiles(TestUtils.TestsPath + chapter + "valid/libraries")
+            .Where(a => a.EndsWith(".c") && a.Contains("return_pointer")).ToList();
+        TestUtils.TestExecuteValidLibraryCall(files);
+
+        files = Directory.GetFiles(TestUtils.TestsPath + chapter + "valid/libraries")
+            .Where(a => a.EndsWith(".c") && a.Contains("set_array")).ToList();
+        TestUtils.TestExecuteValidLibraryCall(files);
     }
 
     [TestMethod]

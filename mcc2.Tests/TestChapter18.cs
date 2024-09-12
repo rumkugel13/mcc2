@@ -260,8 +260,25 @@ public class TestChapter18
     [TestMethod]
     public void TestExecuteNoStructureParametersLibraries()
     {
-        var files = Directory.GetFiles(TestUtils.TestsPath + chapter + "valid/no_structure_parameters/libraries").Where(a => a.EndsWith(".c"));
-        TestUtils.TestExecuteValid(files);
+        var files = Directory.GetFiles(TestUtils.TestsPath + chapter + "valid/no_structure_parameters/libraries")
+            .Where(a => a.EndsWith(".c") && a.Contains("array_of_structs")).ToList();
+        TestUtils.TestExecuteValidLibraryCall(files);
+
+        files = Directory.GetFiles(TestUtils.TestsPath + chapter + "valid/no_structure_parameters/libraries")
+            .Where(a => a.EndsWith(".c") && a.Contains("global_struct")).ToList();
+        TestUtils.TestExecuteValidLibraryCall(files);
+
+        files = Directory.GetFiles(TestUtils.TestsPath + chapter + "valid/no_structure_parameters/libraries")
+            .Where(a => a.EndsWith(".c") && a.Contains("opaque_struct")).ToList();
+        TestUtils.TestExecuteValidLibraryCall(files);
+
+        files = Directory.GetFiles(TestUtils.TestsPath + chapter + "valid/no_structure_parameters/libraries")
+            .Where(a => a.EndsWith(".c") && a.Contains("param_struct")).ToList();
+        TestUtils.TestExecuteValidLibraryCall(files);
+
+        files = Directory.GetFiles(TestUtils.TestsPath + chapter + "valid/no_structure_parameters/libraries")
+            .Where(a => a.EndsWith(".c") && a.Contains("return_struct")).ToList();
+        TestUtils.TestExecuteValidLibraryCall(files);
     }
 
     [TestMethod]
@@ -274,8 +291,21 @@ public class TestChapter18
     [TestMethod]
     public void TestExecuteNoStructureParametersLibrariesInitializers()
     {
-        var files = Directory.GetFiles(TestUtils.TestsPath + chapter + "valid/no_structure_parameters/libraries/initializers").Where(a => a.EndsWith(".c"));
-        TestUtils.TestExecuteValid(files);
+        var files = Directory.GetFiles(TestUtils.TestsPath + chapter + "valid/no_structure_parameters/libraries/initializers")
+            .Where(a => a.EndsWith(".c") && a.Contains("auto_struct") && !a.Contains("nested")).ToList();
+        TestUtils.TestExecuteValidLibraryCall(files);
+
+        files = Directory.GetFiles(TestUtils.TestsPath + chapter + "valid/no_structure_parameters/libraries/initializers")
+            .Where(a => a.EndsWith(".c") && a.Contains("nested_auto_struct")).ToList();
+        TestUtils.TestExecuteValidLibraryCall(files);
+
+        files = Directory.GetFiles(TestUtils.TestsPath + chapter + "valid/no_structure_parameters/libraries/initializers")
+            .Where(a => a.EndsWith(".c") && a.Contains("nested_static_struct")).ToList();
+        TestUtils.TestExecuteValidLibraryCall(files);
+
+        files = Directory.GetFiles(TestUtils.TestsPath + chapter + "valid/no_structure_parameters/libraries/initializers")
+            .Where(a => a.EndsWith(".c") && a.Contains("static_struct") && !a.Contains("nested")).ToList();
+        TestUtils.TestExecuteValidLibraryCall(files);
     }
 
     [TestMethod]
@@ -391,8 +421,25 @@ public class TestChapter18
     [TestMethod]
     public void TestExecuteParametersLibraries()
     {
-        var files = Directory.GetFiles(TestUtils.TestsPath + chapter + "valid/parameters/libraries").Where(a => a.EndsWith(".c"));
-        TestUtils.TestExecuteValid(files);
+        var files = Directory.GetFiles(TestUtils.TestsPath + chapter + "valid/parameters/libraries")
+            .Where(a => a.EndsWith(".c") && a.Contains("classify_params")).ToList();
+        TestUtils.TestExecuteValidLibraryCall(files);
+
+        files = Directory.GetFiles(TestUtils.TestsPath + chapter + "valid/parameters/libraries")
+            .Where(a => a.EndsWith(".c") && a.Contains("modify_param")).ToList();
+        TestUtils.TestExecuteValidLibraryCall(files);
+
+        files = Directory.GetFiles(TestUtils.TestsPath + chapter + "valid/parameters/libraries")
+            .Where(a => a.EndsWith(".c") && a.Contains("param_calling")).ToList();
+        TestUtils.TestExecuteValidLibraryCall(files);
+
+        files = Directory.GetFiles(TestUtils.TestsPath + chapter + "valid/parameters/libraries")
+            .Where(a => a.EndsWith(".c") && a.Contains("pass_struct")).ToList();
+        TestUtils.TestExecuteValidLibraryCall(files);
+
+        files = Directory.GetFiles(TestUtils.TestsPath + chapter + "valid/parameters/libraries")
+            .Where(a => a.EndsWith(".c") && a.Contains("struct_sizes")).ToList();
+        TestUtils.TestExecuteValidLibraryCall(files);
     }
 
     [TestMethod]
@@ -436,7 +483,20 @@ public class TestChapter18
     [TestMethod]
     public void TestExecuteParamsAndReturnsLibraries()
     {
-        var files = Directory.GetFiles(TestUtils.TestsPath + chapter + "valid/params_and_returns/libraries").Where(a => a.EndsWith(".c"));
-        TestUtils.TestExecuteValid(files);
+        var files = Directory.GetFiles(TestUtils.TestsPath + chapter + "valid/params_and_returns/libraries")
+            .Where(a => a.EndsWith(".c") && a.Contains("access_retval")).ToList();
+        TestUtils.TestExecuteValidLibraryCall(files);
+
+        files = Directory.GetFiles(TestUtils.TestsPath + chapter + "valid/params_and_returns/libraries")
+            .Where(a => a.EndsWith(".c") && a.Contains("missing_retval")).ToList();
+        TestUtils.TestExecuteValidLibraryCall(files);
+
+        files = Directory.GetFiles(TestUtils.TestsPath + chapter + "valid/params_and_returns/libraries")
+            .Where(a => a.EndsWith(".c") && a.Contains("return_calling")).ToList();
+        TestUtils.TestExecuteValidLibraryCall(files);
+
+        files = Directory.GetFiles(TestUtils.TestsPath + chapter + "valid/params_and_returns/libraries")
+            .Where(a => a.EndsWith(".c") && a.Contains("retval_struct")).ToList();
+        TestUtils.TestExecuteValidLibraryCall(files);
     }
 }
