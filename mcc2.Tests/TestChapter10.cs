@@ -96,15 +96,40 @@ public class TestChapter10
     [TestMethod]
     public void TestExecuteValidExtraCreditLibraries()
     {
-        var files = Directory.GetFiles(TestUtils.TestsPath + "chapter_10/valid/extra_credit/libraries").Where(a => a.EndsWith(".c"));
-        TestUtils.TestExecuteValid(files);
+        var files = Directory.GetFiles(TestUtils.TestsPath + "chapter_10/valid/extra_credit/libraries")
+            .Where(a => a.EndsWith(".c") && a.Contains("same_label")).ToList();
+        TestUtils.TestExecuteValidLibraryCall(files);
     }
 
     [TestMethod]
     public void TestExecuteValidLibraries()
     {
-        // todo: properly use multiple files
-        var files = Directory.GetFiles(TestUtils.TestsPath + "chapter_10/valid/libraries").Where(a => a.EndsWith(".c"));
-        TestUtils.TestExecuteValid(files);
+        var files = Directory.GetFiles(TestUtils.TestsPath + "chapter_10/valid/libraries")
+            .Where(a => a.EndsWith(".c") && a.Contains("external_linkage_function")).ToList();
+        TestUtils.TestExecuteValidLibraryCall(files);
+
+        files = Directory.GetFiles(TestUtils.TestsPath + "chapter_10/valid/libraries")
+            .Where(a => a.EndsWith(".c") && a.Contains("external_tentative")).ToList();
+        TestUtils.TestExecuteValidLibraryCall(files);
+
+        files = Directory.GetFiles(TestUtils.TestsPath + "chapter_10/valid/libraries")
+            .Where(a => a.EndsWith(".c") && a.Contains("external_var_scoping")).ToList();
+        TestUtils.TestExecuteValidLibraryCall(files);
+
+        files = Directory.GetFiles(TestUtils.TestsPath + "chapter_10/valid/libraries")
+            .Where(a => a.EndsWith(".c") && a.Contains("external_variable")).ToList();
+        TestUtils.TestExecuteValidLibraryCall(files);
+
+        files = Directory.GetFiles(TestUtils.TestsPath + "chapter_10/valid/libraries")
+            .Where(a => a.EndsWith(".c") && a.Contains("internal_hides")).ToList();
+        TestUtils.TestExecuteValidLibraryCall(files);
+
+        files = Directory.GetFiles(TestUtils.TestsPath + "chapter_10/valid/libraries")
+            .Where(a => a.EndsWith(".c") && a.Contains("internal_linkage_function")).ToList();
+        TestUtils.TestExecuteValidLibraryCall(files);
+
+        files = Directory.GetFiles(TestUtils.TestsPath + "chapter_10/valid/libraries")
+            .Where(a => a.EndsWith(".c") && a.Contains("internal_linkage_var")).ToList();
+        TestUtils.TestExecuteValidLibraryCall(files);
     }
 }

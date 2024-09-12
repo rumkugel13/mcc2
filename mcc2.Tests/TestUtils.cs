@@ -308,6 +308,8 @@ public static class TestUtils
         File.Delete(mccFirst);
         Assert.AreEqual(expected, gccFirstVal, $"Expected return values to match for mixed {files[0]} and {files[1]}");
         Assert.AreEqual(expected, mccFirstVal, $"Expected return values to match for mixed {files[0]} and {files[1]}");
+        foreach(var file in assemblies)
+            File.Delete(file);
     }
 
     internal static void TestExternal(int chapter)
