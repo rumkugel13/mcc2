@@ -751,7 +751,7 @@ public class Parser
         }
         else
         {
-            throw ParseError("Unsupported Token '{nextToken.Type}'");
+            throw ParseError($"Unsupported Token '{nextToken.Type}'");
         }
     }
 
@@ -868,7 +868,7 @@ public class Parser
             Lexer.TokenType.LessThanEquals => Expression.BinaryOperator.LessOrEqual,
             Lexer.TokenType.GreaterThan => Expression.BinaryOperator.GreaterThan,
             Lexer.TokenType.GreaterThanEquals => Expression.BinaryOperator.GreaterOrEqual,
-            _ => throw ParseError("Unknown Binary Operator: {current.Type}")
+            _ => throw ParseError($"Unknown Binary Operator: {current.Type}")
         };
     }
 
@@ -882,7 +882,7 @@ public class Parser
             Lexer.TokenType.Exclamation => Expression.UnaryOperator.Not,
             Lexer.TokenType.Asterisk => Expression.UnaryOperator.Dereference,
             Lexer.TokenType.Ampersand => Expression.UnaryOperator.AddressOf,
-            _ => throw ParseError("Unknown Unary Operator: {current.Type}")
+            _ => throw ParseError($"Unknown Unary Operator: {current.Type}")
         };
     }
 
