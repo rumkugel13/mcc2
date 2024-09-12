@@ -262,6 +262,7 @@ public static class TestUtils
 
     internal static void TestExecuteValidLibraryCall(List<string> files)
     {
+        Debug.Assert(files.Count == 2, "Only two supported for now");
         CompilerDriver.CompilerOptions compilerOptions = new CompilerDriver.CompilerOptions();
         compilerOptions.Optimizations = CompilerDriver.Optimizations.None;
         compilerOptions.PrettyPrint = false;
@@ -288,20 +289,25 @@ public static class TestUtils
             }
         }
 
-        // gcc first:
         var expectedExe = CompilerDriver.AssembleAndLinkFiles(sources, files[0][..^2] + ".exp", "");
         var expected = GetReturnVal(expectedExe);
-        // then mcc:
+        File.Delete(expectedExe);
+
         var actualExe = CompilerDriver.AssembleAndLinkFiles(assemblies, files[0][..^2] + ".act", "");
-        var actual = GetReturnVal(expectedExe);
-        // todo: mixed cases
+        var actual = GetReturnVal(actualExe);
+        File.Delete(actualExe);
+
         Assert.AreEqual(expected, actual, $"Expected return values to match for {files[0]} and {files[1]}");
 
-        foreach(var file in assemblies)
-            File.Delete(file);
+        var gccFirst = CompilerDriver.AssembleAndLinkFiles([assemblies[0],sources[1]], files[0][..^2] + ".exp", "");
+        var gccFirstVal = GetReturnVal(gccFirst);
+        File.Delete(gccFirst);
 
-        File.Delete(expectedExe);
-        File.Delete(actualExe);
+        var mccFirst = CompilerDriver.AssembleAndLinkFiles([sources[0],assemblies[1]], files[0][..^2] + ".exp", "");
+        var mccFirstVal = GetReturnVal(mccFirst);
+        File.Delete(mccFirst);
+        Assert.AreEqual(expected, gccFirstVal, $"Expected return values to match for mixed {files[0]} and {files[1]}");
+        Assert.AreEqual(expected, mccFirstVal, $"Expected return values to match for mixed {files[0]} and {files[1]}");
     }
 
     internal static void TestExternal(int chapter)
