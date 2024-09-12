@@ -13,12 +13,18 @@ public class TypeChecker
         for (int i = 0; i < program.Declarations.Count; i++)
         {
             Declaration? decl = program.Declarations[i];
-            if (decl is Declaration.FunctionDeclaration fun)
-                program.Declarations[i] = TypeCheckFunctionDeclaration(fun, symbolTable, typeTable);
-            else if (decl is Declaration.VariableDeclaration var)
-                program.Declarations[i] = TypeCheckFileScopeVariableDeclaration(var, symbolTable, typeTable);
-            else if (decl is Declaration.StructDeclaration structDecl)
-                program.Declarations[i] = TypeCheckStructDeclaration(structDecl, symbolTable, typeTable);
+            switch (decl)
+            {
+                case Declaration.FunctionDeclaration fun:
+                    program.Declarations[i] = TypeCheckFunctionDeclaration(fun, symbolTable, typeTable);
+                    break;
+                case Declaration.VariableDeclaration var:
+                    program.Declarations[i] = TypeCheckFileScopeVariableDeclaration(var, symbolTable, typeTable);
+                    break;
+                case Declaration.StructDeclaration structDecl:
+                    program.Declarations[i] = TypeCheckStructDeclaration(structDecl, symbolTable, typeTable);
+                    break;
+            }
         }
     }
 
@@ -158,24 +164,23 @@ public class TypeChecker
         for (int i = 0; i < block.BlockItems.Count; i++)
         {
             BlockItem? item = block.BlockItems[i];
-            if (item is Declaration.VariableDeclaration declaration)
+            switch (item)
             {
-                newItems.Add(TypeCheckLocalVariableDeclaration(declaration, symbolTable, typeTable));
-            }
-            else if (item is Declaration.FunctionDeclaration functionDeclaration)
-            {
-                if (functionDeclaration.StorageClass != Declaration.StorageClasses.Static)
-                    newItems.Add(TypeCheckFunctionDeclaration(functionDeclaration, symbolTable, typeTable));
-                else
-                    throw TypeError("StorageClass static used in block function declaration");
-            }
-            else if (item is Declaration.StructDeclaration structDecl)
-            {
-                newItems.Add(TypeCheckStructDeclaration(structDecl, symbolTable, typeTable));
-            }
-            else if (item is Statement statement)
-            {
-                newItems.Add(TypeCheckStatement(statement, symbolTable, typeTable));
+                case Declaration.VariableDeclaration declaration:
+                    newItems.Add(TypeCheckLocalVariableDeclaration(declaration, symbolTable, typeTable));
+                    break;
+                case Declaration.FunctionDeclaration functionDeclaration:
+                    if (functionDeclaration.StorageClass != Declaration.StorageClasses.Static)
+                        newItems.Add(TypeCheckFunctionDeclaration(functionDeclaration, symbolTable, typeTable));
+                    else
+                        throw TypeError("StorageClass static used in block function declaration");
+                    break;
+                case Declaration.StructDeclaration structDecl:
+                    newItems.Add(TypeCheckStructDeclaration(structDecl, symbolTable, typeTable));
+                    break;
+                case Statement statement:
+                    newItems.Add(TypeCheckStatement(statement, symbolTable, typeTable));
+                    break;
             }
         }
         return new Block(newItems);

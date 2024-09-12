@@ -17,12 +17,18 @@ public class CodeEmitter
     private void EmitProgram(AssemblyProgram program, StringBuilder builder)
     {
         foreach (var topLevel in program.TopLevel)
-            if (topLevel is TopLevel.Function fun)
-                EmitFunction(fun, builder);
-            else if (topLevel is TopLevel.StaticVariable stat)
-                EmitStaticVariable(stat, builder);
-            else if (topLevel is TopLevel.StaticConstant statConst)
-                EmitStaticConstant(statConst, builder);
+            switch (topLevel)
+            {
+                case TopLevel.Function fun:
+                    EmitFunction(fun, builder);
+                    break;
+                case TopLevel.StaticVariable stat:
+                    EmitStaticVariable(stat, builder);
+                    break;
+                case TopLevel.StaticConstant statConst:
+                    EmitStaticConstant(statConst, builder);
+                    break;
+            }
     }
 
     private void EmitFunction(TopLevel.Function function, StringBuilder builder)
@@ -56,17 +62,17 @@ public class CodeEmitter
         {
             foreach (var init in staticVariable.Inits)
             {
-                if (init is StaticInit.PointerInit pointer)
+                switch (init)
                 {
-                    builder.AppendLine($"\t.quad {pointer.Name}");
-                }
-                else if (init is StaticInit.StringInit stringInit)
-                {
-                    EmitStringConstant(stringInit, builder);
-                }
-                else
-                {
-                    builder.AppendLine($"\t.{EmitAssemblerType(init)} {GetValue(init)}");
+                    case StaticInit.PointerInit pointer:
+                        builder.AppendLine($"\t.quad {pointer.Name}");
+                        break;
+                    case StaticInit.StringInit stringInit:
+                        EmitStringConstant(stringInit, builder);
+                        break;
+                    default:
+                        builder.AppendLine($"\t.{EmitAssemblerType(init)} {GetValue(init)}");
+                        break;
                 }
             }   
         }
@@ -99,19 +105,19 @@ public class CodeEmitter
 
         builder.AppendLine($"\t.{(OperatingSystem.IsLinux() ? "align" : "balign")} {statConst.Alignment}");
         builder.AppendLine($"{statConst.Identifier}:");
-        if (statConst.Init is StaticInit.PointerInit pointer)
+        switch (statConst.Init)
         {
-            builder.AppendLine($"\t.quad {pointer.Name}");
-        }
-        else if (statConst.Init is StaticInit.StringInit stringInit)
-        {
-            EmitStringConstant(stringInit, builder);
-        }
-        else
-        {
-            builder.AppendLine($"\t.{EmitAssemblerType(statConst.Init)} {GetValue(statConst.Init)}");
-            if (OperatingSystem.IsMacOS() && statConst.Alignment == 16)
-                builder.AppendLine($"\t.quad 0");
+            case StaticInit.PointerInit pointer:
+                builder.AppendLine($"\t.quad {pointer.Name}");
+                break;
+            case StaticInit.StringInit stringInit:
+                EmitStringConstant(stringInit, builder);
+                break;
+            default:
+                builder.AppendLine($"\t.{EmitAssemblerType(statConst.Init)} {GetValue(statConst.Init)}");
+                if (OperatingSystem.IsMacOS() && statConst.Alignment == 16)
+                    builder.AppendLine($"\t.quad 0");
+                break;
         }
     }
 

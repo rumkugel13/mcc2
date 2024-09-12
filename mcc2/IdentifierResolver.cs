@@ -106,24 +106,23 @@ public class IdentifierResolver
         List<BlockItem> newItems = [];
         foreach (var item in block.BlockItems)
         {
-            if (item is Declaration.VariableDeclaration declaration)
+            switch (item)
             {
-                newItems.Add(ResolveVariableDeclaration(declaration, identifierMap, structMap));
-            }
-            else if (item is Declaration.FunctionDeclaration functionDeclaration)
-            {
-                if (functionDeclaration.Body != null)
-                    throw SemanticError("Local function definition");
+                case Declaration.VariableDeclaration declaration:
+                    newItems.Add(ResolveVariableDeclaration(declaration, identifierMap, structMap));
+                    break;
+                case Declaration.FunctionDeclaration functionDeclaration:
+                    if (functionDeclaration.Body != null)
+                        throw SemanticError("Local function definition");
 
-                newItems.Add(ResolveFunctionDeclaration(functionDeclaration, identifierMap, structMap));
-            }
-            else if (item is Declaration.StructDeclaration structDecl)
-            {
-                newItems.Add(ResolveStructureDeclaration(structDecl, structMap));
-            }
-            else if (item is Statement statement)
-            {
-                newItems.Add(ResolveStatement(statement, identifierMap, structMap));
+                    newItems.Add(ResolveFunctionDeclaration(functionDeclaration, identifierMap, structMap));
+                    break;
+                case Declaration.StructDeclaration structDecl:
+                    newItems.Add(ResolveStructureDeclaration(structDecl, structMap));
+                    break;
+                case Statement statement:
+                    newItems.Add(ResolveStatement(statement, identifierMap, structMap));
+                    break;
             }
         }
         return new Block(newItems);
