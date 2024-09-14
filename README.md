@@ -28,7 +28,7 @@ Besides having fun and learning how compilers and C work, these are some of the 
   - [X] 1: A Minimal Compiler
   - [X] 2: Unary Operators
   - [X] 3: Binary Operators
-    - [ ] Extra: Bitwise Operators
+    - [X] Extra: Bitwise Operators
   - [X] 4: Logical and Relational Operators
   - [X] 5: Local Variables
     - [ ] Extra: Compound Assignment Operators

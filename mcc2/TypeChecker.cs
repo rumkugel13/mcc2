@@ -594,6 +594,29 @@ public class TypeChecker
                         var convertedRight = ConvertTo(typedE2, commonEquality);
                         return new Expression.Binary(binary.Operator, convertedLeft, convertedRight, new Type.Int());
                     }
+                    if (binary.Operator is Expression.BinaryOperator.BitShiftLeft or Expression.BinaryOperator.BitShiftRight)
+                    {
+                        if (IsInteger(t1) && IsInteger(t2))
+                        {
+                            var commonShift = t1;
+                            var convertedRight = ConvertTo(typedE2, commonShift);
+                            return new Expression.Binary(binary.Operator, typedE1, convertedRight, commonShift);
+                        }
+                        else
+                            throw TypeError("Can only bitshift integer types");
+                    }
+                    if (binary.Operator is Expression.BinaryOperator.BitAnd or Expression.BinaryOperator.BitOr or Expression.BinaryOperator.BitXor)
+                    {
+                        if (IsInteger(t1) && IsInteger(t2))
+                        {
+                            var commonBit = GetCommonType(t1, t2, typeTable);
+                            var convertedLeft = ConvertTo(typedE1, commonBit);
+                            var convertedRight = ConvertTo(typedE2, commonBit);
+                            return new Expression.Binary(binary.Operator, convertedLeft, convertedRight, commonBit);
+                        }
+                        else
+                            throw TypeError("Can only apply bitwise operators on integer types");
+                    }
 
                     var commonType = (binary.Operator is Expression.BinaryOperator.Equal or Expression.BinaryOperator.NotEqual &&
                         (t1 is Type.Pointer || t2 is Type.Pointer))

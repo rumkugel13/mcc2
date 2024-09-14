@@ -129,7 +129,9 @@ public class InstructionFixer
                             instructions.Insert(i, moveDst);
                         }
                         else if (binary.Operator == Instruction.BinaryOperator.Add || binary.Operator == Instruction.BinaryOperator.Sub ||
-                            binary.Operator == Instruction.BinaryOperator.And || binary.Operator == Instruction.BinaryOperator.Or)
+                            binary.Operator == Instruction.BinaryOperator.And || binary.Operator == Instruction.BinaryOperator.Or ||
+                            binary.Operator == Instruction.BinaryOperator.Xor || binary.Operator == Instruction.BinaryOperator.Shl ||
+                            binary.Operator == Instruction.BinaryOperator.ShrTwoOp )
                         {
                             if (IsMemory(binary.Src) && IsMemory(binary.Dst))
                             {

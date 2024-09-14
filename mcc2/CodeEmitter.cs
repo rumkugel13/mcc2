@@ -176,6 +176,10 @@ public class CodeEmitter
                     else if (binary.Operator == Instruction.BinaryOperator.Mult)
                         builder.AppendLine($"\tmulsd {EmitOperand(binary.Src, binary.Type)}, {EmitOperand(binary.Dst, binary.Type)}");
                 }
+                else if (binary.Operator is Instruction.BinaryOperator.Shl or Instruction.BinaryOperator.ShrTwoOp or Instruction.BinaryOperator.Sar)
+                {
+                    builder.AppendLine($"\t{EmitBinaryOperator(binary.Operator)}{EmitTypeSuffix(binary.Type)} {EmitOperand(binary.Src, new AssemblyType.Byte())}, {EmitOperand(binary.Dst, binary.Type)}");
+                }
                 else
                     builder.AppendLine($"\t{EmitBinaryOperator(binary.Operator)}{EmitTypeSuffix(binary.Type)} {EmitOperand(binary.Src, binary.Type)}, {EmitOperand(binary.Dst, binary.Type)}");
                 break;
@@ -272,8 +276,10 @@ public class CodeEmitter
             Instruction.BinaryOperator.DivDouble => "div",
             Instruction.BinaryOperator.And => "and",
             Instruction.BinaryOperator.Or => "or",
+            Instruction.BinaryOperator.Xor => "xor",
             Instruction.BinaryOperator.Shl => "shl",
             Instruction.BinaryOperator.ShrTwoOp => "shr",
+            Instruction.BinaryOperator.Sar => "sar",
             _ => throw new NotImplementedException()
         };
     }

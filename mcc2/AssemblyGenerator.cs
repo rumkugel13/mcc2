@@ -631,6 +631,13 @@ public class AssemblyGenerator
                             instructions.Add(new Instruction.SetCC(ConvertConditionCode(binary.Operator, IsSignedType(binary.Src1)), GenerateOperand(binary.Dst)));
                         }
                     }
+                    else if (binary.Operator == AST.Expression.BinaryOperator.BitShiftLeft || binary.Operator == AST.Expression.BinaryOperator.BitShiftRight)
+                    {
+                        instructions.Add(new Instruction.Mov(GetAssemblyType(binary.Src1), GenerateOperand(binary.Src1), GenerateOperand(binary.Dst)));
+                        instructions.Add(new Instruction.Mov(GetAssemblyType(binary.Src2), GenerateOperand(binary.Src2), new Operand.Reg(Operand.RegisterName.CX)));
+                        var op = (IsSignedType(binary.Src1) && binary.Operator == AST.Expression.BinaryOperator.BitShiftRight) ? Instruction.BinaryOperator.Sar : ConvertBinary(binary.Operator);
+                        instructions.Add(new Instruction.Binary(op, GetAssemblyType(binary.Src1), new Operand.Reg(Operand.RegisterName.CX), GenerateOperand(binary.Dst)));
+                    }
                     else
                     {
                         instructions.Add(new Instruction.Mov(GetAssemblyType(binary.Src1), GenerateOperand(binary.Src1), GenerateOperand(binary.Dst)));
@@ -1048,6 +1055,11 @@ public class AssemblyGenerator
             AST.Expression.BinaryOperator.Add => Instruction.BinaryOperator.Add,
             AST.Expression.BinaryOperator.Subtract => Instruction.BinaryOperator.Sub,
             AST.Expression.BinaryOperator.Multiply => Instruction.BinaryOperator.Mult,
+            AST.Expression.BinaryOperator.BitAnd => Instruction.BinaryOperator.And,
+            AST.Expression.BinaryOperator.BitOr => Instruction.BinaryOperator.Or,
+            AST.Expression.BinaryOperator.BitXor => Instruction.BinaryOperator.Xor,
+            AST.Expression.BinaryOperator.BitShiftLeft => Instruction.BinaryOperator.Shl,
+            AST.Expression.BinaryOperator.BitShiftRight => Instruction.BinaryOperator.ShrTwoOp,
             _ => throw new NotImplementedException()
         };
     }

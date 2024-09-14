@@ -13,8 +13,8 @@
             "args": [
                 "-S",
                 "--pretty", 
-                "mcc2.Tests/Source/cmp_no_updates.c", 
-                "--optimize", 
+                "writing-a-c-compiler-tests/tests/chapter_3/valid/extra_credit/bitwise_precedence.c", 
+                // "--optimize", 
             ],
             "cwd": "${workspaceFolder}",
             "stopAtEntry": false,

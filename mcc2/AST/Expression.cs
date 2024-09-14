@@ -25,7 +25,12 @@ public abstract record Expression
         LessThan,
         LessOrEqual,
         GreaterThan,
-        GreaterOrEqual
+        GreaterOrEqual,
+        BitAnd,
+        BitOr,
+        BitXor,
+        BitShiftLeft,
+        BitShiftRight,
     }
 
     public record Constant(Const Value, Type Type) : Expression;

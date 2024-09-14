@@ -47,6 +47,8 @@ namespace mcc2
             ExclamationEquals,
             LessThanEquals,
             GreaterThanEquals,
+            DoubleLessThan,
+            DoubleGreaterThan,
             OpenParenthesis,
             CloseParenthesis,
             OpenBrace,
@@ -70,6 +72,8 @@ namespace mcc2
             CloseBracket,
             Period,
             HyphenGreaterThan,
+            Vertical,
+            Caret,
         }
 
         // note: pattern order needs to match tokentype order
@@ -116,6 +120,8 @@ namespace mcc2
             new Regex("\\G!="),
             new Regex("\\G<="),
             new Regex("\\G>="),
+            new Regex("\\G<<"),
+            new Regex("\\G>>"),
             new Regex("\\G\\("),
             new Regex("\\G\\)"),
             new Regex("\\G{"),
@@ -139,6 +145,8 @@ namespace mcc2
             new Regex("\\G\\]"),
             new Regex("\\G\\.(?![0-9])"),
             new Regex("\\G->"),
+            new Regex("\\G\\|"),
+            new Regex("\\G\\^"),
         ];
 
         public List<Token> Lex(string source)

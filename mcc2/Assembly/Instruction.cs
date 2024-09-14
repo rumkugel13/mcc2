@@ -20,6 +20,7 @@ public abstract record Instruction
         Xor,
         Shl,
         ShrTwoOp,
+        Sar,
     }
 
     public enum ConditionCode
