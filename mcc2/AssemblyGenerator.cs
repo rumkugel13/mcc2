@@ -135,7 +135,7 @@ public class AssemblyGenerator
         long bytesForLocals = stackAllocator.Replace(instructions);
 
         InstructionFixer instructionFixer = new InstructionFixer();
-        instructionFixer.Fix(instructions, function.Name, bytesForLocals);
+        instructions = instructionFixer.Fix(instructions, function.Name, bytesForLocals);
 
         return new TopLevel.Function(function.Name, function.Global, instructions);
     }
