@@ -48,7 +48,25 @@ public class TestExternal
     [TestMethod]
     public void TestChapter05ExtraCredit()
     {
-        TestUtils.TestExternalExtraCredit(5, "--bitwise --compound --increment");
+        TestUtils.TestExternalExtraCredit(5, "--extra-credit");
+    }
+
+    [TestMethod]
+    public void TestChapter05ExtraCreditBitwise()
+    {
+        TestUtils.TestExternalExtraCredit(5, "--bitwise");
+    }
+
+    [TestMethod]
+    public void TestChapter05ExtraCreditCompound()
+    {
+        TestUtils.TestExternalExtraCredit(5, "--compound");
+    }
+
+    [TestMethod]
+    public void TestChapter05ExtraCreditIncrement()
+    {
+        TestUtils.TestExternalExtraCredit(5, "--increment");
     }
 
     [TestMethod]
