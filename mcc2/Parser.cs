@@ -563,6 +563,16 @@ public class Parser
         {Lexer.TokenType.DoubleVertical, 5},
         {Lexer.TokenType.Question, 3},
         {Lexer.TokenType.Equals, 1},
+        {Lexer.TokenType.PlusEquals, 1},
+        {Lexer.TokenType.HyphenEquals, 1},
+        {Lexer.TokenType.AsteriskEquals, 1},
+        {Lexer.TokenType.ForwardSlashEquals, 1},
+        {Lexer.TokenType.PercentEquals, 1},
+        {Lexer.TokenType.AmpersandEquals, 1},
+        {Lexer.TokenType.VerticalEquals, 1},
+        {Lexer.TokenType.CaretEquals, 1},
+        {Lexer.TokenType.DoubleLessThanEquals, 1},
+        {Lexer.TokenType.DoubleGreaterThanEquals, 1},
     };
 
     private Expression ParseExpression(List<Token> tokens, int minPrecedence = 0)
@@ -575,6 +585,13 @@ public class Parser
             {
                 TakeToken(tokens);
                 var right = ParseExpression(tokens, precedence);
+                left = new Expression.Assignment(left, right, Type.None);
+            }
+            else if (IsCompoundAssignment(nextToken))
+            {
+                var op = ParseCompoundOperator(nextToken, tokens);
+                var right = ParseExpression(tokens, precedence);
+                right = new Expression.Binary(op, left, right, Type.None);
                 left = new Expression.Assignment(left, right, Type.None);
             }
             else if (nextToken.Type == Lexer.TokenType.Question)
@@ -894,6 +911,39 @@ public class Parser
             Lexer.TokenType.Ampersand => Expression.UnaryOperator.AddressOf,
             _ => throw ParseError($"Unknown Unary Operator: {current.Type}")
         };
+    }
+
+    private Expression.BinaryOperator ParseCompoundOperator(Token current, List<Token> tokens)
+    {
+        TakeToken(tokens);
+        return current.Type switch
+        {
+            Lexer.TokenType.HyphenEquals => Expression.BinaryOperator.Subtract,
+            Lexer.TokenType.PlusEquals => Expression.BinaryOperator.Add,
+            Lexer.TokenType.AsteriskEquals => Expression.BinaryOperator.Multiply,
+            Lexer.TokenType.ForwardSlashEquals => Expression.BinaryOperator.Divide,
+            Lexer.TokenType.PercentEquals => Expression.BinaryOperator.Remainder,
+            Lexer.TokenType.AmpersandEquals => Expression.BinaryOperator.BitAnd,
+            Lexer.TokenType.VerticalEquals => Expression.BinaryOperator.BitOr,
+            Lexer.TokenType.CaretEquals => Expression.BinaryOperator.BitXor,
+            Lexer.TokenType.DoubleLessThanEquals => Expression.BinaryOperator.BitShiftLeft,
+            Lexer.TokenType.DoubleGreaterThanEquals => Expression.BinaryOperator.BitShiftRight,
+            _ => throw ParseError($"Unknown Compound Operator: {current.Type}")
+        };
+    }
+
+    private bool IsCompoundAssignment(Token token)
+    {
+        return token.Type is Lexer.TokenType.PlusEquals or
+            Lexer.TokenType.HyphenEquals or
+            Lexer.TokenType.AsteriskEquals or
+            Lexer.TokenType.ForwardSlashEquals or
+            Lexer.TokenType.PercentEquals or
+            Lexer.TokenType.AmpersandEquals or
+            Lexer.TokenType.VerticalEquals or
+            Lexer.TokenType.CaretEquals or
+            Lexer.TokenType.DoubleLessThanEquals or
+            Lexer.TokenType.DoubleGreaterThanEquals;
     }
 
     private bool IsUnaryOperator(Token token)
