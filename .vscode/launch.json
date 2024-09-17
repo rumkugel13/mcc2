@@ -13,7 +13,7 @@
             "args": [
                 "-S",
                 "--pretty", 
-                "writing-a-c-compiler-tests/tests/chapter_3/valid/extra_credit/bitwise_precedence.c", 
+                "writing-a-c-compiler-tests/tests/chapter_5/valid/extra_credit/incr_expression_statement.c", 
                 // "--optimize", 
             ],
             "cwd": "${workspaceFolder}",

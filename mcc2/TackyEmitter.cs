@@ -567,9 +567,43 @@ public class TackyEmitter
                     instructions.Add(new Instruction.AddPointer(ToVal(convertedPointer), index, 1, dstPointer));
                     return new ExpResult.DereferencedPointer(dstPointer);
                 }
+            case Expression.PostfixIncrement inc:
+                {
+                    var dst = MakeTackyVariable(GetType(expression));
+                    var retVal = EmitTacky(new Expression.Assignment(new Expression.Variable(dst.Name, inc.Type), inc.Expression, inc.Type), instructions);
+                    var constant = new Expression.Constant(MakeConstFromType(1, inc.Type), inc.Type);
+                    var bin = new Expression.Binary(Expression.BinaryOperator.Add, inc.Expression, constant, inc.Type);
+                    var assign = new Expression.Assignment(inc.Expression, bin, inc.Type);
+                    EmitTacky(assign, instructions);
+                    return retVal;
+                }
+            case Expression.PostfixDecrement dec:
+                {
+                    var dst = MakeTackyVariable(GetType(expression));
+                    var retVal = EmitTacky(new Expression.Assignment(new Expression.Variable(dst.Name, dec.Type), dec.Expression, dec.Type), instructions);
+                    var constant = new Expression.Constant(MakeConstFromType(-1, dec.Type), dec.Type);
+                    var bin = new Expression.Binary(Expression.BinaryOperator.Add, dec.Expression, constant, dec.Type);
+                    var assign = new Expression.Assignment(dec.Expression, bin, dec.Type);
+                    EmitTacky(assign, instructions);
+                    return retVal;
+                }
             default:
                 throw new NotImplementedException();
         }
+    }
+
+    private Const MakeConstFromType(long val, Type type)
+    {
+        return type switch {
+            Type.Char or Type.SChar => new Const.ConstChar((int)val),
+            Type.UChar => new Const.ConstUChar((int)val),
+            Type.Int => new Const.ConstInt((int)val),
+            Type.UInt => new Const.ConstUInt((uint)val),
+            Type.Long => new Const.ConstLong((long)val),
+            Type.ULong => new Const.ConstULong((ulong)val),
+            Type.Double => new Const.ConstDouble((double)val),
+            _ => throw new NotImplementedException(),
+        };
     }
 
     private ExpResult EmitTackyAndConvert(Expression expression, List<Instruction> instructions)

@@ -499,6 +499,10 @@ public class TypeChecker
             case Expression.Unary unary:
                 {
                     var unaryInner = TypeCheckAndConvertExpression(unary.Expression, symbolTable, typeTable);
+                    if (unary.Operator is Expression.UnaryOperator.Increment && !IsLvalue(unaryInner))
+                        throw TypeError("Can only increment lvalue types");
+                    if (unary.Operator is Expression.UnaryOperator.Decrement && !IsLvalue(unaryInner))
+                        throw TypeError("Can only decrement lvalue types");
                     if (unary.Operator is Expression.UnaryOperator.Negate && !IsArithmetic(GetType(unaryInner)))
                         throw TypeError("Can only negate arithmetic types");
                     if (unary.Operator is Expression.UnaryOperator.Negate && IsCharacterType(GetType(unaryInner)))
@@ -804,6 +808,20 @@ public class TypeChecker
                         }
                     else
                         throw TypeError("Tried to get member of non-pointer to structure");
+                }
+            case Expression.PostfixIncrement inc:
+                {
+                    var typedExp = TypeCheckAndConvertExpression(inc.Expression, symbolTable, typeTable);
+                    if (!IsLvalue(typedExp))
+                        throw TypeError("Tried to increment non-lvalue");
+                    return new Expression.PostfixIncrement(typedExp, GetType(typedExp));
+                }
+            case Expression.PostfixDecrement dec:
+                {
+                    var typedExp = TypeCheckAndConvertExpression(dec.Expression, symbolTable, typeTable);
+                    if (!IsLvalue(typedExp))
+                        throw TypeError("Tried to decrement non-lvalue");
+                    return new Expression.PostfixDecrement(typedExp, GetType(typedExp));
                 }
             default:
                 throw new NotImplementedException();
@@ -1155,6 +1173,8 @@ public class TypeChecker
             Expression.SizeOfType exp => exp.Type,
             Expression.Dot exp => exp.Type,
             Expression.Arrow exp => exp.Type,
+            Expression.PostfixIncrement exp => exp.Type,
+            Expression.PostfixDecrement exp => exp.Type,
             _ => throw new NotImplementedException()
         };
     }

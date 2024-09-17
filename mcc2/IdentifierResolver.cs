@@ -297,6 +297,16 @@ public class IdentifierResolver
                     var exp = ResolveExpression(arrow.Pointer, identifierMap, structMap);
                     return new Expression.Arrow(exp, arrow.Member, arrow.Type);
                 }
+            case Expression.PostfixIncrement inc:
+                {
+                    var exp = ResolveExpression(inc.Expression, identifierMap, structMap);
+                    return new Expression.PostfixIncrement(exp, inc.Type);
+                }
+            case Expression.PostfixDecrement dec:
+                {
+                    var exp = ResolveExpression(dec.Expression, identifierMap, structMap);
+                    return new Expression.PostfixDecrement(exp, dec.Type);
+                }
             default:
                 throw new NotImplementedException();
         }

@@ -662,6 +662,16 @@ public class Parser
                     return new Expression.Dereference(innerExpression, Type.None);
                 case Expression.UnaryOperator.AddressOf:
                     return new Expression.AddressOf(innerExpression, Type.None);
+                case Expression.UnaryOperator.Increment:
+                    {
+                        var right = new Expression.Binary(Expression.BinaryOperator.Add, innerExpression, new Expression.Constant(new Const.ConstInt(1), Type.None), Type.None);
+                        return new Expression.Assignment(innerExpression, right, Type.None);
+                    }
+                case Expression.UnaryOperator.Decrement:
+                    {
+                        var right = new Expression.Binary(Expression.BinaryOperator.Subtract, innerExpression, new Expression.Constant(new Const.ConstInt(1), Type.None), Type.None);
+                        return new Expression.Assignment(innerExpression, right, Type.None);
+                    }
                 default:
                     return new Expression.Unary(op, innerExpression, Type.None);
             }
@@ -721,6 +731,17 @@ public class Parser
                     var exp = ParseExpression(tokens);
                     Expect(Lexer.TokenType.CloseBracket, tokens);
                     return new Expression.Subscript(primary, exp, Type.None);
+                }
+            case Lexer.TokenType.DoublePlus:
+                {
+                    TakeToken(tokens);
+                    return new Expression.PostfixIncrement(primary, Type.None);
+                }
+
+            case Lexer.TokenType.DoubleHyphen:
+                {
+                    TakeToken(tokens);
+                    return new Expression.PostfixDecrement(primary, Type.None);
                 }
             default:
                 throw new NotImplementedException();
@@ -910,6 +931,8 @@ public class Parser
             Lexer.TokenType.Exclamation => Expression.UnaryOperator.Not,
             Lexer.TokenType.Asterisk => Expression.UnaryOperator.Dereference,
             Lexer.TokenType.Ampersand => Expression.UnaryOperator.AddressOf,
+            Lexer.TokenType.DoublePlus => Expression.UnaryOperator.Increment,
+            Lexer.TokenType.DoubleHyphen => Expression.UnaryOperator.Decrement,
             _ => throw ParseError($"Unknown Unary Operator: {current.Type}")
         };
     }
@@ -949,9 +972,11 @@ public class Parser
 
     private bool IsPostfixOperator(Token token)
     {
-        return token.Type is Lexer.TokenType.Period 
-            or Lexer.TokenType.HyphenGreaterThan 
-            or Lexer.TokenType.OpenBracket;
+        return token.Type is Lexer.TokenType.Period
+            or Lexer.TokenType.HyphenGreaterThan
+            or Lexer.TokenType.OpenBracket
+            or Lexer.TokenType.DoublePlus
+            or Lexer.TokenType.DoubleHyphen;
     }
 
     private bool IsUnaryOperator(Token token)
@@ -960,7 +985,9 @@ public class Parser
         token.Type == Lexer.TokenType.Tilde ||
         token.Type == Lexer.TokenType.Exclamation ||
         token.Type == Lexer.TokenType.Asterisk ||
-        token.Type == Lexer.TokenType.Ampersand;
+        token.Type == Lexer.TokenType.Ampersand ||
+        token.Type == Lexer.TokenType.DoublePlus ||
+        token.Type == Lexer.TokenType.DoubleHyphen;
     }
 
     private bool IsSpecifier(Token token)

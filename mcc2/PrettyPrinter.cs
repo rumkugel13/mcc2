@@ -212,6 +212,8 @@ public class PrettyPrinter
             case Statement.BreakStatement breakStatement:
                 PrintLine($"Break()", indent);
                 break;
+            default:
+                throw new NotImplementedException();
         }
     }
 
@@ -333,6 +335,18 @@ public class PrettyPrinter
                 PrintLine($"member=\"{arrow.Member}\"", indent + 1);
                 PrintLine(")", indent);
                 break;
+            case Expression.PostfixIncrement inc:
+                PrintLine($"PostfixIncrement(", indent);
+                PrintExpression(inc.Expression, indent + 1);
+                PrintEndLine(1, indent);
+                break;
+            case Expression.PostfixDecrement dec:
+                PrintLine($"PostfixDecrement(", indent);
+                PrintExpression(dec.Expression, indent + 1);
+                PrintEndLine(1, indent);
+                break;
+            default:
+                throw new NotImplementedException();
         }
     }
 
