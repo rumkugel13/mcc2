@@ -331,11 +331,11 @@ public class InstructionFixer
 
     private bool IsLargeInt(Operand.Imm imm)
     {
-        return imm.Value > int.MaxValue || (long)imm.Value < int.MinValue;
+        return (long)imm.Value > int.MaxValue || (long)imm.Value < int.MinValue;
     }
 
     private bool IsLargeByte(Operand.Imm imm)
     {
-        return imm.Value > byte.MaxValue || (long)imm.Value < -128L;
+        return (long)imm.Value > byte.MaxValue || (long)imm.Value < -128L;
     }
 }
