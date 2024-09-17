@@ -652,9 +652,6 @@ public class Parser
     private Expression ParseUnaryExpression(List<Token> tokens)
     {
         var nextToken = Peek(tokens);
-        if (!IsUnaryOrPrimaryExpression(nextToken))
-            throw ParseError($"Unsupported Token '{nextToken.Type}'");
-
         if (IsUnaryOperator(nextToken))
         {
             var op = ParseUnaryOperator(nextToken, tokens);
@@ -683,13 +680,6 @@ public class Parser
         }
         else
             return ParsePostfixExpression(tokens);
-    }
-
-    private bool IsUnaryOrPrimaryExpression(Token token)
-    {
-        return IsUnaryOperator(token) || token.Type == Lexer.TokenType.OpenParenthesis ||
-            IsConstant(token) || token.Type == Lexer.TokenType.Identifier ||
-            token.Type == Lexer.TokenType.StringLiteral || token.Type == Lexer.TokenType.SizeofKeyword;
     }
 
     private Expression ParsePostfixExpression(List<Token> tokens)
