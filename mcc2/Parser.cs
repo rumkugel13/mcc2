@@ -656,11 +656,15 @@ public class Parser
         {
             var op = ParseUnaryOperator(nextToken, tokens);
             var innerExpression = ParseCastExpression(tokens);
-            if (op is Expression.UnaryOperator.Dereference)
-                return new Expression.Dereference(innerExpression, Type.None);
-            else if (op is Expression.UnaryOperator.AddressOf)
-                return new Expression.AddressOf(innerExpression, Type.None);
-            return new Expression.Unary(op, innerExpression, Type.None);
+            switch (op)
+            {
+                case Expression.UnaryOperator.Dereference:
+                    return new Expression.Dereference(innerExpression, Type.None);
+                case Expression.UnaryOperator.AddressOf:
+                    return new Expression.AddressOf(innerExpression, Type.None);
+                default:
+                    return new Expression.Unary(op, innerExpression, Type.None);
+            }
         }
         else if (nextToken.Type == Lexer.TokenType.SizeofKeyword)
         {
@@ -685,7 +689,7 @@ public class Parser
     private Expression ParsePostfixExpression(List<Token> tokens)
     {
         var primary = ParsePrimaryExpression(tokens);
-        while (Peek(tokens).Type is Lexer.TokenType.Period or Lexer.TokenType.HyphenGreaterThan or Lexer.TokenType.OpenBracket)
+        while (IsPostfixOperator(Peek(tokens)))
         {
             primary = ParsePostfixOp(primary, tokens);
         }
@@ -695,24 +699,31 @@ public class Parser
     private Expression ParsePostfixOp(Expression primary, List<Token> tokens)
     {
         var nextToken = Peek(tokens);
-        if (nextToken.Type is Lexer.TokenType.Period)
+        switch (nextToken.Type)
         {
-            TakeToken(tokens);
-            var identifier = Expect(Lexer.TokenType.Identifier, tokens);
-            return new Expression.Dot(primary, GetIdentifier(identifier, source), Type.None);
-        }
-        else if (nextToken.Type is Lexer.TokenType.HyphenGreaterThan)
-        {
-            TakeToken(tokens);
-            var identifier = Expect(Lexer.TokenType.Identifier, tokens);
-            return new Expression.Arrow(primary, GetIdentifier(identifier, source), Type.None);
-        }
-        else
-        {
-            TakeToken(tokens);
-            var exp = ParseExpression(tokens);
-            Expect(Lexer.TokenType.CloseBracket, tokens);
-            return new Expression.Subscript(primary, exp, Type.None);
+            case Lexer.TokenType.Period:
+                {
+                    TakeToken(tokens);
+                    var identifier = Expect(Lexer.TokenType.Identifier, tokens);
+                    return new Expression.Dot(primary, GetIdentifier(identifier, source), Type.None);
+                }
+
+            case Lexer.TokenType.HyphenGreaterThan:
+                {
+                    TakeToken(tokens);
+                    var identifier = Expect(Lexer.TokenType.Identifier, tokens);
+                    return new Expression.Arrow(primary, GetIdentifier(identifier, source), Type.None);
+                }
+
+            case Lexer.TokenType.OpenBracket:
+                {
+                    TakeToken(tokens);
+                    var exp = ParseExpression(tokens);
+                    Expect(Lexer.TokenType.CloseBracket, tokens);
+                    return new Expression.Subscript(primary, exp, Type.None);
+                }
+            default:
+                throw new NotImplementedException();
         }
     }
 
@@ -934,6 +945,13 @@ public class Parser
             Lexer.TokenType.CaretEquals or
             Lexer.TokenType.DoubleLessThanEquals or
             Lexer.TokenType.DoubleGreaterThanEquals;
+    }
+
+    private bool IsPostfixOperator(Token token)
+    {
+        return token.Type is Lexer.TokenType.Period 
+            or Lexer.TokenType.HyphenGreaterThan 
+            or Lexer.TokenType.OpenBracket;
     }
 
     private bool IsUnaryOperator(Token token)
