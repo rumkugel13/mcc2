@@ -999,7 +999,6 @@ public class TypeChecker
                         throw TypeError("Case expression must be of integer type");
                     if (exp is not Expression.Constant)
                         throw TypeError("Case expression must be a constant");
-                    // todo: convert case exp type to switch exp type
                     var inner = TypeCheckStatement(caseStatement.Inner, symbolTable, typeTable);
                     return new Statement.CaseStatement(exp, inner, caseStatement.Label);
                 }

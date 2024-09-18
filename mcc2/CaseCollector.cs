@@ -62,12 +62,22 @@ public class CaseCollector
                 break;
             case Statement.SwitchStatement switchStatement:
                 List<Statement> newList = [];
+                var switchType = TypeChecker.GetType(switchStatement.Expression);
+                HashSet<Const> cases = [];
                 CollectStatement(switchStatement.Inner, newList);
+                for (int i = 0; i < newList.Count; i++)
+                {
+                    if (newList[i] is Statement.CaseStatement ca)
+                    {
+                        var newConst = ConvertConstToType(((Expression.Constant)ca.Expression).Value, switchType);
+                        if (!cases.Add(newConst))
+                            throw SemanticError("Duplicate case statements");
+                        newList[i] = new Statement.CaseStatement(new Expression.Constant(newConst, switchType), ca.Inner, ca.Label);
+                    }
+                }
                 switchStatement.Cases.AddRange(newList);
                 break;
             case Statement.CaseStatement caseStatement:
-                if (statements.Any(a => a is Statement.CaseStatement c && c.Expression == caseStatement.Expression))
-                    throw SemanticError("Duplicate case statement");
                 statements.Add(caseStatement);
                 CollectStatement(caseStatement.Inner, statements);
                 break;
@@ -80,6 +90,30 @@ public class CaseCollector
             default:
                 throw new NotImplementedException();
         }
+    }
+
+    private Const ConvertConstToType(Const original, Type target)
+    {
+        ulong value = original switch
+        {
+            Const.ConstInt constInt => (ulong)constInt.Value,
+            Const.ConstLong constLong => (ulong)constLong.Value,
+            Const.ConstUInt constUInt => (ulong)constUInt.Value,
+            Const.ConstULong constULong => (ulong)constULong.Value,
+            Const.ConstChar constChar => (ulong)constChar.Value,
+            Const.ConstUChar constUChar => (ulong)constUChar.Value,
+            _ => throw new NotImplementedException()
+        };
+
+        return target switch {
+            Type.Int => new Const.ConstInt((int)value),
+            Type.Long => new Const.ConstLong((long)value),
+            Type.UInt => new Const.ConstUInt((uint)value),
+            Type.ULong => new Const.ConstULong((ulong)value),
+            Type.Char or Type.SChar => new Const.ConstChar((char)value),
+            Type.UChar => new Const.ConstUChar((byte)value),
+            _ => throw new NotImplementedException()
+        };
     }
 
     private Exception SemanticError(string message)
