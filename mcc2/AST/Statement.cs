@@ -12,6 +12,8 @@ public abstract record Statement : BlockItem
     public record DoWhileStatement(Statement Body, Expression Condition, string? Label) : Statement;
     public record ForStatement(ForInit Init, Expression? Condition, Expression? Post, Statement Body, string? Label) : Statement;
     public record NullStatement() : Statement;
+    public record GotoStatement(string Label) : Statement;
+    public record LabelStatement(string Label, Statement Inner) : Statement;
 
     private Statement() { }
 }

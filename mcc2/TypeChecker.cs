@@ -977,6 +977,13 @@ public class TypeChecker
                     var body = TypeCheckStatement(forStatement.Body, symbolTable, typeTable);
                     return new Statement.ForStatement(forInit, cond, post, body, forStatement.Label);
                 }
+            case Statement.GotoStatement go:
+                return go;
+            case Statement.LabelStatement label:
+                {
+                    var inner = TypeCheckStatement(label.Inner, symbolTable, typeTable);
+                    return new Statement.LabelStatement(label.Label, inner);
+                }
             default:
                 throw new NotImplementedException();
         }

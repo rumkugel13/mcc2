@@ -1,5 +1,4 @@
 using mcc2.AST;
-using static mcc2.SemanticAnalyzer;
 
 namespace mcc2;
 
@@ -26,12 +25,18 @@ public class IdentifierResolver
         for (int i = 0; i < program.Declarations.Count; i++)
         {
             Declaration? decl = program.Declarations[i];
-            if (decl is Declaration.FunctionDeclaration fun)
-                program.Declarations[i] = ResolveFunctionDeclaration(fun, identifierMap, structMap);
-            else if (decl is Declaration.VariableDeclaration var)
-                program.Declarations[i] = ResolveFileScopeVariableDeclaration(var, identifierMap, structMap);
-            else if (decl is Declaration.StructDeclaration structDecl)
-                program.Declarations[i] = ResolveStructureDeclaration(structDecl, structMap);
+            switch (decl)
+            {
+                case Declaration.FunctionDeclaration fun:
+                    program.Declarations[i] = ResolveFunctionDeclaration(fun, identifierMap, structMap);
+                    break;
+                case Declaration.VariableDeclaration var:
+                    program.Declarations[i] = ResolveFileScopeVariableDeclaration(var, identifierMap, structMap);
+                    break;
+                case Declaration.StructDeclaration structDecl:
+                    program.Declarations[i] = ResolveStructureDeclaration(structDecl, structMap);
+                    break;
+            }
         }
     }
 
@@ -181,6 +186,13 @@ public class IdentifierResolver
                     var post = ResolveOptionalExpression(forStatement.Post, newVarMap, innerStructMap);
                     var body = ResolveStatement(forStatement.Body, newVarMap, innerStructMap);
                     return new Statement.ForStatement(init, cond, post, body, forStatement.Label);
+                }
+            case Statement.GotoStatement go:
+                return go;
+            case Statement.LabelStatement label:
+                {
+                    var inner = ResolveStatement(label.Inner, identifierMap, structMap);
+                    return new Statement.LabelStatement(label.Label, inner);
                 }
             default:
                 throw new NotImplementedException();

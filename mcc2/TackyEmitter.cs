@@ -275,6 +275,13 @@ public class TackyEmitter
                 break;
             case Declaration.StructDeclaration structDecl:
                 break;
+            case Statement.GotoStatement go:
+                instructions.Add(new Instruction.Jump(go.Label));
+                break;
+            case Statement.LabelStatement label:
+                instructions.Add(new Instruction.Label(label.Label));
+                EmitInstruction(label.Inner, instructions);
+                break;
             default:
                 throw new NotImplementedException();
         }

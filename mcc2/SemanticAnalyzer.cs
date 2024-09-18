@@ -32,6 +32,7 @@ public class SemanticAnalyzer
         SymbolTable = symbolTable;
         TypeTable = typeTable;
         new IdentifierResolver().Resolve(program);
+        new LabelValidator().Validate(program);
         new TypeChecker().Check(program, symbolTable, typeTable);
         new LoopLabeler().Label(program);
     }

@@ -501,9 +501,24 @@ public class Parser
                     var body = ParseStatement(tokens);
                     return new Statement.ForStatement(init, cond, post, body, null);
                 }
+            case Lexer.TokenType.GotoKeyword:
+                {
+                    TakeToken(tokens);
+                    var ident = Expect(Lexer.TokenType.Identifier, tokens);
+                    Expect(Lexer.TokenType.Semicolon, tokens);
+                    return new Statement.GotoStatement(GetIdentifier(ident, source));
+                }
 
             default:
                 {
+                    if (nextToken.Type == Lexer.TokenType.Identifier && PeekAhead(tokens, 1).Type == Lexer.TokenType.Colon)
+                    {
+                        var ident = TakeToken(tokens);
+                        Expect(Lexer.TokenType.Colon, tokens);
+                        var inner = ParseStatement(tokens);
+                        return new Statement.LabelStatement(GetIdentifier(ident, source), inner);
+                    }
+
                     var exp = ParseExpression(tokens);
                     Expect(Lexer.TokenType.Semicolon, tokens);
                     return new Statement.ExpressionStatement(exp);

@@ -89,6 +89,13 @@ public class LoopLabeler
                     var body = LabelStatement(forStatement.Body, newLabel);
                     return new Statement.ForStatement(forStatement.Init, forStatement.Condition, forStatement.Post, body, newLabel);
                 }
+            case Statement.GotoStatement go:
+                return go;
+            case Statement.LabelStatement label:
+                {
+                    var inner = LabelStatement(label.Inner, currentLabel);
+                    return new Statement.LabelStatement(label.Label, inner);
+                }
             default:
                 throw new NotImplementedException();
         }

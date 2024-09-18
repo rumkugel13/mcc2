@@ -212,6 +212,15 @@ public class PrettyPrinter
             case Statement.BreakStatement breakStatement:
                 PrintLine($"Break()", indent);
                 break;
+            case Statement.NullStatement:
+                break;
+            case Statement.GotoStatement go:
+                PrintLine($"Goto({go.Label})", indent);
+                break;
+            case Statement.LabelStatement label:
+                PrintLine($"Label({label.Label})", indent);
+                PrintStatement(label.Inner, indent);
+                break;
             default:
                 throw new NotImplementedException();
         }
