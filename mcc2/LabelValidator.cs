@@ -37,14 +37,8 @@ public class LabelValidator
 
     private void ValidateBlockItem(BlockItem item, HashSet<string> gotoLabels, Queue<Statement.GotoStatement> toCheck)
     {
-        switch (item)
-        {
-            case Declaration:
-                break;
-            case Statement stat:
-                ValidateStatement(stat, gotoLabels, toCheck);
-                break;
-        }
+        if (item is Statement stat)
+            ValidateStatement(stat, gotoLabels, toCheck);
     }
 
     private void ValidateStatement(Statement stat, HashSet<string> gotoLabels, Queue<Statement.GotoStatement> toCheck)
@@ -87,6 +81,15 @@ public class LabelValidator
                 if (!gotoLabels.Add(label.Label))
                     throw LabelError($"Label {label.Label} already exists");
                 ValidateStatement(label.Inner, gotoLabels, toCheck);
+                break;
+            case Statement.SwitchStatement switchStatement:
+                ValidateStatement(switchStatement.Inner, gotoLabels, toCheck);
+                break;
+            case Statement.CaseStatement caseStatement:
+                ValidateStatement(caseStatement.Inner, gotoLabels, toCheck);
+                break;
+            case Statement.DefaultStatement defaultStatement:
+                ValidateStatement(defaultStatement.Inner, gotoLabels, toCheck);
                 break;
             default:
                 throw new NotImplementedException();

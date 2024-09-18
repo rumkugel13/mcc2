@@ -509,6 +509,31 @@ public class Parser
                     return new Statement.GotoStatement(GetIdentifier(ident, source));
                 }
 
+            case Lexer.TokenType.SwitchKeyword:
+                {
+                    TakeToken(tokens);
+                    Expect(Lexer.TokenType.OpenParenthesis, tokens);
+                    var exp = ParseExpression(tokens, 0);
+                    Expect(Lexer.TokenType.CloseParenthesis, tokens);
+                    var inner = ParseStatement(tokens);
+                    return new Statement.SwitchStatement(exp, inner, null, []);
+                }
+            case Lexer.TokenType.CaseKeyword:
+                {
+                    TakeToken(tokens);
+                    var exp = ParseExpression(tokens, 0);
+                    Expect(Lexer.TokenType.Colon, tokens);
+                    var inner = ParseStatement(tokens);
+                    return new Statement.CaseStatement(exp, inner, null);
+                }
+            case Lexer.TokenType.DefaultKeyword:
+                {
+                    TakeToken(tokens);
+                    Expect(Lexer.TokenType.Colon, tokens);
+                    var inner = ParseStatement(tokens);
+                    return new Statement.DefaultStatement(inner, null);
+                }
+
             default:
                 {
                     if (nextToken.Type == Lexer.TokenType.Identifier && PeekAhead(tokens, 1).Type == Lexer.TokenType.Colon)

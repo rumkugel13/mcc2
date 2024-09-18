@@ -194,6 +194,25 @@ public class IdentifierResolver
                     var inner = ResolveStatement(label.Inner, identifierMap, structMap);
                     return new Statement.LabelStatement(label.Label, inner);
                 }
+            case Statement.SwitchStatement sw:
+                {
+                    var newVarMap = CopyIdentifierMap(identifierMap);
+                    var innerStructMap = CopyStructMap(structMap);
+                    var exp = ResolveExpression(sw.Expression, newVarMap, innerStructMap);
+                    var inner = ResolveStatement(sw.Inner, newVarMap, innerStructMap);
+                    return new Statement.SwitchStatement(exp, inner, sw.Label, sw.Cases);
+                }
+            case Statement.CaseStatement ca:
+                {
+                    var exp = ResolveExpression(ca.Expression, identifierMap, structMap);
+                    var inner = ResolveStatement(ca.Inner, identifierMap, structMap);
+                    return new Statement.CaseStatement(exp, inner, ca.Label);
+                }
+            case Statement.DefaultStatement de:
+                {
+                    var inner = ResolveStatement(de.Inner, identifierMap, structMap);
+                    return new Statement.DefaultStatement(inner, de.Label);
+                }
             default:
                 throw new NotImplementedException();
         }

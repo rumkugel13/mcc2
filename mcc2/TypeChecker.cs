@@ -984,6 +984,30 @@ public class TypeChecker
                     var inner = TypeCheckStatement(label.Inner, symbolTable, typeTable);
                     return new Statement.LabelStatement(label.Label, inner);
                 }
+            case Statement.SwitchStatement switchStatement:
+                {
+                    var exp = TypeCheckAndConvertExpression(switchStatement.Expression, symbolTable, typeTable);
+                    if (!IsInteger(GetType(exp)))
+                        throw TypeError("Switch expression must be of integer type");
+                    var inner = TypeCheckStatement(switchStatement.Inner, symbolTable, typeTable);
+                    return new Statement.SwitchStatement(exp, inner, switchStatement.Label, switchStatement.Cases);
+                }
+            case Statement.CaseStatement caseStatement:
+                {
+                    var exp = TypeCheckAndConvertExpression(caseStatement.Expression, symbolTable, typeTable);
+                    if (!IsInteger(GetType(exp)))
+                        throw TypeError("Case expression must be of integer type");
+                    if (exp is not Expression.Constant)
+                        throw TypeError("Case expression must be a constant");
+                    // todo: convert case exp type to switch exp type
+                    var inner = TypeCheckStatement(caseStatement.Inner, symbolTable, typeTable);
+                    return new Statement.CaseStatement(exp, inner, caseStatement.Label);
+                }
+            case Statement.DefaultStatement defaultStatement:
+                {
+                    var inner = TypeCheckStatement(defaultStatement.Inner, symbolTable, typeTable);
+                    return new Statement.DefaultStatement(inner, defaultStatement.Label);
+                }
             default:
                 throw new NotImplementedException();
         }

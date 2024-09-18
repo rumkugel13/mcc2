@@ -35,5 +35,6 @@ public class SemanticAnalyzer
         new LabelValidator().Validate(program);
         new TypeChecker().Check(program, symbolTable, typeTable);
         new LoopLabeler().Label(program);
+        new CaseCollector().Collect(program);
     }
 }

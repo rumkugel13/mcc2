@@ -14,6 +14,9 @@ public abstract record Statement : BlockItem
     public record NullStatement() : Statement;
     public record GotoStatement(string Label) : Statement;
     public record LabelStatement(string Label, Statement Inner) : Statement;
+    public record SwitchStatement(Expression Expression, Statement Inner, string? Label, List<Statement> Cases) : Statement;
+    public record CaseStatement(Expression Expression, Statement Inner, string? Label) : Statement;
+    public record DefaultStatement(Statement Inner, string? Label) : Statement;
 
     private Statement() { }
 }

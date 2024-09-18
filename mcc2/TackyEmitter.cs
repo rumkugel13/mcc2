@@ -282,6 +282,43 @@ public class TackyEmitter
                 instructions.Add(new Instruction.Label(label.Label));
                 EmitInstruction(label.Inner, instructions);
                 break;
+            case Statement.SwitchStatement sw:
+                {
+                    var val = EmitTackyAndConvert(sw.Expression, instructions);
+                    foreach (var st in sw.Cases)
+                    {
+                        switch (st)
+                        {
+                            case Statement.CaseStatement ca:
+                                {
+                                    var constant = EmitTackyAndConvert(ca.Expression, instructions);
+                                    var temp = MakeTackyVariable(GetType(sw.Expression));
+                                    instructions.Add(new Instruction.Binary(Expression.BinaryOperator.Equal, ToVal(val), ToVal(constant), temp));
+                                    instructions.Add(new Instruction.JumpIfNotZero(temp, MakeCaseLabel(ca.Label)));
+                                    break;
+                                }
+                        }
+                    }
+                    var def = sw.Cases.Where(a => a is Statement.DefaultStatement).ToList();
+                    if (def.Count > 0)
+                    {
+                        var defStmt = def[0] as Statement.DefaultStatement;
+                        instructions.Add(new Instruction.Jump(MakeCaseLabel(defStmt!.Label)));
+                    }
+
+                    instructions.Add(new Instruction.Jump(MakeBreakLabel(sw.Label)));
+                    EmitInstruction(sw.Inner, instructions);
+                    instructions.Add(new Instruction.Label(MakeBreakLabel(sw.Label)));
+                    break;
+                }
+            case Statement.CaseStatement ca:
+                instructions.Add(new Instruction.Label(MakeCaseLabel(ca.Label)));
+                EmitInstruction(ca.Inner, instructions);
+                break;
+            case Statement.DefaultStatement de:
+                instructions.Add(new Instruction.Label(MakeCaseLabel(de.Label)));
+                EmitInstruction(de.Inner, instructions);
+                break;
             default:
                 throw new NotImplementedException();
         }
@@ -601,7 +638,8 @@ public class TackyEmitter
 
     private Const MakeConstFromType(long val, Type type)
     {
-        return type switch {
+        return type switch
+        {
             Type.Char or Type.SChar => new Const.ConstChar((int)val),
             Type.UChar => new Const.ConstUChar((int)val),
             Type.Int => new Const.ConstInt((int)val),
@@ -684,5 +722,10 @@ public class TackyEmitter
     private string MakeStartLabel(string? loop)
     {
         return $"start_{loop}";
+    }
+
+    private string MakeCaseLabel(string? label)
+    {
+        return $"case_{label}";
     }
 }

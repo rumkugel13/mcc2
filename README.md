@@ -36,7 +36,7 @@ Besides having fun and learning how compilers and C work, these are some of the 
     - [X] Extra: Labeled Statements and goto
   - [X] 7: Compound Statements
   - [X] 8: Loops
-    - [ ] Extra: switch Statements
+    - [X] Extra: switch Statements
   - [X] 9: Functions
   - [X] 10: File Scope Variable Declarations and Storage-Class Specifiers
 - [X] Part II: Types beyond int

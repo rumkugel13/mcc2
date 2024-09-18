@@ -221,6 +221,22 @@ public class PrettyPrinter
                 PrintLine($"Label({label.Label})", indent);
                 PrintStatement(label.Inner, indent);
                 break;
+            case Statement.SwitchStatement switchStatement:
+                PrintLine($"Switch(", indent);
+                PrintExpression(switchStatement.Expression, indent + 1);
+                PrintLine(")", indent);
+                PrintStatement(switchStatement.Inner, indent);
+                break;
+            case Statement.CaseStatement caseStatement:
+                PrintLine($"Case(", indent);
+                PrintExpression(caseStatement.Expression, indent + 1);
+                PrintLine(")", indent);
+                PrintStatement(caseStatement.Inner, indent);
+                break;
+            case Statement.DefaultStatement defaultStatement:
+                PrintLine($"Default()", indent);
+                PrintStatement(defaultStatement.Inner, indent);
+                break;
             default:
                 throw new NotImplementedException();
         }
