@@ -31,9 +31,9 @@ Besides having fun and learning how compilers and C work, these are some of the 
     - [X] Extra: Bitwise Operators
   - [X] 4: Logical and Relational Operators
   - [X] 5: Local Variables
-    - [ ] Extra: Compound Assignment Operators
+    - [X] Extra: Compound Assignment Operators
   - [X] 6: if Statements and Conditional Expressions
-    - [ ] Extra: Labeled Statements and goto
+    - [X] Extra: Labeled Statements and goto
   - [X] 7: Compound Statements
   - [X] 8: Loops
     - [ ] Extra: switch Statements
