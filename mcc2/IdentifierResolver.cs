@@ -5,7 +5,8 @@ namespace mcc2;
 public class IdentifierResolver
 {
     private int varCounter;
-    
+    private string currentFunctionName = "";
+
     private struct MapEntry
     {
         public string NewName;
@@ -63,6 +64,7 @@ public class IdentifierResolver
         Block? newBody = null;
         if (functionDeclaration.Body != null)
         {
+            currentFunctionName = functionDeclaration.Identifier;
             newBody = ResolveBlock(functionDeclaration.Body, innerMap, innerStructMap);
         }
         return new Declaration.FunctionDeclaration(functionDeclaration.Identifier, newParams, newBody, newType, functionDeclaration.StorageClass);
@@ -91,7 +93,7 @@ public class IdentifierResolver
         if (!structMap.TryGetValue(structDeclaration.Identifier, out var prevEntry) || !prevEntry.FromCurrentScope)
         {
             uniqueTag = MakeTemporary(structDeclaration.Identifier);
-            structMap[structDeclaration.Identifier] = new StructMapEntry() {NewName = uniqueTag, FromCurrentScope = true};
+            structMap[structDeclaration.Identifier] = new StructMapEntry() { NewName = uniqueTag, FromCurrentScope = true };
         }
         else
             uniqueTag = prevEntry.NewName;
@@ -188,11 +190,13 @@ public class IdentifierResolver
                     return new Statement.ForStatement(init, cond, post, body, forStatement.Label);
                 }
             case Statement.GotoStatement go:
-                return go;
+                {
+                    return new Statement.GotoStatement(MakeNewGotoLabel(go.Label));
+                }
             case Statement.LabelStatement label:
                 {
                     var inner = ResolveStatement(label.Inner, identifierMap, structMap);
-                    return new Statement.LabelStatement(label.Label, inner);
+                    return new Statement.LabelStatement(MakeNewGotoLabel(label.Label), inner);
                 }
             case Statement.SwitchStatement sw:
                 {
@@ -439,6 +443,11 @@ public class IdentifierResolver
     private string MakeTemporary(string varName)
     {
         return $"var.{varName}.{varCounter++}";
+    }
+
+    private string MakeNewGotoLabel(string label)
+    {
+        return currentFunctionName + "." + label;
     }
 
     private Exception SemanticError(string message)

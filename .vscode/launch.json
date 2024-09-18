@@ -13,7 +13,7 @@
             "args": [
                 "-S",
                 "--pretty", 
-                "writing-a-c-compiler-tests/tests/chapter_6/valid/extra_credit/goto_after_declaration.c", 
+                "writing-a-c-compiler-tests/tests/chapter_9/valid/extra_credit/goto_label_multiple_functions.c", 
                 // "--optimize", 
             ],
             "cwd": "${workspaceFolder}",
