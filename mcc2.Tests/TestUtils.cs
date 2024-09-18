@@ -139,9 +139,9 @@ public static class TestUtils
             {
                 var result = CompilerDriver.Compile(compilerOptions);
             }
-            catch
+            catch (Exception ex)
             {
-                Assert.Fail($"Expected compilation to pass for {preProcessed}");
+                Assert.Fail($"Expected compilation to pass for {preProcessed}\n" + ex.Message);
             }
             finally
             {
