@@ -1046,6 +1046,7 @@ public class TypeChecker
                     if (!IsInteger(GetType(exp)))
                         throw TypeError("Switch expression must be of integer type");
                     var inner = TypeCheckStatement(switchStatement.Inner, symbolTable, typeTable);
+                    exp = IsCharacterType(GetType(exp)) ? ConvertTo(exp, new Type.Int()) : exp;
                     return new Statement.SwitchStatement(exp, inner, switchStatement.Label, switchStatement.Cases);
                 }
             case Statement.CaseStatement caseStatement:
@@ -1056,6 +1057,7 @@ public class TypeChecker
                     if (exp is not Expression.Constant)
                         throw TypeError("Case expression must be a constant");
                     var inner = TypeCheckStatement(caseStatement.Inner, symbolTable, typeTable);
+                    exp = IsCharacterType(GetType(exp)) ? ConvertTo(exp, new Type.Int()) : exp;
                     return new Statement.CaseStatement(exp, inner, caseStatement.Label);
                 }
             case Statement.DefaultStatement defaultStatement:
