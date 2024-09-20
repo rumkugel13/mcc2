@@ -602,9 +602,9 @@ public class TypeChecker
                     {
                         if (IsInteger(t1) && IsInteger(t2))
                         {
-                            var commonShift = t1;
-                            var convertedRight = ConvertTo(typedE2, commonShift);
-                            return new Expression.Binary(binary.Operator, typedE1, convertedRight, commonShift);
+                            typedE1 = IsCharacterType(GetType(typedE1)) ? ConvertTo(typedE1, new Type.Int()) : typedE1;
+                            typedE2 = IsCharacterType(GetType(typedE2)) ? ConvertTo(typedE2, new Type.Int()) : typedE2;
+                            return new Expression.Binary(binary.Operator, typedE1, typedE2, GetType(typedE1));
                         }
                         else
                             throw TypeError("Can only bitshift integer types");
