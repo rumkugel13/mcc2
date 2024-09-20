@@ -708,16 +708,16 @@ public class TackyEmitter
 
         Val.Variable? resultVar = null;
         Instruction? castTo = null, castFrom = null;
-        if (leftType == com.Type)
+        if (leftType == com.ResultType)
         {
             resultVar = dst;
         }
         else
         {
-            var tmp = MakeTackyVariable(com.Type);
+            var tmp = MakeTackyVariable(com.ResultType);
             resultVar = tmp;
-            castTo = MakeCastInstruction(dst!, tmp, leftType, com.Type, instructions);
-            castFrom = MakeCastInstruction(tmp, dst!, com.Type, leftType, instructions);
+            castTo = MakeCastInstruction(dst!, tmp, leftType, com.ResultType, instructions);
+            castFrom = MakeCastInstruction(tmp, dst!, com.ResultType, leftType, instructions);
         }
 
         List<Instruction> operation = [];

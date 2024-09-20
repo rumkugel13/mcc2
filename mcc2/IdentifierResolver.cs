@@ -336,7 +336,7 @@ public class IdentifierResolver
                 {
                     var left = ResolveExpression(com.Left, identifierMap, structMap);
                     var right = ResolveExpression(com.Right, identifierMap, structMap);
-                    return new Expression.CompoundAssignment(com.Operator, left, right, com.Type);
+                    return new Expression.CompoundAssignment(com.Operator, left, right, com.ResultType, com.Type);
                 }
             case Expression.PostfixIncrement inc:
                 {

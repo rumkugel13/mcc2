@@ -850,16 +850,17 @@ public class TypeChecker
                     }
                     else if (leftType is Type.Pointer)
                     {
+                        resultType = leftType;
                         convertedRight = ConvertTo(typedRight, new Type.Long());
                     }
                     else
                     {
                         var commonType = GetCommonType(leftType, rightType, typeTable);
                         resultType = commonType;
-                        convertedRight = ConvertByAssignment(typedRight, commonType);
+                        convertedRight = ConvertTo(typedRight, commonType);
                     }
 
-                    return new Expression.CompoundAssignment(com.Operator, typedLeft, convertedRight, resultType);
+                    return new Expression.CompoundAssignment(com.Operator, typedLeft, convertedRight, resultType, leftType);
                 }
             case Expression.PostfixIncrement inc:
                 {

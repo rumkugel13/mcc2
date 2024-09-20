@@ -51,7 +51,7 @@ public abstract record Expression
     public record SizeOfType(Type TargetType, Type Type) : Expression;
     public record Dot(Expression Structure, string Member, Type Type) : Expression;
     public record Arrow(Expression Pointer, string Member, Type Type) : Expression;
-    public record CompoundAssignment(BinaryOperator Operator, Expression Left, Expression Right, Type Type) : Expression;
+    public record CompoundAssignment(BinaryOperator Operator, Expression Left, Expression Right, Type ResultType, Type Type) : Expression;
     public record PostfixIncrement(Expression Expression, Type Type) : Expression;
     public record PostfixDecrement(Expression Expression, Type Type) : Expression;
 
