@@ -332,6 +332,12 @@ public class IdentifierResolver
                     var exp = ResolveExpression(arrow.Pointer, identifierMap, structMap);
                     return new Expression.Arrow(exp, arrow.Member, arrow.Type);
                 }
+            case Expression.CompoundAssignment com:
+                {
+                    var left = ResolveExpression(com.Left, identifierMap, structMap);
+                    var right = ResolveExpression(com.Right, identifierMap, structMap);
+                    return new Expression.CompoundAssignment(com.Operator, left, right, com.Type);
+                }
             case Expression.PostfixIncrement inc:
                 {
                     var exp = ResolveExpression(inc.Expression, identifierMap, structMap);

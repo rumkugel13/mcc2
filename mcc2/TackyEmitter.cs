@@ -497,28 +497,9 @@ public class TackyEmitter
                         return result;
                     var dst = MakeTackyVariable(cast.TargetType);
 
-                    if (innerType is Type.Double || cast.TargetType is Type.Double)
-                    {
-                        if (innerType is Type.Int or Type.Long or Type.Char or Type.SChar && cast.TargetType is Type.Double)
-                            instructions.Add(new Instruction.IntToDouble(ToVal(result), dst));
-                        else if (innerType is Type.UInt or Type.ULong or Type.UChar && cast.TargetType is Type.Double)
-                            instructions.Add(new Instruction.UIntToDouble(ToVal(result), dst));
-                        else if (innerType is Type.Double && cast.TargetType is Type.Int or Type.Long or Type.Char or Type.SChar)
-                            instructions.Add(new Instruction.DoubleToInt(ToVal(result), dst));
-                        else if (innerType is Type.Double && cast.TargetType is Type.UInt or Type.ULong or Type.UChar)
-                            instructions.Add(new Instruction.DoubleToUInt(ToVal(result), dst));
-                    }
-                    else
-                    {
-                        if (TypeChecker.GetTypeSize(cast.TargetType, typeTable) == TypeChecker.GetTypeSize(innerType, typeTable))
-                            instructions.Add(new Instruction.Copy(ToVal(result), dst));
-                        else if (TypeChecker.GetTypeSize(cast.TargetType, typeTable) < TypeChecker.GetTypeSize(innerType, typeTable))
-                            instructions.Add(new Instruction.Truncate(ToVal(result), dst));
-                        else if (TypeChecker.IsSignedType(innerType))
-                            instructions.Add(new Instruction.SignExtend(ToVal(result), dst));
-                        else
-                            instructions.Add(new Instruction.ZeroExtend(ToVal(result), dst));
-                    }
+                    var c = MakeCastInstruction(ToVal(result), dst, innerType, cast.TargetType, instructions);
+                    if (c != null)
+                        instructions.Add(c);
 
                     return new ExpResult.PlainOperand(dst);
                 }
@@ -611,29 +592,162 @@ public class TackyEmitter
                     instructions.Add(new Instruction.AddPointer(ToVal(convertedPointer), index, 1, dstPointer));
                     return new ExpResult.DereferencedPointer(dstPointer);
                 }
+            case Expression.CompoundAssignment com:
+                {
+                    return EmitCompoundAssignment(com, instructions);
+                }
             case Expression.PostfixIncrement inc:
                 {
-                    var dst = MakeTackyVariable(GetType(expression));
-                    var retVal = EmitTacky(new Expression.Assignment(new Expression.Variable(dst.Name, inc.Type), inc.Expression, inc.Type), instructions);
-                    var constant = new Expression.Constant(MakeConstFromType(1, inc.Type), inc.Type);
-                    var bin = new Expression.Binary(Expression.BinaryOperator.Add, inc.Expression, constant, inc.Type);
-                    var assign = new Expression.Assignment(inc.Expression, bin, inc.Type);
-                    EmitTacky(assign, instructions);
-                    return retVal;
+                    return MakePostfix(Expression.BinaryOperator.Add, inc.Expression, instructions);
                 }
             case Expression.PostfixDecrement dec:
                 {
-                    var dst = MakeTackyVariable(GetType(expression));
-                    var retVal = EmitTacky(new Expression.Assignment(new Expression.Variable(dst.Name, dec.Type), dec.Expression, dec.Type), instructions);
-                    var constant = new Expression.Constant(MakeConstFromType(-1, dec.Type), dec.Type);
-                    var bin = new Expression.Binary(Expression.BinaryOperator.Add, dec.Expression, constant, dec.Type);
-                    var assign = new Expression.Assignment(dec.Expression, bin, dec.Type);
-                    EmitTacky(assign, instructions);
-                    return retVal;
+                    return MakePostfix(Expression.BinaryOperator.Subtract, dec.Expression, instructions);
                 }
             default:
                 throw new NotImplementedException();
         }
+    }
+
+    private ExpResult MakePostfix(Expression.BinaryOperator op, Expression inner, List<Instruction> instructions)
+    {
+        var dst = MakeTackyVariable(GetType(inner));
+        var lvalue = EmitTacky(inner, instructions);
+        var doOp = (Expression.BinaryOperator op, Val src, Val.Variable dst, List<Instruction> instructions) =>
+        {
+            var index = op switch
+            {
+                Expression.BinaryOperator.Add => MakeConstFromType(1, new Type.Long()),
+                Expression.BinaryOperator.Subtract => MakeConstFromType(-1, new Type.Long()),
+                _ => throw new NotImplementedException()
+            };
+            if (GetType(inner) is Type.Pointer p)
+                instructions.Add(new Instruction.AddPointer(src, new Val.Constant(index), TypeChecker.GetTypeSize(p.Referenced, typeTable), dst));
+            else
+            {
+                var one = new Val.Constant(MakeConstFromType(1, GetType(inner)));
+                instructions.Add(new Instruction.Binary(op, src, one, dst));
+            }
+        };
+
+        switch (lvalue)
+        {
+            case ExpResult.PlainOperand plain:
+                instructions.Add(new Instruction.Copy(plain.Val, dst));
+                doOp(op, plain.Val, (Val.Variable)plain.Val, instructions);
+                break;
+            case ExpResult.DereferencedPointer pointer:
+                var tmp = MakeTackyVariable(GetType(inner));
+                instructions.Add(new Instruction.Load(ToVal(pointer), dst));
+                doOp(op, dst, tmp, instructions);
+                instructions.Add(new Instruction.Store(tmp, ToVal(pointer)));
+                break;
+            case ExpResult.SubObject sub:
+                var tmp2 = MakeTackyVariable(GetType(inner));
+                instructions.Add(new Instruction.CopyFromOffset(sub.Base, sub.Offset, tmp2));
+                doOp(op, dst, tmp2, instructions);
+                instructions.Add(new Instruction.CopyToOffset(tmp2, sub.Base, sub.Offset));
+                break;
+        }
+
+        return new ExpResult.PlainOperand(dst);
+    }
+
+    private Instruction? MakeCastInstruction(Val val, Val dst, Type innerType, Type targetType, List<Instruction> instructions)
+    {
+        Instruction? result = null;
+        if (innerType is Type.Double || targetType is Type.Double)
+        {
+            if (innerType is Type.Int or Type.Long or Type.Char or Type.SChar && targetType is Type.Double)
+                result = new Instruction.IntToDouble(val, dst);
+            else if (innerType is Type.UInt or Type.ULong or Type.UChar && targetType is Type.Double)
+                result = new Instruction.UIntToDouble(val, dst);
+            else if (innerType is Type.Double && targetType is Type.Int or Type.Long or Type.Char or Type.SChar)
+                result = new Instruction.DoubleToInt(val, dst);
+            else if (innerType is Type.Double && targetType is Type.UInt or Type.ULong or Type.UChar)
+                result = new Instruction.DoubleToUInt(val, dst);
+        }
+        else
+        {
+            if (TypeChecker.GetTypeSize(targetType, typeTable) == TypeChecker.GetTypeSize(innerType, typeTable))
+                result = new Instruction.Copy(val, dst);
+            else if (TypeChecker.GetTypeSize(targetType, typeTable) < TypeChecker.GetTypeSize(innerType, typeTable))
+                result = new Instruction.Truncate(val, dst);
+            else if (TypeChecker.IsSignedType(innerType))
+                result = new Instruction.SignExtend(val, dst);
+            else
+                result = new Instruction.ZeroExtend(val, dst);
+        }
+        return result;
+    }
+
+    private ExpResult EmitCompoundAssignment(Expression.CompoundAssignment com, List<Instruction> instructions)
+    {
+        var leftType = GetType(com.Left);
+        var evaluatedLeft = EmitTacky(com.Left, instructions);
+        var evaluatedRight = EmitTackyAndConvert(com.Right, instructions);
+
+        Val.Variable? dst = null;
+        Instruction? load = null, store = null;
+        switch (evaluatedLeft)
+        {
+            case ExpResult.PlainOperand plain:
+                dst = plain.Val as Val.Variable;
+                break;
+            case ExpResult.DereferencedPointer pointer:
+                dst = MakeTackyVariable(leftType);
+                load = new Instruction.Load(pointer.Val, dst);
+                store = new Instruction.Store(dst, pointer.Val);
+                break;
+            case ExpResult.SubObject sub:
+                dst = MakeTackyVariable(leftType);
+                load = new Instruction.CopyFromOffset(sub.Base, sub.Offset, dst);
+                store = new Instruction.CopyToOffset(dst, sub.Base, sub.Offset);
+                break;
+        }
+
+        Val.Variable? resultVar = null;
+        Instruction? castTo = null, castFrom = null;
+        if (leftType == com.Type)
+        {
+            resultVar = dst;
+        }
+        else
+        {
+            var tmp = MakeTackyVariable(com.Type);
+            resultVar = tmp;
+            castTo = MakeCastInstruction(dst!, tmp, leftType, com.Type, instructions);
+            castFrom = MakeCastInstruction(tmp, dst!, com.Type, leftType, instructions);
+        }
+
+        List<Instruction> operation = [];
+        if (com.Type is Type.Pointer p)
+        {
+            var scale = TypeChecker.GetTypeSize(p.Referenced, typeTable);
+            if (com.Operator is Expression.BinaryOperator.Add)
+                operation.Add(new Instruction.AddPointer(resultVar!, ToVal(evaluatedRight), scale, resultVar!));
+            else
+            {
+                var negatedIndex = MakeTackyVariable(new Type.Long());
+                operation.Add(new Instruction.Unary(Expression.UnaryOperator.Negate, ToVal(evaluatedRight), negatedIndex));
+                operation.Add(new Instruction.AddPointer(resultVar!, negatedIndex, scale, resultVar!));
+            }
+        }
+        else
+        {
+            operation.Add(new Instruction.Binary(com.Operator, resultVar!, ToVal(evaluatedRight), resultVar!));
+        }
+
+        if (load != null)
+            instructions.Add(load);
+        if (castTo != null)
+            instructions.Add(castTo);
+        instructions.AddRange(operation);
+        if (castFrom != null)
+            instructions.Add(castFrom);
+        if (store != null)
+            instructions.Add(store);
+        return new ExpResult.PlainOperand(dst!);
     }
 
     private Const MakeConstFromType(long val, Type type)

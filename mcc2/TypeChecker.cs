@@ -809,11 +809,65 @@ public class TypeChecker
                     else
                         throw TypeError("Tried to get member of non-pointer to structure");
                 }
+            case Expression.CompoundAssignment com:
+                {
+                    var typedLeft = TypeCheckAndConvertExpression(com.Left, symbolTable, typeTable);
+                    if (!IsLvalue(typedLeft))
+                        throw TypeError("Tried to assign to non-lvalue");
+                    var typedRight = TypeCheckAndConvertExpression(com.Right, symbolTable, typeTable);
+                    var leftType = GetType(typedLeft);
+                    var rightType = GetType(typedRight);
+                    switch (com.Operator)
+                    {
+                        case Expression.BinaryOperator.Remainder:
+                        case Expression.BinaryOperator.BitAnd:
+                        case Expression.BinaryOperator.BitOr:
+                        case Expression.BinaryOperator.BitXor:
+                        case Expression.BinaryOperator.BitShiftLeft:
+                        case Expression.BinaryOperator.BitShiftRight:
+                            if (!IsInteger(leftType) || !IsInteger(rightType))
+                                throw TypeError($"Operator {com.Operator} only supports integer operands");
+                            break;
+                        case Expression.BinaryOperator.Multiply:
+                        case Expression.BinaryOperator.Divide:
+                            if (!IsArithmetic(leftType) || !IsArithmetic(rightType))
+                                throw TypeError($"Operator {com.Operator} only supports arithmetic operands");
+                            break;
+                        case Expression.BinaryOperator.Add:
+                        case Expression.BinaryOperator.Subtract:
+                            if (!((IsArithmetic(leftType) && IsArithmetic(rightType)) ||
+                                (IsPointerToComplete(leftType, typeTable) && IsInteger(rightType))))
+                                throw TypeError($"Invalid types for +=/-=");
+                            break;
+                    }
+
+                    var resultType = leftType;
+                    Expression? convertedRight;
+                    if (com.Operator is Expression.BinaryOperator.BitShiftLeft or Expression.BinaryOperator.BitShiftRight)
+                    {
+                        resultType = IsCharacterType(leftType) ? new Type.Int() : leftType;
+                        convertedRight = IsCharacterType(rightType) ? ConvertTo(typedRight, new Type.Int()) : typedRight;
+                    }
+                    else if (leftType is Type.Pointer)
+                    {
+                        convertedRight = ConvertTo(typedRight, new Type.Long());
+                    }
+                    else
+                    {
+                        var commonType = GetCommonType(leftType, rightType, typeTable);
+                        resultType = commonType;
+                        convertedRight = ConvertByAssignment(typedRight, commonType);
+                    }
+
+                    return new Expression.CompoundAssignment(com.Operator, typedLeft, convertedRight, resultType);
+                }
             case Expression.PostfixIncrement inc:
                 {
                     var typedExp = TypeCheckAndConvertExpression(inc.Expression, symbolTable, typeTable);
                     if (!IsLvalue(typedExp))
                         throw TypeError("Tried to increment non-lvalue");
+                    if (!(IsArithmetic(GetType(typedExp)) || IsPointerToComplete(GetType(typedExp), typeTable)))
+                        throw TypeError("Operand of postfix must be arithmetic or pointer type");
                     return new Expression.PostfixIncrement(typedExp, GetType(typedExp));
                 }
             case Expression.PostfixDecrement dec:
@@ -821,6 +875,8 @@ public class TypeChecker
                     var typedExp = TypeCheckAndConvertExpression(dec.Expression, symbolTable, typeTable);
                     if (!IsLvalue(typedExp))
                         throw TypeError("Tried to decrement non-lvalue");
+                    if (!(IsArithmetic(GetType(typedExp)) || IsPointerToComplete(GetType(typedExp), typeTable)))
+                        throw TypeError("Operand of postfix must be arithmetic or pointer type");
                     return new Expression.PostfixDecrement(typedExp, GetType(typedExp));
                 }
             default:
@@ -1203,6 +1259,7 @@ public class TypeChecker
             Expression.SizeOfType exp => exp.Type,
             Expression.Dot exp => exp.Type,
             Expression.Arrow exp => exp.Type,
+            Expression.CompoundAssignment exp => exp.Type,
             Expression.PostfixIncrement exp => exp.Type,
             Expression.PostfixDecrement exp => exp.Type,
             _ => throw new NotImplementedException()

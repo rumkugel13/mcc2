@@ -631,8 +631,7 @@ public class Parser
             {
                 var op = ParseCompoundOperator(nextToken, tokens);
                 var right = ParseExpression(tokens, precedence);
-                right = new Expression.Binary(op, left, right, Type.None);
-                left = new Expression.Assignment(left, right, Type.None);
+                left = new Expression.CompoundAssignment(op, left, right, Type.None);
             }
             else if (nextToken.Type == Lexer.TokenType.Question)
             {
@@ -703,15 +702,9 @@ public class Parser
                 case Expression.UnaryOperator.AddressOf:
                     return new Expression.AddressOf(innerExpression, Type.None);
                 case Expression.UnaryOperator.Increment:
-                    {
-                        var right = new Expression.Binary(Expression.BinaryOperator.Add, innerExpression, new Expression.Constant(new Const.ConstInt(1), Type.None), Type.None);
-                        return new Expression.Assignment(innerExpression, right, Type.None);
-                    }
+                    return new Expression.CompoundAssignment(Expression.BinaryOperator.Add, innerExpression, new Expression.Constant(new Const.ConstInt(1), Type.None), Type.None);
                 case Expression.UnaryOperator.Decrement:
-                    {
-                        var right = new Expression.Binary(Expression.BinaryOperator.Subtract, innerExpression, new Expression.Constant(new Const.ConstInt(1), Type.None), Type.None);
-                        return new Expression.Assignment(innerExpression, right, Type.None);
-                    }
+                    return new Expression.CompoundAssignment(Expression.BinaryOperator.Subtract, innerExpression, new Expression.Constant(new Const.ConstInt(1), Type.None), Type.None);
                 default:
                     return new Expression.Unary(op, innerExpression, Type.None);
             }

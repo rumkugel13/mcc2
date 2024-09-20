@@ -13,8 +13,8 @@
             "args": [
                 "-S",
                 "--pretty", 
-                "writing-a-c-compiler-tests/tests/chapter_9/valid/extra_credit/goto_label_multiple_functions.c", 
-                // "--optimize", 
+                "writing-a-c-compiler-tests/tests/chapter_15/valid/extra_credit/postfix_prefix_precedence.c", 
+                "--optimize", 
             ],
             "cwd": "${workspaceFolder}",
             "stopAtEntry": false,
