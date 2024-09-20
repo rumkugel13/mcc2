@@ -167,86 +167,86 @@ public class TestChapter18
     }
 
     [TestMethod]
-    public void TestCompileExtraCreditsLibraries()
+    public void TestCompileExtraCreditLibraries()
     {
-        var files = Directory.GetFiles(TestUtils.TestsPath + chapter + "valid/extra_credits/libraries").Where(a => a.EndsWith(".c"));
+        var files = Directory.GetFiles(TestUtils.TestsPath + chapter + "valid/extra_credit/libraries").Where(a => a.EndsWith(".c"));
         TestUtils.TestCompileValid(files);
     }
 
     [TestMethod]
-    public void TestExecuteExtraCreditsLibraries()
+    public void TestExecuteExtraCreditLibraries()
     {
-        var files = Directory.GetFiles(TestUtils.TestsPath + chapter + "valid/extra_credits/libraries").Where(a => a.EndsWith(".c"));
+        var files = Directory.GetFiles(TestUtils.TestsPath + chapter + "valid/extra_credit/libraries").Where(a => a.EndsWith(".c"));
         TestUtils.TestExecuteValid(files);
     }
 
     [TestMethod]
-    public void TestCompileExtraCreditsMemberAccess()
+    public void TestCompileExtraCreditMemberAccess()
     {
-        var files = Directory.GetFiles(TestUtils.TestsPath + chapter + "valid/extra_credits/member_access").Where(a => a.EndsWith(".c"));
+        var files = Directory.GetFiles(TestUtils.TestsPath + chapter + "valid/extra_credit/member_access").Where(a => a.EndsWith(".c"));
         TestUtils.TestCompileValid(files);
     }
 
     [TestMethod]
-    public void TestExecuteExtraCreditsMemberAccess()
+    public void TestExecuteExtraCreditMemberAccess()
     {
-        var files = Directory.GetFiles(TestUtils.TestsPath + chapter + "valid/extra_credits/member_access").Where(a => a.EndsWith(".c"));
+        var files = Directory.GetFiles(TestUtils.TestsPath + chapter + "valid/extra_credit/member_access").Where(a => a.EndsWith(".c"));
         TestUtils.TestExecuteValid(files);
     }
 
     [TestMethod]
-    public void TestCompileExtraCreditsOtherFeatures()
+    public void TestCompileExtraCreditOtherFeatures()
     {
-        var files = Directory.GetFiles(TestUtils.TestsPath + chapter + "valid/extra_credits/other_features").Where(a => a.EndsWith(".c"));
+        var files = Directory.GetFiles(TestUtils.TestsPath + chapter + "valid/extra_credit/other_features").Where(a => a.EndsWith(".c"));
         TestUtils.TestCompileValid(files);
     }
 
     [TestMethod]
-    public void TestExecuteExtraCreditsOtherFeatures()
+    public void TestExecuteExtraCreditOtherFeatures()
     {
-        var files = Directory.GetFiles(TestUtils.TestsPath + chapter + "valid/extra_credits/other_features").Where(a => a.EndsWith(".c"));
+        var files = Directory.GetFiles(TestUtils.TestsPath + chapter + "valid/extra_credit/other_features").Where(a => a.EndsWith(".c"));
         TestUtils.TestExecuteValid(files);
     }
 
     [TestMethod]
-    public void TestCompileExtraCreditsSemanticAnalysis()
+    public void TestCompileExtraCreditSemanticAnalysis()
     {
-        var files = Directory.GetFiles(TestUtils.TestsPath + chapter + "valid/extra_credits/semantic_analysis").Where(a => a.EndsWith(".c"));
+        var files = Directory.GetFiles(TestUtils.TestsPath + chapter + "valid/extra_credit/semantic_analysis").Where(a => a.EndsWith(".c"));
         TestUtils.TestCompileValid(files);
     }
 
     [TestMethod]
-    public void TestExecuteExtraCreditsSemanticAnalysis()
+    public void TestExecuteExtraCreditSemanticAnalysis()
     {
-        var files = Directory.GetFiles(TestUtils.TestsPath + chapter + "valid/extra_credits/semantic_analysis").Where(a => a.EndsWith(".c"));
+        var files = Directory.GetFiles(TestUtils.TestsPath + chapter + "valid/extra_credit/semantic_analysis").Where(a => a.EndsWith(".c"));
         TestUtils.TestExecuteValid(files);
     }
 
     [TestMethod]
-    public void TestCompileExtraCreditsSizeAndOffset()
+    public void TestCompileExtraCreditSizeAndOffset()
     {
-        var files = Directory.GetFiles(TestUtils.TestsPath + chapter + "valid/extra_credits/size_and_offset").Where(a => a.EndsWith(".c"));
+        var files = Directory.GetFiles(TestUtils.TestsPath + chapter + "valid/extra_credit/size_and_offset").Where(a => a.EndsWith(".c"));
         TestUtils.TestCompileValid(files);
     }
 
     [TestMethod]
-    public void TestExecuteExtraCreditsSizeAndOffset()
+    public void TestExecuteExtraCreditSizeAndOffset()
     {
-        var files = Directory.GetFiles(TestUtils.TestsPath + chapter + "valid/extra_credits/size_and_offset").Where(a => a.EndsWith(".c"));
+        var files = Directory.GetFiles(TestUtils.TestsPath + chapter + "valid/extra_credit/size_and_offset").Where(a => a.EndsWith(".c"));
         TestUtils.TestExecuteValid(files);
     }
 
     [TestMethod]
-    public void TestCompileExtraCreditsUnionCopy()
+    public void TestCompileExtraCreditUnionCopy()
     {
-        var files = Directory.GetFiles(TestUtils.TestsPath + chapter + "valid/extra_credits/union_copy").Where(a => a.EndsWith(".c"));
+        var files = Directory.GetFiles(TestUtils.TestsPath + chapter + "valid/extra_credit/union_copy").Where(a => a.EndsWith(".c"));
         TestUtils.TestCompileValid(files);
     }
 
     [TestMethod]
-    public void TestExecuteExtraCreditsUnionCopy()
+    public void TestExecuteExtraCreditUnionCopy()
     {
-        var files = Directory.GetFiles(TestUtils.TestsPath + chapter + "valid/extra_credits/union_copy").Where(a => a.EndsWith(".c"));
+        var files = Directory.GetFiles(TestUtils.TestsPath + chapter + "valid/extra_credit/union_copy").Where(a => a.EndsWith(".c"));
         TestUtils.TestExecuteValid(files);
     }
 
