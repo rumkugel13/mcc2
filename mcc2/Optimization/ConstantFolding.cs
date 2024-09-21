@@ -544,27 +544,29 @@ public class ConstantFolding
                     _ => throw new NotImplementedException(),
                 };
                 case Expression.BinaryOperator.BitShiftLeft:
-                return (c1.Value, c2.Value)
+                var amount = (int)GetValue(c2.Value);
+                return (c1.Value)
                     switch
                 {
-                    (Const.ConstInt int1, Const.ConstInt int2) => new Val.Constant(new Const.ConstInt(int1.Value << int2.Value)),
-                    (Const.ConstLong long1, Const.ConstLong long2) => new Val.Constant(new Const.ConstLong(long1.Value << (int)long2.Value)),
-                    (Const.ConstChar char1, Const.ConstChar char2) => new Val.Constant(new Const.ConstChar(char1.Value << char2.Value)),
-                    (Const.ConstUInt uint1, Const.ConstUInt uint2) => new Val.Constant(new Const.ConstUInt(uint1.Value << (int)uint2.Value)),
-                    (Const.ConstULong ulong1, Const.ConstULong ulong2) => new Val.Constant(new Const.ConstULong(ulong1.Value << (int)ulong2.Value)),
-                    (Const.ConstUChar uchar1, Const.ConstUChar uchar2) => new Val.Constant(new Const.ConstUChar(uchar1.Value << uchar2.Value)),
+                    (Const.ConstInt int1) => new Val.Constant(new Const.ConstInt(int1.Value << amount)),
+                    (Const.ConstLong long1) => new Val.Constant(new Const.ConstLong(long1.Value << amount)),
+                    (Const.ConstChar char1) => new Val.Constant(new Const.ConstChar(char1.Value << amount)),
+                    (Const.ConstUInt uint1) => new Val.Constant(new Const.ConstUInt(uint1.Value << amount)),
+                    (Const.ConstULong ulong1) => new Val.Constant(new Const.ConstULong(ulong1.Value << amount)),
+                    (Const.ConstUChar uchar1) => new Val.Constant(new Const.ConstUChar(uchar1.Value << amount)),
                     _ => throw new NotImplementedException(),
                 };
                 case Expression.BinaryOperator.BitShiftRight:
-                return (c1.Value, c2.Value)
+                amount = (int)GetValue(c2.Value);
+                return (c1.Value)
                     switch
                 {
-                    (Const.ConstInt int1, Const.ConstInt int2) => new Val.Constant(new Const.ConstInt(int1.Value >> int2.Value)),
-                    (Const.ConstLong long1, Const.ConstLong long2) => new Val.Constant(new Const.ConstLong(long1.Value >> (int)long2.Value)),
-                    (Const.ConstChar char1, Const.ConstChar char2) => new Val.Constant(new Const.ConstChar(char1.Value >> char2.Value)),
-                    (Const.ConstUInt uint1, Const.ConstUInt uint2) => new Val.Constant(new Const.ConstUInt(uint1.Value >> (int)uint2.Value)),
-                    (Const.ConstULong ulong1, Const.ConstULong ulong2) => new Val.Constant(new Const.ConstULong(ulong1.Value >> (int)ulong2.Value)),
-                    (Const.ConstUChar uchar1, Const.ConstUChar uchar2) => new Val.Constant(new Const.ConstUChar(uchar1.Value >> uchar2.Value)),
+                    (Const.ConstInt int1) => new Val.Constant(new Const.ConstInt(int1.Value >> amount)),
+                    (Const.ConstLong long1) => new Val.Constant(new Const.ConstLong(long1.Value >> amount)),
+                    (Const.ConstChar char1) => new Val.Constant(new Const.ConstChar(char1.Value >> amount)),
+                    (Const.ConstUInt uint1) => new Val.Constant(new Const.ConstUInt(uint1.Value >> amount)),
+                    (Const.ConstULong ulong1) => new Val.Constant(new Const.ConstULong(ulong1.Value >> amount)),
+                    (Const.ConstUChar uchar1) => new Val.Constant(new Const.ConstUChar(uchar1.Value >> amount)),
                     _ => throw new NotImplementedException(),
                 };
             default:
