@@ -5,59 +5,65 @@ namespace mcc2;
 
 public class CodeEmitter
 {
+    readonly StringBuilder builder;
+    
+    public CodeEmitter()
+    {
+        builder = new();
+    }
+
     public StringBuilder Emit(AssemblyProgram program)
     {
-        StringBuilder builder = new();
-        EmitProgram(program, builder);
+        EmitProgram(program);
         if (OperatingSystem.IsLinux())
-            builder.AppendLine("\t.section .note.GNU-stack,\"\",@progbits");
+            EmitLine("\t.section .note.GNU-stack,\"\",@progbits");
         return builder;
     }
 
-    private void EmitProgram(AssemblyProgram program, StringBuilder builder)
+    private void EmitProgram(AssemblyProgram program)
     {
         foreach (var topLevel in program.TopLevel)
             switch (topLevel)
             {
                 case TopLevel.Function fun:
-                    EmitFunction(fun, builder);
+                    EmitFunction(fun);
                     break;
                 case TopLevel.StaticVariable stat:
-                    EmitStaticVariable(stat, builder);
+                    EmitStaticVariable(stat);
                     break;
                 case TopLevel.StaticConstant statConst:
-                    EmitStaticConstant(statConst, builder);
+                    EmitStaticConstant(statConst);
                     break;
             }
     }
 
-    private void EmitFunction(TopLevel.Function function, StringBuilder builder)
+    private void EmitFunction(TopLevel.Function function)
     {
         if (function.Global)
-            builder.AppendLine($"\t.globl {function.Name}");
+            EmitLine($"\t.globl {function.Name}");
 
-        builder.AppendLine($"\t.text");
-        builder.AppendLine($"{function.Name}:");
-        builder.AppendLine($"\tpushq %rbp");
-        builder.AppendLine($"\tmovq %rsp, %rbp");
+        EmitLine($"\t.text");
+        EmitLine($"{function.Name}:");
+        EmitLine($"\tpushq %rbp");
+        EmitLine($"\tmovq %rsp, %rbp");
         foreach (var inst in function.Instructions)
         {
-            EmitInstruction(inst, builder);
+            EmitInstruction(inst);
         }
     }
 
-    private void EmitStaticVariable(TopLevel.StaticVariable staticVariable, StringBuilder builder)
+    private void EmitStaticVariable(TopLevel.StaticVariable staticVariable)
     {
         if (staticVariable.Global)
-            builder.AppendLine($"\t.globl {staticVariable.Identifier}");
+            EmitLine($"\t.globl {staticVariable.Identifier}");
 
         var isZero = IsZero(staticVariable.Inits);
-        builder.AppendLine($"\t.{(isZero ? "bss" : "data")}");
-        builder.AppendLine($"\t.{(OperatingSystem.IsLinux() ? "align" : "balign")} {staticVariable.Alignment}");
-        builder.AppendLine($"{staticVariable.Identifier}:");
+        EmitLine($"\t.{(isZero ? "bss" : "data")}");
+        EmitLine($"\t.{(OperatingSystem.IsLinux() ? "align" : "balign")} {staticVariable.Alignment}");
+        EmitLine($"{staticVariable.Identifier}:");
 
         if (isZero && staticVariable.Inits[0] is not StaticInit.ZeroInit)
-            builder.AppendLine($"\t.zero {staticVariable.Alignment}");
+            EmitLine($"\t.zero {staticVariable.Alignment}");
         else
         {
             foreach (var init in staticVariable.Inits)
@@ -65,13 +71,13 @@ public class CodeEmitter
                 switch (init)
                 {
                     case StaticInit.PointerInit pointer:
-                        builder.AppendLine($"\t.quad {pointer.Name}");
+                        EmitLine($"\t.quad {pointer.Name}");
                         break;
                     case StaticInit.StringInit stringInit:
-                        EmitStringConstant(stringInit, builder);
+                        EmitStringConstant(stringInit);
                         break;
                     default:
-                        builder.AppendLine($"\t.{EmitAssemblerType(init)} {GetValue(init)}");
+                        EmitLine($"\t.{EmitAssemblerType(init)} {GetValue(init)}");
                         break;
                 }
             }   
@@ -89,34 +95,34 @@ public class CodeEmitter
         return false;
     }
 
-    private void EmitStringConstant(StaticInit.StringInit stringInit, StringBuilder builder)
+    private void EmitStringConstant(StaticInit.StringInit stringInit)
     {
-        builder.AppendLine($"\t.asci{(stringInit.NullTerminated ? "z" : "i")} \"{System.Text.RegularExpressions.Regex.Escape(stringInit.Value).
+        EmitLine($"\t.asci{(stringInit.NullTerminated ? "z" : "i")} \"{System.Text.RegularExpressions.Regex.Escape(stringInit.Value).
                         Replace("\'", "\\'").Replace("\"", "\\\"").Replace("\n", "\\n").Replace("\a", "\\007").Replace("\b", "\\b").Replace("\f", "\\f")
                         .Replace("\r", "\\r").Replace("\t", "\\t").Replace("\v", "\\v")}\"");
     }
 
-    private void EmitStaticConstant(TopLevel.StaticConstant statConst, StringBuilder builder)
+    private void EmitStaticConstant(TopLevel.StaticConstant statConst)
     {
         if (OperatingSystem.IsLinux())
-            builder.AppendLine($"\t.section .rodata");
+            EmitLine($"\t.section .rodata");
         if (OperatingSystem.IsMacOS())
-            builder.AppendLine($"\t.{(statConst.Init is StaticInit.StringInit ? "cstring" : $"literal{statConst.Alignment}")}");
+            EmitLine($"\t.{(statConst.Init is StaticInit.StringInit ? "cstring" : $"literal{statConst.Alignment}")}");
 
-        builder.AppendLine($"\t.{(OperatingSystem.IsLinux() ? "align" : "balign")} {statConst.Alignment}");
-        builder.AppendLine($"{statConst.Identifier}:");
+        EmitLine($"\t.{(OperatingSystem.IsLinux() ? "align" : "balign")} {statConst.Alignment}");
+        EmitLine($"{statConst.Identifier}:");
         switch (statConst.Init)
         {
             case StaticInit.PointerInit pointer:
-                builder.AppendLine($"\t.quad {pointer.Name}");
+                EmitLine($"\t.quad {pointer.Name}");
                 break;
             case StaticInit.StringInit stringInit:
-                EmitStringConstant(stringInit, builder);
+                EmitStringConstant(stringInit);
                 break;
             default:
-                builder.AppendLine($"\t.{EmitAssemblerType(statConst.Init)} {GetValue(statConst.Init)}");
+                EmitLine($"\t.{EmitAssemblerType(statConst.Init)} {GetValue(statConst.Init)}");
                 if (OperatingSystem.IsMacOS() && statConst.Alignment == 16)
-                    builder.AppendLine($"\t.quad 0");
+                    EmitLine($"\t.quad 0");
                 break;
         }
     }
@@ -147,89 +153,89 @@ public class CodeEmitter
         };
     }
 
-    private void EmitInstruction(Instruction instruction, StringBuilder builder)
+    private void EmitInstruction(Instruction instruction)
     {
         switch (instruction)
         {
             case Instruction.Mov mov:
-                builder.AppendLine($"\tmov{EmitTypeSuffix(mov.Type)} {EmitOperand(mov.Src, mov.Type)}, {EmitOperand(mov.Dst, mov.Type)}");
+                EmitLine($"\tmov{EmitTypeSuffix(mov.Type)} {EmitOperand(mov.Src, mov.Type)}, {EmitOperand(mov.Dst, mov.Type)}");
                 break;
             case Instruction.Movsx movsx:
-                builder.AppendLine($"\tmovs{EmitTypeSuffix(movsx.SrcType)}{EmitTypeSuffix(movsx.DstType)} {EmitOperand(movsx.Src, movsx.SrcType)}, {EmitOperand(movsx.Dst, movsx.DstType)}");
+                EmitLine($"\tmovs{EmitTypeSuffix(movsx.SrcType)}{EmitTypeSuffix(movsx.DstType)} {EmitOperand(movsx.Src, movsx.SrcType)}, {EmitOperand(movsx.Dst, movsx.DstType)}");
                 break;
             case Instruction.MovZeroExtend movzx:
-                builder.AppendLine($"\tmovz{EmitTypeSuffix(movzx.SrcType)}{EmitTypeSuffix(movzx.DstType)} {EmitOperand(movzx.Src, movzx.SrcType)}, {EmitOperand(movzx.Dst, movzx.DstType)}");
+                EmitLine($"\tmovz{EmitTypeSuffix(movzx.SrcType)}{EmitTypeSuffix(movzx.DstType)} {EmitOperand(movzx.Src, movzx.SrcType)}, {EmitOperand(movzx.Dst, movzx.DstType)}");
                 break;
             case Instruction.Ret:
-                builder.AppendLine($"\tmovq %rbp, %rsp");
-                builder.AppendLine($"\tpopq %rbp");
-                builder.AppendLine("\tret");
+                EmitLine($"\tmovq %rbp, %rsp");
+                EmitLine($"\tpopq %rbp");
+                EmitLine("\tret");
                 break;
             case Instruction.Unary unary:
-                builder.AppendLine($"\t{EmitUnaryOperator(unary.Operator)}{EmitTypeSuffix(unary.Type)} {EmitOperand(unary.Operand, unary.Type)}");
+                EmitLine($"\t{EmitUnaryOperator(unary.Operator)}{EmitTypeSuffix(unary.Type)} {EmitOperand(unary.Operand, unary.Type)}");
                 break;
             case Instruction.Binary binary:
                 if (binary.Type is AssemblyType.Double && binary.Operator is Instruction.BinaryOperator.Xor or Instruction.BinaryOperator.Mult)
                 {
                     if (binary.Operator == Instruction.BinaryOperator.Xor)
-                        builder.AppendLine($"\txorpd {EmitOperand(binary.Src, binary.Type)}, {EmitOperand(binary.Dst, binary.Type)}");
+                        EmitLine($"\txorpd {EmitOperand(binary.Src, binary.Type)}, {EmitOperand(binary.Dst, binary.Type)}");
                     else if (binary.Operator == Instruction.BinaryOperator.Mult)
-                        builder.AppendLine($"\tmulsd {EmitOperand(binary.Src, binary.Type)}, {EmitOperand(binary.Dst, binary.Type)}");
+                        EmitLine($"\tmulsd {EmitOperand(binary.Src, binary.Type)}, {EmitOperand(binary.Dst, binary.Type)}");
                 }
                 else if (binary.Operator is Instruction.BinaryOperator.Shl or Instruction.BinaryOperator.ShrTwoOp or Instruction.BinaryOperator.Sar)
                 {
-                    builder.AppendLine($"\t{EmitBinaryOperator(binary.Operator)}{EmitTypeSuffix(binary.Type)} {EmitOperand(binary.Src, new AssemblyType.Byte())}, {EmitOperand(binary.Dst, binary.Type)}");
+                    EmitLine($"\t{EmitBinaryOperator(binary.Operator)}{EmitTypeSuffix(binary.Type)} {EmitOperand(binary.Src, new AssemblyType.Byte())}, {EmitOperand(binary.Dst, binary.Type)}");
                 }
                 else
-                    builder.AppendLine($"\t{EmitBinaryOperator(binary.Operator)}{EmitTypeSuffix(binary.Type)} {EmitOperand(binary.Src, binary.Type)}, {EmitOperand(binary.Dst, binary.Type)}");
+                    EmitLine($"\t{EmitBinaryOperator(binary.Operator)}{EmitTypeSuffix(binary.Type)} {EmitOperand(binary.Src, binary.Type)}, {EmitOperand(binary.Dst, binary.Type)}");
                 break;
             case Instruction.Idiv idiv:
-                builder.AppendLine($"\tidiv{EmitTypeSuffix(idiv.Type)} {EmitOperand(idiv.Operand, idiv.Type)}");
+                EmitLine($"\tidiv{EmitTypeSuffix(idiv.Type)} {EmitOperand(idiv.Operand, idiv.Type)}");
                 break;
             case Instruction.Div div:
-                builder.AppendLine($"\tdiv{EmitTypeSuffix(div.Type)} {EmitOperand(div.Operand, div.Type)}");
+                EmitLine($"\tdiv{EmitTypeSuffix(div.Type)} {EmitOperand(div.Operand, div.Type)}");
                 break;
             case Instruction.Cdq cdq:
                 if (cdq.Type is AssemblyType.Longword)
-                    builder.AppendLine("\tcdq");
+                    EmitLine("\tcdq");
                 else
-                    builder.AppendLine("\tcqo");
+                    EmitLine("\tcqo");
                 break;
             case Instruction.Cmp cmp:
                 if (cmp.Type is AssemblyType.Double)
-                    builder.AppendLine($"\tcomisd {EmitOperand(cmp.OperandA, cmp.Type)}, {EmitOperand(cmp.OperandB, cmp.Type)}");
+                    EmitLine($"\tcomisd {EmitOperand(cmp.OperandA, cmp.Type)}, {EmitOperand(cmp.OperandB, cmp.Type)}");
                 else
-                    builder.AppendLine($"\tcmp{EmitTypeSuffix(cmp.Type)} {EmitOperand(cmp.OperandA, cmp.Type)}, {EmitOperand(cmp.OperandB, cmp.Type)}");
+                    EmitLine($"\tcmp{EmitTypeSuffix(cmp.Type)} {EmitOperand(cmp.OperandA, cmp.Type)}, {EmitOperand(cmp.OperandB, cmp.Type)}");
                 break;
             case Instruction.Jmp jmp:
-                builder.AppendLine($"\tjmp .L{jmp.Identifier}");
+                EmitLine($"\tjmp .L{jmp.Identifier}");
                 break;
             case Instruction.JmpCC jmpCC:
-                builder.AppendLine($"\tj{EmitConditionCode(jmpCC.Condition)} .L{jmpCC.Identifier}");
+                EmitLine($"\tj{EmitConditionCode(jmpCC.Condition)} .L{jmpCC.Identifier}");
                 break;
             case Instruction.SetCC setCC:
-                builder.AppendLine($"\tset{EmitConditionCode(setCC.Condition)} {EmitOperand(setCC.Operand, new AssemblyType.Byte())}");
+                EmitLine($"\tset{EmitConditionCode(setCC.Condition)} {EmitOperand(setCC.Operand, new AssemblyType.Byte())}");
                 break;
             case Instruction.Label label:
-                builder.AppendLine($".L{label.Identifier}:");
+                EmitLine($".L{label.Identifier}:");
                 break;
             case Instruction.Push push:
-                builder.AppendLine($"\tpushq {EmitOperand(push.Operand, new AssemblyType.Quadword())}");
+                EmitLine($"\tpushq {EmitOperand(push.Operand, new AssemblyType.Quadword())}");
                 break;
             case Instruction.Pop pop:
-                builder.AppendLine($"\tpopq {EmitRegister(pop.Register, new AssemblyType.Quadword())}");
+                EmitLine($"\tpopq {EmitRegister(pop.Register, new AssemblyType.Quadword())}");
                 break;
             case Instruction.Call call:
-                builder.AppendLine($"\tcall {call.Identifier}{(!((AsmSymbolTableEntry.FunctionEntry)AssemblyGenerator.AsmSymbolTable[call.Identifier]).Defined && OperatingSystem.IsLinux() ? "@PLT" : "")}");
+                EmitLine($"\tcall {call.Identifier}{(!((AsmSymbolTableEntry.FunctionEntry)AssemblyGenerator.AsmSymbolTable[call.Identifier]).Defined && OperatingSystem.IsLinux() ? "@PLT" : "")}");
                 break;
             case Instruction.Cvtsi2sd cvtsi2sd:
-                builder.AppendLine($"\tcvtsi2sd{EmitTypeSuffix(cvtsi2sd.SrcType)} {EmitOperand(cvtsi2sd.Src, cvtsi2sd.SrcType)}, {EmitOperand(cvtsi2sd.Dst, new AssemblyType.Double())}");
+                EmitLine($"\tcvtsi2sd{EmitTypeSuffix(cvtsi2sd.SrcType)} {EmitOperand(cvtsi2sd.Src, cvtsi2sd.SrcType)}, {EmitOperand(cvtsi2sd.Dst, new AssemblyType.Double())}");
                 break;
             case Instruction.Cvttsd2si cvttsd2si:
-                builder.AppendLine($"\tcvttsd2si{EmitTypeSuffix(cvttsd2si.DstType)} {EmitOperand(cvttsd2si.Src, new AssemblyType.Double())}, {EmitOperand(cvttsd2si.Dst, cvttsd2si.DstType)}");
+                EmitLine($"\tcvttsd2si{EmitTypeSuffix(cvttsd2si.DstType)} {EmitOperand(cvttsd2si.Src, new AssemblyType.Double())}, {EmitOperand(cvttsd2si.Dst, cvttsd2si.DstType)}");
                 break;
             case Instruction.Lea lea:
-                builder.AppendLine($"\tleaq {EmitOperand(lea.Src, new AssemblyType.Quadword())}, {EmitOperand(lea.Dst, new AssemblyType.Quadword())}");
+                EmitLine($"\tleaq {EmitOperand(lea.Src, new AssemblyType.Quadword())}, {EmitOperand(lea.Dst, new AssemblyType.Quadword())}");
                 break;
             default:
                 throw new NotImplementedException();
@@ -326,5 +332,10 @@ public class CodeEmitter
             AssemblyType.Double => floatRegs[(int)(reg - byteRegs.Length)],
             _ => throw new NotImplementedException()
         };
+    }
+
+    private void EmitLine(string line)
+    {
+        builder.AppendLine(line);
     }
 }
