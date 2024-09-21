@@ -43,7 +43,7 @@ Besides having fun and learning how compilers and C work, these are some of the 
   - [X] 11: Long Integers
   - [X] 12: Unsigned Integers
   - [X] 13: Floating-Point Numbers
-    - [ ] Extra: NaN
+    - [X] Extra: NaN
   - [X] 14: Pointers
   - [X] 15: Arrays and Pointer Arithmetic
   - [X] 16: Characters and Strings

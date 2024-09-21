@@ -620,9 +620,36 @@ public class AssemblyGenerator
                     {
                         if (GetAssemblyType(binary.Src1) is AssemblyType.Double)
                         {
-                            instructions.Add(new Instruction.Cmp(GetAssemblyType(binary.Src1), GenerateOperand(binary.Src2), GenerateOperand(binary.Src1)));
+                            var cc = ConvertConditionCode(binary.Operator, false);
+                            var src1 = binary.Src1;
+                            var src2 = binary.Src2;
+                            // switch order for nan
+                            if (cc is Instruction.ConditionCode.B or Instruction.ConditionCode.BE)
+                            {
+                                cc = cc is Instruction.ConditionCode.B ? Instruction.ConditionCode.A : Instruction.ConditionCode.AE;
+                                src1 = binary.Src2;
+                                src2 = binary.Src1;
+                            }
+
+                            instructions.Add(new Instruction.Cmp(new AssemblyType.Double(), GenerateOperand(src2), GenerateOperand(src1)));
                             instructions.Add(new Instruction.Mov(GetAssemblyType(binary.Dst), new Operand.Imm(0), GenerateOperand(binary.Dst)));
-                            instructions.Add(new Instruction.SetCC(ConvertConditionCode(binary.Operator, false), GenerateOperand(binary.Dst)));
+                            instructions.Add(new Instruction.SetCC(cc, GenerateOperand(binary.Dst)));
+
+                            if (cc is Instruction.ConditionCode.E or Instruction.ConditionCode.NE)
+                            {
+                                // check parity flag for nan
+                                instructions.Add(new Instruction.Mov(GetAssemblyType(binary.Dst), new Operand.Imm(0), new Operand.Reg(Operand.RegisterName.R9)));
+                                if (cc is Instruction.ConditionCode.E)
+                                {
+                                    instructions.Add(new Instruction.SetCC(Instruction.ConditionCode.NP, new Operand.Reg(Operand.RegisterName.R9)));
+                                    instructions.Add(new Instruction.Binary(Instruction.BinaryOperator.And, GetAssemblyType(binary.Dst), new Operand.Reg(Operand.RegisterName.R9), GenerateOperand(binary.Dst)));
+                                }
+                                else
+                                {
+                                    instructions.Add(new Instruction.SetCC(Instruction.ConditionCode.P, new Operand.Reg(Operand.RegisterName.R9)));
+                                    instructions.Add(new Instruction.Binary(Instruction.BinaryOperator.Or, GetAssemblyType(binary.Dst), new Operand.Reg(Operand.RegisterName.R9), GenerateOperand(binary.Dst)));  
+                                }
+                            }
                         }
                         else
                         {

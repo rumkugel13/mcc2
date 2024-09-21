@@ -35,6 +35,8 @@ public abstract record Instruction
         AE,
         B,
         BE,
+        P,
+        NP,
     }
 
     public record Mov(AssemblyType Type, Operand Src, Operand Dst) : Instruction;

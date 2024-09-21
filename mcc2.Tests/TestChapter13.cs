@@ -25,13 +25,6 @@ public class TestChapter13
     }
 
     [TestMethod]
-    public void TestCompileHelperLibs()
-    {
-        var files = Directory.GetFiles(TestUtils.TestsPath + "chapter_13/helper_libs").Where(a => a.EndsWith(".c"));
-        TestUtils.TestCompileValid(files);
-    }
-
-    [TestMethod]
     public void TestCompileValidExplicitCasts()
     {
         var files = Directory.GetFiles(TestUtils.TestsPath + "chapter_13/valid/explicit_casts").Where(a => a.EndsWith(".c"));
@@ -41,7 +34,16 @@ public class TestChapter13
     [TestMethod]
     public void TestCompileValidExtraCredit()
     {
-        var files = Directory.GetFiles(TestUtils.TestsPath + "chapter_13/valid/extra_credit").Where(a => a.EndsWith(".c"));
+        var files = Directory.GetFiles(TestUtils.TestsPath + "chapter_13/valid/extra_credit")
+            .Where(a => a.EndsWith(".c") && !a.Contains("nan"));
+        TestUtils.TestCompileValid(files);
+    }
+
+    [TestMethod]
+    public void TestCompileValidExtraCreditNan()
+    {
+        var files = Directory.GetFiles(TestUtils.TestsPath + "chapter_13/valid/extra_credit")
+            .Where(a => a.EndsWith(".c") && a.Contains("nan"));
         TestUtils.TestCompileValid(files);
     }
 
@@ -89,13 +91,6 @@ public class TestChapter13
     }
 
     [TestMethod]
-    public void TestExecuteHelperLibs()
-    {
-        var files = Directory.GetFiles(TestUtils.TestsPath + "chapter_13/helper_libs").Where(a => a.EndsWith(".c"));
-        TestUtils.TestExecuteValid(files);
-    }
-
-    [TestMethod]
     public void TestExecuteValidExplicitCasts()
     {
         var files = Directory.GetFiles(TestUtils.TestsPath + "chapter_13/valid/explicit_casts").Where(a => a.EndsWith(".c"));
@@ -105,8 +100,18 @@ public class TestChapter13
     [TestMethod]
     public void TestExecuteValidExtraCredit()
     {
-        var files = Directory.GetFiles(TestUtils.TestsPath + "chapter_13/valid/extra_credit").Where(a => a.EndsWith(".c"));
+        var files = Directory.GetFiles(TestUtils.TestsPath + "chapter_13/valid/extra_credit")
+            .Where(a => a.EndsWith(".c") && !a.Contains("nan"));
         TestUtils.TestExecuteValid(files);
+    }
+
+    [TestMethod]
+    public void TestExecuteValidExtraCreditNan()
+    {
+        var files = Directory.GetFiles(TestUtils.TestsPath + "chapter_13/valid/extra_credit")
+            .Where(a => a.EndsWith(".c") && a.Contains("nan"));
+        var helper = TestUtils.TestsPath + "chapter_13/helper_libs/nan.c";
+        TestUtils.TestExecuteValidSpecial(files.First(), helper);
     }
 
     [TestMethod]

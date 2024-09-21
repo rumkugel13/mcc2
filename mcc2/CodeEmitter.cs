@@ -262,6 +262,8 @@ public class CodeEmitter
             Instruction.ConditionCode.AE => "ae",
             Instruction.ConditionCode.B => "b",
             Instruction.ConditionCode.BE => "be",
+            Instruction.ConditionCode.P => "p",
+            Instruction.ConditionCode.NP => "np",
             _ => throw new NotImplementedException()
         };
     }
