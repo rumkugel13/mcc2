@@ -192,10 +192,10 @@ public static class TestUtils
         return expected;
     }
 
-    internal static void TestExecuteValid(IEnumerable<string> files, string linkOption = "")
+    internal static void TestExecuteValid(IEnumerable<string> files, CompilerDriver.Optimizations optimizations = CompilerDriver.Optimizations.None, string linkOption = "")
     {
         CompilerDriver.CompilerOptions compilerOptions = new CompilerDriver.CompilerOptions();
-        compilerOptions.Optimizations = CompilerDriver.Optimizations.None;
+        compilerOptions.Optimizations = optimizations;
         compilerOptions.PrettyPrint = false;
         compilerOptions.Stages = CompilerDriver.Stages.Emitter;
 
@@ -227,10 +227,10 @@ public static class TestUtils
         }
     }
 
-    internal static void TestExecuteValidSpecial(string file, string extra)
+    internal static void TestExecuteValidSpecial(string file, string extra, CompilerDriver.Optimizations optimizations = CompilerDriver.Optimizations.None)
     {
         CompilerDriver.CompilerOptions compilerOptions = new CompilerDriver.CompilerOptions();
-        compilerOptions.Optimizations = CompilerDriver.Optimizations.None;
+        compilerOptions.Optimizations = optimizations;
         compilerOptions.PrettyPrint = false;
         compilerOptions.Stages = CompilerDriver.Stages.Emitter;
 

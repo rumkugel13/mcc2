@@ -16,7 +16,7 @@ public class TestChapter19
     public void TestExecuteConstantFoldingAllTypes()
     {
         var files = Directory.GetFiles(TestUtils.TestsPath + chapter + "constant_folding/all_types").Where(a => a.EndsWith(".c"));
-        TestUtils.TestExecuteValid(files);
+        TestUtils.TestExecuteValid(files, CompilerDriver.Optimizations.FoldConstants);
     }
 
     [TestMethod]
@@ -29,8 +29,19 @@ public class TestChapter19
     [TestMethod]
     public void TestExecuteConstantFoldingAllTypesExtraCredit()
     {
-        var files = Directory.GetFiles(TestUtils.TestsPath + chapter + "constant_folding/all_types/extra_credit").Where(a => a.EndsWith(".c"));
-        TestUtils.TestExecuteValid(files);
+        var files = Directory.GetFiles(TestUtils.TestsPath + chapter + "constant_folding/all_types/extra_credit")
+            .Where(a => a.EndsWith(".c") && !a.Contains("nan"));
+        TestUtils.TestExecuteValid(files, CompilerDriver.Optimizations.FoldConstants);
+    }
+
+    [TestMethod]
+    public void TestExecuteConstantFoldingAllTypesExtraCreditNan()
+    {
+        var files = Directory.GetFiles(TestUtils.TestsPath + chapter + "constant_folding/all_types/extra_credit")
+            .Where(a => a.EndsWith(".c") && a.Contains("nan"));
+        var helper = TestUtils.TestsPath + "chapter_13/helper_libs/nan.c";
+        foreach (var file in files)
+            TestUtils.TestExecuteValidSpecial(file, helper, CompilerDriver.Optimizations.FoldConstants);
     }
 
     [TestMethod]
@@ -44,7 +55,7 @@ public class TestChapter19
     public void TestExecuteConstantFoldingIntOnly()
     {
         var files = Directory.GetFiles(TestUtils.TestsPath + chapter + "constant_folding/int_only").Where(a => a.EndsWith(".c"));
-        TestUtils.TestExecuteValid(files);
+        TestUtils.TestExecuteValid(files, CompilerDriver.Optimizations.FoldConstants);
     }
 
     [TestMethod]
@@ -58,7 +69,7 @@ public class TestChapter19
     public void TestExecuteConstantFoldingIntOnlyExtraCredit()
     {
         var files = Directory.GetFiles(TestUtils.TestsPath + chapter + "constant_folding/int_only/extra_credit").Where(a => a.EndsWith(".c"));
-        TestUtils.TestExecuteValid(files);
+        TestUtils.TestExecuteValid(files, CompilerDriver.Optimizations.FoldConstants);
     }
 
     [TestMethod]
@@ -72,7 +83,7 @@ public class TestChapter19
     public void TestExecuteCopyPropagationAllTypes()
     {
         var files = Directory.GetFiles(TestUtils.TestsPath + chapter + "copy_propagation/all_types").Where(a => a.EndsWith(".c"));
-        TestUtils.TestExecuteValid(files);
+        TestUtils.TestExecuteValid(files, CompilerDriver.Optimizations.PropagateCopies);
     }
 
     [TestMethod]
@@ -86,7 +97,7 @@ public class TestChapter19
     public void TestExecuteCopyPropagationAllTypesDontPropagate()
     {
         var files = Directory.GetFiles(TestUtils.TestsPath + chapter + "copy_propagation/all_types/dont_propagate").Where(a => a.EndsWith(".c"));
-        TestUtils.TestExecuteValid(files);
+        TestUtils.TestExecuteValid(files, CompilerDriver.Optimizations.PropagateCopies);
     }
 
     [TestMethod]
@@ -100,7 +111,7 @@ public class TestChapter19
     public void TestExecuteCopyPropagationAllTypesExtraCredit()
     {
         var files = Directory.GetFiles(TestUtils.TestsPath + chapter + "copy_propagation/all_types/extra_credit").Where(a => a.EndsWith(".c"));
-        TestUtils.TestExecuteValid(files);
+        TestUtils.TestExecuteValid(files, CompilerDriver.Optimizations.PropagateCopies);
     }
 
     [TestMethod]
@@ -114,7 +125,7 @@ public class TestChapter19
     public void TestExecuteCopyPropagationAllTypesExtraCreditDontPropagate()
     {
         var files = Directory.GetFiles(TestUtils.TestsPath + chapter + "copy_propagation/all_types/extra_credit/dont_propagate").Where(a => a.EndsWith(".c"));
-        TestUtils.TestExecuteValid(files);
+        TestUtils.TestExecuteValid(files, CompilerDriver.Optimizations.PropagateCopies);
     }
 
     [TestMethod]
@@ -128,7 +139,7 @@ public class TestChapter19
     public void TestExecuteCopyPropagationIntOnly()
     {
         var files = Directory.GetFiles(TestUtils.TestsPath + chapter + "copy_propagation/int_only").Where(a => a.EndsWith(".c"));
-        TestUtils.TestExecuteValid(files);
+        TestUtils.TestExecuteValid(files, CompilerDriver.Optimizations.PropagateCopies);
     }
 
     [TestMethod]
@@ -142,7 +153,7 @@ public class TestChapter19
     public void TestExecuteCopyPropagationIntOnlyDontPropagate()
     {
         var files = Directory.GetFiles(TestUtils.TestsPath + chapter + "copy_propagation/int_only/dont_propagate").Where(a => a.EndsWith(".c"));
-        TestUtils.TestExecuteValid(files);
+        TestUtils.TestExecuteValid(files, CompilerDriver.Optimizations.PropagateCopies);
     }
 
     [TestMethod]
@@ -156,7 +167,7 @@ public class TestChapter19
     public void TestExecuteCopyPropagationIntOnlyExtraCredit()
     {
         var files = Directory.GetFiles(TestUtils.TestsPath + chapter + "copy_propagation/int_only/extra_credit").Where(a => a.EndsWith(".c"));
-        TestUtils.TestExecuteValid(files);
+        TestUtils.TestExecuteValid(files, CompilerDriver.Optimizations.PropagateCopies);
     }
 
     [TestMethod]
@@ -170,7 +181,7 @@ public class TestChapter19
     public void TestExecuteCopyPropagationIntOnlyExtraCreditDontPropagate()
     {
         var files = Directory.GetFiles(TestUtils.TestsPath + chapter + "copy_propagation/int_only/extra_credit/dont_propagate").Where(a => a.EndsWith(".c"));
-        TestUtils.TestExecuteValid(files);
+        TestUtils.TestExecuteValid(files, CompilerDriver.Optimizations.PropagateCopies);
     }
 
     [TestMethod]
@@ -184,7 +195,7 @@ public class TestChapter19
     public void TestExecuteDeadStoreEliminationAllTypes()
     {
         var files = Directory.GetFiles(TestUtils.TestsPath + chapter + "dead_store_elimination/all_types").Where(a => a.EndsWith(".c"));
-        TestUtils.TestExecuteValid(files);
+        TestUtils.TestExecuteValid(files, CompilerDriver.Optimizations.EliminateDeadStores);
     }
 
     [TestMethod]
@@ -198,7 +209,7 @@ public class TestChapter19
     public void TestExecuteDeadStoreEliminationAllTypesDontElim()
     {
         var files = Directory.GetFiles(TestUtils.TestsPath + chapter + "dead_store_elimination/all_types/dont_elim").Where(a => a.EndsWith(".c"));
-        TestUtils.TestExecuteValid(files);
+        TestUtils.TestExecuteValid(files, CompilerDriver.Optimizations.EliminateDeadStores);
     }
 
     [TestMethod]
@@ -212,7 +223,7 @@ public class TestChapter19
     public void TestExecuteDeadStoreEliminationAllTypesExtraCredit()
     {
         var files = Directory.GetFiles(TestUtils.TestsPath + chapter + "dead_store_elimination/all_types/extra_credit").Where(a => a.EndsWith(".c"));
-        TestUtils.TestExecuteValid(files);
+        TestUtils.TestExecuteValid(files, CompilerDriver.Optimizations.EliminateDeadStores);
     }
 
     [TestMethod]
@@ -226,7 +237,7 @@ public class TestChapter19
     public void TestExecuteDeadStoreEliminationAllTypesExtraCreditDontElim()
     {
         var files = Directory.GetFiles(TestUtils.TestsPath + chapter + "dead_store_elimination/all_types/extra_credit/dont_elim").Where(a => a.EndsWith(".c"));
-        TestUtils.TestExecuteValid(files);
+        TestUtils.TestExecuteValid(files, CompilerDriver.Optimizations.EliminateDeadStores);
     }
 
     [TestMethod]
@@ -241,7 +252,7 @@ public class TestChapter19
     {
         var files = Directory.GetFiles(TestUtils.TestsPath + chapter + "dead_store_elimination/int_only")
             .Where(a => a.EndsWith(".c") && !a.Contains("not_always_live"));
-        TestUtils.TestExecuteValid(files);
+        TestUtils.TestExecuteValid(files, CompilerDriver.Optimizations.EliminateDeadStores);
 
         // todo: add test case for static_not_always_live
     }
@@ -257,7 +268,7 @@ public class TestChapter19
     public void TestExecuteDeadStoreEliminationIntOnlyDontElim()
     {
         var files = Directory.GetFiles(TestUtils.TestsPath + chapter + "dead_store_elimination/int_only/dont_elim").Where(a => a.EndsWith(".c"));
-        TestUtils.TestExecuteValid(files);
+        TestUtils.TestExecuteValid(files, CompilerDriver.Optimizations.EliminateDeadStores);
     }
 
     [TestMethod]
@@ -271,7 +282,7 @@ public class TestChapter19
     public void TestExecuteDeadStoreEliminationIntOnlyExtraCredit()
     {
         var files = Directory.GetFiles(TestUtils.TestsPath + chapter + "dead_store_elimination/int_only/extra_credit").Where(a => a.EndsWith(".c"));
-        TestUtils.TestExecuteValid(files);
+        TestUtils.TestExecuteValid(files, CompilerDriver.Optimizations.EliminateDeadStores);
     }
 
     [TestMethod]
@@ -285,7 +296,7 @@ public class TestChapter19
     public void TestExecuteDeadStoreEliminationIntOnlyExtraCreditDontElim()
     {
         var files = Directory.GetFiles(TestUtils.TestsPath + chapter + "dead_store_elimination/int_only/extra_credit/dont_elim").Where(a => a.EndsWith(".c"));
-        TestUtils.TestExecuteValid(files);
+        TestUtils.TestExecuteValid(files, CompilerDriver.Optimizations.EliminateDeadStores);
     }
 
     [TestMethod]
@@ -314,7 +325,7 @@ public class TestChapter19
     {
         var files = Directory.GetFiles(TestUtils.TestsPath + chapter + "unreachable_code_elimination")
             .Where(a => a.EndsWith(".c") && !a.Contains("infinite_loop"));
-        TestUtils.TestExecuteValid(files);
+        TestUtils.TestExecuteValid(files, CompilerDriver.Optimizations.EliminateUnreachableCode);
 
         // todo: add test case for infinite_loop
     }
@@ -330,7 +341,7 @@ public class TestChapter19
     public void TestExecuteUnreachableCodeEliminationExtraCredit()
     {
         var files = Directory.GetFiles(TestUtils.TestsPath + chapter + "unreachable_code_elimination/extra_credit").Where(a => a.EndsWith(".c"));
-        TestUtils.TestExecuteValid(files);
+        TestUtils.TestExecuteValid(files, CompilerDriver.Optimizations.EliminateUnreachableCode);
     }
 
     [TestMethod]
@@ -344,7 +355,7 @@ public class TestChapter19
     public void TestExecuteWholePipelineAllTypes()
     {
         var files = Directory.GetFiles(TestUtils.TestsPath + chapter + "whole_pipeline/all_types").Where(a => a.EndsWith(".c"));
-        TestUtils.TestExecuteValid(files);
+        TestUtils.TestExecuteValid(files, CompilerDriver.Optimizations.All);
     }
 
     [TestMethod]
@@ -358,7 +369,7 @@ public class TestChapter19
     public void TestExecuteWholePipelineAllTypesExtraCredit()
     {
         var files = Directory.GetFiles(TestUtils.TestsPath + chapter + "whole_pipeline/all_types/extra_credit").Where(a => a.EndsWith(".c"));
-        TestUtils.TestExecuteValid(files);
+        TestUtils.TestExecuteValid(files, CompilerDriver.Optimizations.All);
     }
 
     [TestMethod]
@@ -372,7 +383,7 @@ public class TestChapter19
     public void TestExecuteWholePipelineIntOnly()
     {
         var files = Directory.GetFiles(TestUtils.TestsPath + chapter + "whole_pipeline/int_only").Where(a => a.EndsWith(".c"));
-        TestUtils.TestExecuteValid(files);
+        TestUtils.TestExecuteValid(files, CompilerDriver.Optimizations.All);
     }
 
     [TestMethod]
@@ -386,6 +397,6 @@ public class TestChapter19
     public void TestExecuteWholePipelineIntOnlyExtraCredit()
     {
         var files = Directory.GetFiles(TestUtils.TestsPath + chapter + "whole_pipeline/int_only/extra_credit").Where(a => a.EndsWith(".c"));
-        TestUtils.TestExecuteValid(files);
+        TestUtils.TestExecuteValid(files, CompilerDriver.Optimizations.All);
     }
 }

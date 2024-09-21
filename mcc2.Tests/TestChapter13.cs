@@ -167,7 +167,7 @@ public class TestChapter13
         TestUtils.TestExecuteValid(files);
 
         var special = TestUtils.TestsPath + "chapter_13/valid/function_calls/standard_library_call.c";
-        TestUtils.TestExecuteValid(files, "-lm");   // link math library
+        TestUtils.TestExecuteValid(files, CompilerDriver.Optimizations.None ,"-lm");   // link math library
     }
 
     [TestMethod]
