@@ -656,9 +656,6 @@ public class TypeChecker
                 var typeThen = GetType(typedThen);
                 var typeElse = GetType(typedElse);
 
-
-
-
                 Type? common;
                 if (typeThen is Type.Void && typeElse is Type.Void)
                     common = new Type.Void();
