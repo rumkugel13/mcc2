@@ -360,6 +360,14 @@ public class PrettyPrinter
                 PrintLine($"member=\"{arrow.Member}\"", indent + 1);
                 PrintLine(")", indent);
                 break;
+            case Expression.CompoundAssignment com:
+                PrintLine($"CompoundAssignment(", indent);
+                PrintLine($"operator={com.Operator}", indent + 1);
+                PrintExpression(com.Left, indent + 2);
+                PrintLine($"Equals(", indent + 2);
+                PrintExpression(com.Right, indent + 3);
+                PrintEndLine(3, indent);
+                break;
             case Expression.PostfixIncrement inc:
                 PrintLine($"PostfixIncrement(", indent);
                 PrintExpression(inc.Expression, indent + 1);
