@@ -254,7 +254,9 @@ public class TestChapter19
             .Where(a => a.EndsWith(".c") && !a.Contains("not_always_live"));
         TestUtils.TestExecuteValid(files, CompilerDriver.Optimizations.EliminateDeadStores);
 
-        // todo: add test case for static_not_always_live
+        var test = TestUtils.TestsPath + chapter + "dead_store_elimination/int_only/static_not_always_live.c";
+        var helper = TestUtils.TestsPath + chapter + "helper_libs/exit.c";
+        TestUtils.TestExecuteValidSpecial(test, helper, CompilerDriver.Optimizations.EliminateDeadStores);
     }
 
     [TestMethod]
@@ -300,20 +302,6 @@ public class TestChapter19
     }
 
     [TestMethod]
-    public void TestCompileHelperLibs()
-    {
-        var files = Directory.GetFiles(TestUtils.TestsPath + chapter + "helper_libs").Where(a => a.EndsWith(".c"));
-        TestUtils.TestCompileValid(files);
-    }
-
-    [TestMethod]
-    public void TestExecuteHelperLibs()
-    {
-        var files = Directory.GetFiles(TestUtils.TestsPath + chapter + "helper_libs").Where(a => a.EndsWith(".c"));
-        TestUtils.TestExecuteValid(files);
-    }
-
-    [TestMethod]
     public void TestCompileUnreachableCodeElimination()
     {
         var files = Directory.GetFiles(TestUtils.TestsPath + chapter + "unreachable_code_elimination").Where(a => a.EndsWith(".c"));
@@ -327,7 +315,9 @@ public class TestChapter19
             .Where(a => a.EndsWith(".c") && !a.Contains("infinite_loop"));
         TestUtils.TestExecuteValid(files, CompilerDriver.Optimizations.EliminateUnreachableCode);
 
-        // todo: add test case for infinite_loop
+        var test = TestUtils.TestsPath + chapter + "unreachable_code_elimination/infinite_loop.c";
+        var helper = TestUtils.TestsPath + chapter + "helper_libs/exit.c";
+        TestUtils.TestExecuteValidSpecial(test, helper, CompilerDriver.Optimizations.EliminateUnreachableCode);
     }
 
     [TestMethod]

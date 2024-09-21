@@ -62,7 +62,6 @@ public class TestChapter09
     [TestMethod]
     public void TestCompileValidLibraries()
     {
-        // todo: properly use multiple files
         var files = Directory.GetFiles(TestUtils.TestsPath + "chapter_9/valid/libraries").Where(a => a.EndsWith(".c"));
         TestUtils.TestCompileValid(files);
     }
@@ -70,7 +69,6 @@ public class TestChapter09
     [TestMethod]
     public void TestCompileValidLibrariesNoFunctionCalls()
     {
-        // todo: properly use multiple files
         var files = Directory.GetFiles(TestUtils.TestsPath + "chapter_9/valid/libraries/no_function_calls").Where(a => a.EndsWith(".c"));
         TestUtils.TestCompileValid(files);
     }

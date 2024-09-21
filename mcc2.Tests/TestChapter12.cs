@@ -55,7 +55,6 @@ public class TestChapter12
     [TestMethod]
     public void TestCompileValidLibraries()
     {
-        // todo: properly use multiple files
         var files = Directory.GetFiles(TestUtils.TestsPath + "chapter_12/valid/libraries").Where(a => a.EndsWith(".c"));
         TestUtils.TestCompileValid(files);
     }
