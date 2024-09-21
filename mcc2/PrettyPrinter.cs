@@ -1,3 +1,4 @@
+using System.Text;
 using mcc2.AST;
 
 namespace mcc2;
@@ -6,16 +7,19 @@ public class PrettyPrinter
 {
     Dictionary<string, SemanticAnalyzer.SymbolEntry> symbolTable;
     Dictionary<string, SemanticAnalyzer.StructEntry> typeTable;
+    StringBuilder stringBuilder;
 
     public PrettyPrinter(Dictionary<string, SemanticAnalyzer.SymbolEntry> symbolTable, Dictionary<string, SemanticAnalyzer.StructEntry> typeTable)
     {
         this.symbolTable = symbolTable;
         this.typeTable = typeTable;
+        this.stringBuilder = new StringBuilder();
     }
 
     public void Print(ASTProgram program)
     {
         PrintProgram(program, 0);
+        Console.Write(stringBuilder.ToString());
     }
 
     private void PrintProgram(ASTProgram program, int indent)
@@ -385,11 +389,11 @@ public class PrettyPrinter
 
     private void PrintLine(string line, int indent)
     {
-        Console.WriteLine($"{string.Concat(Enumerable.Repeat("|   ", indent))}{line}");
+        stringBuilder.AppendLine($"{string.Concat(Enumerable.Repeat("|   ", indent))}{line}");
     }
 
     private void PrintEndLine(int amount, int indent)
     {
-        Console.WriteLine($"{string.Concat(Enumerable.Repeat("|   ", indent))}{string.Concat(Enumerable.Repeat(")   ", amount))}");
+        stringBuilder.AppendLine($"{string.Concat(Enumerable.Repeat("|   ", indent))}{string.Concat(Enumerable.Repeat(")   ", amount))}");
     }
 }
