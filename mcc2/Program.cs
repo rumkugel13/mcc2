@@ -91,7 +91,7 @@ namespace mcc2
                         return 2;
                     }
 
-                    if (!file.EndsWith(".c"))
+                    if (!(file[^2..] == ".c"))
                     {
                         Console.WriteLine("Not a C source File");
                         return 3;
