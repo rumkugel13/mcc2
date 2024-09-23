@@ -2,7 +2,7 @@ using System.Text.RegularExpressions;
 
 namespace mcc2
 {
-    public class Lexer
+    public partial class Lexer
     {
         public struct Token
         {
@@ -91,134 +91,297 @@ namespace mcc2
             DoubleGreaterThanEquals,
         }
 
-        // note: pattern order needs to match tokentype order
-        private readonly Regex[] patterns = [
-            new Regex("\\G[a-zA-Z_]\\w*\\b"),
+        private readonly Regex[] numberPatterns = [
             new Regex(@"\G([0-9]+)(?![\w.])"),
             new Regex(@"\G([0-9]+[lL])(?![\w.])"),
             new Regex(@"\G([0-9]+[uU])(?![\w.])"),
             new Regex(@"\G([0-9]+([lL][uU]|[uU][lL]))(?![\w.])"),
             new Regex(@"\G(([0-9]*\.[0-9]+|[0-9]+\.?)[Ee][+-]?[0-9]+|[0-9]*\.[0-9]+|[0-9]+\.)(?![\w.])"),
-            new Regex(
-            """
-            \G'([^'\\\n]|\\['"?\\abfnrtv])'
-            """
-            ),
-            new Regex(
-            """
-            \G"([^"\\\n]|\\['"\\?abfnrtv])*"
-            """
-            ),
-            new Regex("\\Gint\\b"),
-            new Regex("\\Gvoid\\b"),
-            new Regex("\\Greturn\\b"),
-            new Regex("\\Gif\\b"),
-            new Regex("\\Gelse\\b"),
-            new Regex("\\Gdo\\b"),
-            new Regex("\\Gwhile\\b"),
-            new Regex("\\Gfor\\b"),
-            new Regex("\\Gbreak\\b"),
-            new Regex("\\Gcontinue\\b"),
-            new Regex("\\Gstatic\\b"),
-            new Regex("\\Gextern\\b"),
-            new Regex("\\Glong\\b"),
-            new Regex("\\Gsigned\\b"),
-            new Regex("\\Gunsigned\\b"),
-            new Regex("\\Gdouble\\b"),
-            new Regex("\\Gchar\\b"),
-            new Regex("\\Gsizeof\\b"),
-            new Regex("\\Gstruct\\b"),
-            new Regex("\\Ggoto\\b"),
-            new Regex("\\Gswitch\\b"),
-            new Regex("\\Gcase\\b"),
-            new Regex("\\Gdefault\\b"),
-            new Regex("\\G--"),
-            new Regex("\\G\\+\\+"),
-            new Regex("\\G&&"),
-            new Regex("\\G\\|\\|"),
-            new Regex("\\G=="),
-            new Regex("\\G!="),
-            new Regex("\\G<="),
-            new Regex("\\G>="),
-            new Regex("\\G<<"),
-            new Regex("\\G>>"),
-            new Regex("\\G\\("),
-            new Regex("\\G\\)"),
-            new Regex("\\G{"),
-            new Regex("\\G}"),
-            new Regex("\\G;"),
-            new Regex("\\G-"),
-            new Regex("\\G~"),
-            new Regex("\\G\\+"),
-            new Regex("\\G\\*"),
-            new Regex("\\G\\/"),
-            new Regex("\\G%"),
-            new Regex("\\G!"),
-            new Regex("\\G<"),
-            new Regex("\\G>"),
-            new Regex("\\G="),
-            new Regex("\\G\\?"),
-            new Regex("\\G:"),
-            new Regex("\\G,"),
-            new Regex("\\G&"),
-            new Regex("\\G\\["),
-            new Regex("\\G\\]"),
-            new Regex("\\G\\.(?![0-9])"),
-            new Regex("\\G->"),
-            new Regex("\\G\\|"),
-            new Regex("\\G\\^"),
-            new Regex("\\G\\+="),
-            new Regex("\\G-="),
-            new Regex("\\G\\*="),
-            new Regex("\\G/="),
-            new Regex("\\G%="),
-            new Regex("\\G&="),
-            new Regex("\\G\\|="),
-            new Regex("\\G\\^="),
-            new Regex("\\G<<="),
-            new Regex("\\G>>="),
         ];
 
-        public List<Token> Lex(string source)
+        private readonly Regex charPattern = CharRegex();
+
+        private readonly Regex stringPattern = StringRegex();
+
+        private readonly Dictionary<string, TokenType> keywords = new(){
+            { "int", TokenType.IntKeyword },
+            { "void", TokenType.VoidKeyword },
+            { "return", TokenType.ReturnKeyword },
+            { "if", TokenType.IfKeyword },
+            { "else", TokenType.ElseKeyword },
+            { "do", TokenType.DoKeyword },
+            { "while", TokenType.WhileKeyword },
+            { "for", TokenType.ForKeyword },
+            { "break", TokenType.BreakKeyword },
+            { "continue", TokenType.ContinueKeyword },
+            { "static", TokenType.StaticKeyword },
+            { "extern", TokenType.ExternKeyword },
+            { "long", TokenType.LongKeyword },
+            { "signed", TokenType.SignedKeyword },
+            { "unsigned", TokenType.UnsignedKeyword },
+            { "double", TokenType.DoubleKeyword },
+            { "char", TokenType.CharKeyword },
+            { "sizeof", TokenType.SizeofKeyword },
+            { "struct", TokenType.StructKeyword },
+            { "goto", TokenType.GotoKeyword },
+            { "switch", TokenType.SwitchKeyword },
+            { "case", TokenType.CaseKeyword },
+            { "default", TokenType.DefaultKeyword },
+        };
+
+        private readonly string source;
+        private int pos, line;
+
+        public Lexer(string source)
+        {
+            this.source = source;
+            pos = 0;
+            line = 1;
+        }
+
+        public List<Token> Lex()
         {
             List<Token> tokens = [];
-            int pos = 0;
-            int line = 0;
 
-            while (pos < source.Length)
+            while (HasMoreTokens())
             {
-                if (char.IsWhiteSpace(source[pos]))
+                var token = source[pos++];
+                if (char.IsWhiteSpace(token))
                 {
-                    if (source[pos] == '\n')
+                    if (token == '\n')
                         line++;
-                    pos++;
                     continue;
                 }
 
-                int maxLength = 0;
-                int longestPattern = 0;
-
-                for (int i = 0; i < patterns.Length; i++)
+                TokenType tokenType;
+                int start = pos - 1;
+                switch (token)
                 {
-                    Match match = patterns[i].Match(source, pos);
-                    // note: >= matches keywords of the same length as identifiers afterwards
-                    if (match.Success && match.Length >= maxLength)
-                    {
-                        maxLength = match.Length;
-                        longestPattern = i;
-                    }
+                    case ';': tokenType = TokenType.Semicolon; break;
+                    case '(': tokenType = TokenType.OpenParenthesis; break;
+                    case ')': tokenType = TokenType.CloseParenthesis; break;
+                    case '{': tokenType = TokenType.OpenBrace; break;
+                    case '}': tokenType = TokenType.CloseBrace; break;
+                    case '[': tokenType = TokenType.OpenBracket; break;
+                    case ']': tokenType = TokenType.CloseBracket; break;
+                    case ',': tokenType = TokenType.Comma; break;
+                    case ':': tokenType = TokenType.Colon; break;
+                    case '?': tokenType = TokenType.Question; break;
+                    case '~': tokenType = TokenType.Tilde; break;
+                    case '+':
+                        if (Match('+'))
+                            tokenType = TokenType.DoublePlus;
+                        else if (Match('='))
+                            tokenType = TokenType.PlusEquals;
+                        else
+                            tokenType = TokenType.Plus;
+                        break;
+                    case '-':
+                        if (Match('-'))
+                            tokenType = TokenType.DoubleHyphen;
+                        else if (Match('='))
+                            tokenType = TokenType.HyphenEquals;
+                        else
+                            tokenType = TokenType.Hyphen;
+                        break;
+                    case '*':
+                        if (Match('='))
+                            tokenType = TokenType.AsteriskEquals;
+                        else
+                            tokenType = TokenType.Asterisk;
+                        break;
+                    case '/':
+                        if (Match('='))
+                            tokenType = TokenType.ForwardSlashEquals;
+                        else
+                            tokenType = TokenType.ForwardSlash;
+                        break;
+                    case '%':
+                        if (Match('='))
+                            tokenType = TokenType.PercentEquals;
+                        else
+                            tokenType = TokenType.Percent;
+                        break;
+                    case '&':
+                        if (Match('&'))
+                            tokenType = TokenType.DoubleAmpersand;
+                        else if (Match('='))
+                            tokenType = TokenType.AmpersandEquals;
+                        else
+                            tokenType = TokenType.Ampersand;
+                        break;
+                    case '|':
+                        if (Match('|'))
+                            tokenType = TokenType.DoubleVertical;
+                        else if (Match('='))
+                            tokenType = TokenType.VerticalEquals;
+                        else
+                            tokenType = TokenType.Vertical;
+                        break;
+                    case '^':
+                        if (Match('='))
+                            tokenType = TokenType.CaretEquals;
+                        else
+                            tokenType = TokenType.Caret;
+                        break;
+                    case '<':
+                        if (Match('<'))
+                        {
+                            if (Match('='))
+                                tokenType = TokenType.DoubleLessThanEquals;
+                            else
+                                tokenType = TokenType.DoubleLessThan;
+                        }
+                        else if (Match('='))
+                            tokenType = TokenType.LessThanEquals;
+                        else
+                            tokenType = TokenType.LessThan;
+                        break;
+                    case '>':
+                        if (Match('>'))
+                        {
+                            if (Match('='))
+                                tokenType = TokenType.DoubleGreaterThanEquals;
+                            else
+                                tokenType = TokenType.DoubleGreaterThan;
+                        }
+                        else if (Match('='))
+                            tokenType = TokenType.GreaterThanEquals;
+                        else
+                            tokenType = TokenType.GreaterThan;
+                        break;
+                    case '!':
+                        if (Match('='))
+                            tokenType = TokenType.ExclamationEquals;
+                        else
+                            tokenType = TokenType.Exclamation;
+                        break;
+                    case '=':
+                        if (Match('='))
+                            tokenType = TokenType.DoubleEquals;
+                        else
+                            tokenType = TokenType.Equals;
+                        break;
+                    case '.':
+                        if (char.IsAsciiDigit(Peek()))
+                            tokenType = Number(start);
+                        else
+                            tokenType = TokenType.Period;
+                        break;
+                    case '\'':
+                        tokenType = Character(start);
+                        break;
+                    case '\"':
+                        tokenType = StringLiteral(start);
+                        break;
+                    default:
+                        if (char.IsAsciiDigit(token))
+                            tokenType = Number(start);
+                        else if (char.IsAsciiLetter(token) || token == '_')
+                            tokenType = KeywordOrIdentifier(start);
+                        else
+                            throw LexError($"Invalid Token: {token} at line {line}");
+                        break;
                 }
 
-                if (maxLength == 0)
-                {
-                    throw new Exception($"Lexing Error: Invalid Token: {source[pos]} at line {line}");
-                }
-
-                tokens.Add(new Token() { Type = (TokenType)longestPattern, Position = pos, End = pos + maxLength });
-                pos += maxLength;
+                tokens.Add(new Token() { Type = tokenType, Position = start, End = pos });
             }
 
             return tokens;
         }
+
+        private TokenType KeywordOrIdentifier(int start)
+        {
+            while (HasMoreTokens() && (char.IsAsciiLetterOrDigit(source[pos]) || source[pos] == '_'))
+                pos++;
+
+            if (keywords.TryGetValue(source[start..pos], out TokenType keyword))
+                return keyword;
+            else
+                return TokenType.Identifier;
+        }
+
+        private TokenType Number(int start)
+        {
+            int maxLength = 0;
+            int longestPattern = 0;
+
+            for (int i = 0; i < numberPatterns.Length; i++)
+            {
+                Match match = numberPatterns[i].Match(source, start);
+                if (match.Success && match.Length >= maxLength)
+                {
+                    maxLength = match.Length;
+                    longestPattern = i;
+                }
+            }
+
+            if (maxLength == 0)
+                throw LexError($"Invalid Number constant at line {line}");
+
+            pos += maxLength - 1;
+            return (TokenType)longestPattern + (int)TokenType.IntConstant;
+        }
+
+        private TokenType Character(int start)
+        {
+            Match match = charPattern.Match(source, start);
+            if (!match.Success)
+                throw LexError($"Invalid Character constant at line {line}");
+            pos += match.Length - 1;
+            return TokenType.CharacterConstant;
+        }
+
+        private TokenType StringLiteral(int start)
+        {
+            Match match = stringPattern.Match(source, start);
+            if (!match.Success)
+                throw LexError($"Invalid String literal at line {line}");
+            pos += match.Length - 1;
+            return TokenType.StringLiteral;
+        }
+
+        private bool HasMoreTokens()
+        {
+            return pos < source.Length;
+        }
+
+        private bool Match(char token)
+        {
+            if (Peek() == token)
+            {
+                pos++;
+                return true;
+            }
+
+            return false;
+        }
+
+        private char Peek()
+        {
+            if (HasMoreTokens())
+            {
+                return source[pos];
+            }
+
+            return '\0';
+        }
+
+        private Exception LexError(string message)
+        {
+            return new Exception("Lexing Error: " + message);
+        }
+
+        [GeneratedRegex("""
+            \G'([^'\\\n]|\\['"?\\abfnrtv])'
+            """
+        )]
+        private static partial Regex CharRegex();
+        
+        [GeneratedRegex("""
+            \G"([^"\\\n]|\\['"\\?abfnrtv])*"
+            """
+        )]
+        private static partial Regex StringRegex();
     }
 }

@@ -33,8 +33,8 @@ public class TestReturn2
     [TestMethod]
     public void TestLexerReturn2()
     {
-        Lexer lexer = new Lexer();
-        var list = lexer.Lex(return2Source);
+        Lexer lexer = new Lexer(return2Source);
+        var list = lexer.Lex();
 
         Assert.IsTrue(list.Count == 10, "Invalid number of tokens produced");
 

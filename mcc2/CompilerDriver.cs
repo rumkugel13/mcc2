@@ -59,7 +59,7 @@ namespace mcc2
             if (compilerOptions.Stages < Stages.Lex)
                 return output;
 
-            List<Lexer.Token> tokenList = new Lexer().Lex(source);
+            List<Lexer.Token> tokenList = new Lexer(source).Lex();
 
             if (compilerOptions.Stages < Stages.Parse)
                 return output;

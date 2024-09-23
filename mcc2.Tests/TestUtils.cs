@@ -8,10 +8,10 @@ public static class TestUtils
 
     internal static bool TestLex(string file)
     {
-        Lexer lexer = new Lexer();
+        Lexer lexer = new Lexer(File.ReadAllText(file));
         try
         {
-            lexer.Lex(File.ReadAllText(file));
+            lexer.Lex();
         }
         catch (Exception e)
         {
@@ -35,11 +35,11 @@ public static class TestUtils
     internal static bool TestParse(string file)
     {
         string source = File.ReadAllText(file);
-        Lexer lexer = new Lexer();
+        Lexer lexer = new Lexer(source);
         List<Lexer.Token> tokens = [];
         try
         {
-            tokens = lexer.Lex(source);
+            tokens = lexer.Lex();
         }
         catch (Exception e)
         {
@@ -75,11 +75,11 @@ public static class TestUtils
     internal static bool TestSemantics(string file)
     {
         string source = File.ReadAllText(file);
-        Lexer lexer = new Lexer();
+        Lexer lexer = new Lexer(source);
         List<Lexer.Token> tokens = [];
         try
         {
-            tokens = lexer.Lex(source);
+            tokens = lexer.Lex();
         }
         catch (Exception e)
         {
