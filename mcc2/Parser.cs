@@ -100,48 +100,58 @@ public class Parser
 
     private Type ParseType(List<Token> types)
     {
-        if (types.Count == 0 ||
-            (types.Select(a => a.Type).Distinct().Count() != types.Count) ||
-            (Contains(types, Lexer.TokenType.SignedKeyword) && Contains(types, Lexer.TokenType.UnsignedKeyword)))
+        if (types.Count == 0)
+            throw ParseError("Empty type specifier");
+
+        var typeSet = new HashSet<Lexer.TokenType>(types.Select(t => t.Type));
+
+        if (typeSet.Count != types.Count ||
+            (typeSet.Contains(Lexer.TokenType.SignedKeyword) && typeSet.Contains(Lexer.TokenType.UnsignedKeyword)))
             throw ParseError("Invalid type specifier");
 
-        if (types.Count == 1 && types[0].Type == Lexer.TokenType.Identifier)
-            return new Type.Structure(GetIdentifier(types[0], source));
-        if (types.Count > 1 && Contains(types, Lexer.TokenType.Identifier))
+        if (typeSet.Contains(Lexer.TokenType.Identifier))
+        {
+            if (types.Count == 1)
+                return new Type.Structure(GetIdentifier(types[0], source));
             throw ParseError("Can't combine struct with other type specifiers");
+        }
 
-        if (types.Count == 1 && types[0].Type == Lexer.TokenType.VoidKeyword)
-            return new Type.Void();
-        if (types.Count > 1 && Contains(types, Lexer.TokenType.VoidKeyword))
+        if (typeSet.Contains(Lexer.TokenType.VoidKeyword))
+        {
+            if (types.Count == 1)
+                return new Type.Void();
             throw ParseError("Can't combine void with other type specifiers");
+        }
 
-        if (types.Count == 1 && types[0].Type == Lexer.TokenType.DoubleKeyword)
-            return new Type.Double();
-        if (types.Count > 1 && Contains(types, Lexer.TokenType.DoubleKeyword))
+        if (typeSet.Contains(Lexer.TokenType.DoubleKeyword))
+        {
+            if (types.Count == 1)
+                return new Type.Double();
             throw ParseError("Can't combine double with other type specifiers");
+        }
 
-        if (types.Count == 1 && types[0].Type == Lexer.TokenType.CharKeyword)
-            return new Type.Char();
-        if (types.Count == 2 && Contains(types, Lexer.TokenType.CharKeyword) && Contains(types, Lexer.TokenType.SignedKeyword))
-            return new Type.SChar();
-        if (types.Count == 2 && Contains(types, Lexer.TokenType.CharKeyword) && Contains(types, Lexer.TokenType.UnsignedKeyword))
-            return new Type.UChar();
-        if (Contains(types, Lexer.TokenType.CharKeyword))
+        if (typeSet.Contains(Lexer.TokenType.CharKeyword))
+        {
+            if (types.Count == 1)
+                return new Type.Char();
+            if (types.Count == 2 && typeSet.Contains(Lexer.TokenType.SignedKeyword))
+                return new Type.SChar();
+            if (types.Count == 2 && typeSet.Contains(Lexer.TokenType.UnsignedKeyword))
+                return new Type.UChar();
             throw ParseError("Cannot combine other types with char");
+        }
 
-        if (Contains(types, Lexer.TokenType.UnsignedKeyword) && Contains(types, Lexer.TokenType.LongKeyword))
-            return new Type.ULong();
-        if (Contains(types, Lexer.TokenType.LongKeyword))
-            return new Type.Long();
-        if (Contains(types, Lexer.TokenType.UnsignedKeyword))
+        if (typeSet.Contains(Lexer.TokenType.UnsignedKeyword))
+        {
+            if (typeSet.Contains(Lexer.TokenType.LongKeyword))
+                return new Type.ULong();
             return new Type.UInt();
+        }
+
+        if (typeSet.Contains(Lexer.TokenType.LongKeyword))
+            return new Type.Long();
 
         return new Type.Int();
-    }
-
-    private bool Contains(List<Token> types, Lexer.TokenType keyword)
-    {
-        return types.Any(a => a.Type == keyword);
     }
 
     private (Type Type, Declaration.StorageClasses? StorageClass) ParseTypeAndStorageClass(List<Token> specifiers)
