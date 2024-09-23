@@ -574,31 +574,41 @@ public class RegisterAllocator
                 break;
         }
         
-        var regsRead1 = used.SelectMany<Operand, Operand>(a => a switch
+        List<Operand> operandsRead = [];
+        foreach (var op in used)
         {
-            Operand.Pseudo or Operand.Reg => [a],
-            Operand.Memory mem => [new Operand.Reg(mem.Register)],
-            Operand.Indexed ind => [new Operand.Reg(ind.Base), new Operand.Reg(ind.Index)],
-            _ => []
-        });
-
-        var regsRead2 = updated.SelectMany<Operand, Operand>(a => a switch
+            switch (op)
         {
-            Operand.Pseudo or Operand.Reg => [],
-            Operand.Memory mem => [new Operand.Reg(mem.Register)],
-            Operand.Indexed ind => [new Operand.Reg(ind.Base), new Operand.Reg(ind.Index)],
-            _ => []
-        });
+                case Operand.Pseudo or Operand.Reg:
+                    operandsRead.Add(op);
+                    break;
+                case Operand.Memory mem:
+                    operandsRead.Add(new Operand.Reg(mem.Register));
+                    break;
+                case Operand.Indexed ind:
+                    operandsRead.Add(new Operand.Reg(ind.Base));
+                    operandsRead.Add(new Operand.Reg(ind.Index));
+                    break;
+            }
+        }
 
-        var regsWritten = updated.SelectMany<Operand, Operand>(a => a switch
+        foreach (var op in updated)
         {
-            Operand.Pseudo or Operand.Reg => [a],
-            Operand.Memory mem => [],
-            Operand.Indexed ind => [],
-            _ => []
-        });
+            switch (op)
+            {
+                case Operand.Memory mem:
+                    operandsRead.Add(new Operand.Reg(mem.Register));
+                    break;
+                case Operand.Indexed ind:
+                    operandsRead.Add(new Operand.Reg(ind.Base));
+                    operandsRead.Add(new Operand.Reg(ind.Index));
+                    break;
+            }
+        }
 
-        return (regsRead1.Concat(regsRead2).ToList(), regsWritten.ToList());
+        var operandsWritten = updated.Where(a => a is Operand.Pseudo or Operand.Reg).ToList();
+
+        return (operandsRead, operandsWritten);
     }
 
     private List<Operand> Meet(AssGraph graph, AssNode.BasicBlock block, bool useDoubleRegs)
