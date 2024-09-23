@@ -91,18 +91,6 @@ namespace mcc2
             DoubleGreaterThanEquals,
         }
 
-        private readonly Regex[] numberPatterns = [
-            new Regex(@"\G([0-9]+)(?![\w.])"),
-            new Regex(@"\G([0-9]+[lL])(?![\w.])"),
-            new Regex(@"\G([0-9]+[uU])(?![\w.])"),
-            new Regex(@"\G([0-9]+([lL][uU]|[uU][lL]))(?![\w.])"),
-            new Regex(@"\G(([0-9]*\.[0-9]+|[0-9]+\.?)[Ee][+-]?[0-9]+|[0-9]*\.[0-9]+|[0-9]+\.)(?![\w.])"),
-        ];
-
-        private readonly Regex charPattern = CharRegex();
-
-        private readonly Regex stringPattern = StringRegex();
-
         private readonly Dictionary<string, TokenType> keywords = new(){
             { "int", TokenType.IntKeyword },
             { "void", TokenType.VoidKeyword },
@@ -303,24 +291,43 @@ namespace mcc2
 
         private TokenType Number(int start)
         {
-            int maxLength = 0;
-            int longestPattern = 0;
+            if (source[start] == '.')
+                return DoubleNumber(start);
 
-            for (int i = 0; i < numberPatterns.Length; i++)
-            {
-                Match match = numberPatterns[i].Match(source, start);
-                if (match.Success && match.Length >= maxLength)
-                {
-                    maxLength = match.Length;
-                    longestPattern = i;
-                }
-            }
+            while (HasMoreTokens() && char.IsAsciiDigit(source[pos]))
+                pos++;
 
-            if (maxLength == 0)
+            char next = Peek();
+            if (next == '.' || next == 'e' || next == 'E')
+                return DoubleNumber(start);
+
+            TokenType tokenType = TokenType.IntConstant;
+            if (Match('u') || Match('U'))
+                tokenType = Match('l') || Match('L') ? TokenType.UnsignedLongConstant : TokenType.UnsignedIntConstant;
+            else if (Match('l') || Match('L'))
+                tokenType = Match('u') || Match('U') ? TokenType.UnsignedLongConstant : TokenType.LongConstant;
+
+            next = Peek();
+            if (char.IsAsciiLetter(next) || next == '_')
                 throw LexError($"Invalid Number constant at line {line}");
 
-            pos += maxLength - 1;
-            return (TokenType)longestPattern + (int)TokenType.IntConstant;
+            return tokenType;
+        }
+
+        private readonly Regex doublePattern = DoubleRegex();
+        private readonly Regex charPattern = CharRegex();
+        private readonly Regex stringPattern = StringRegex();
+
+        private TokenType DoubleNumber(int start)
+        {
+            Match match = doublePattern.Match(source, start);
+            if (match.Success)
+            {
+                pos = start + match.Length;
+                return TokenType.DoubleConstant;
+            }
+
+            throw LexError($"Invalid Double constant at line {line}");
         }
 
         private TokenType Character(int start)
@@ -377,11 +384,14 @@ namespace mcc2
             """
         )]
         private static partial Regex CharRegex();
-        
+
         [GeneratedRegex("""
             \G"([^"\\\n]|\\['"\\?abfnrtv])*"
             """
         )]
         private static partial Regex StringRegex();
+        
+        [GeneratedRegex(@"\G(([0-9]*\.[0-9]+|[0-9]+\.?)[Ee][+-]?[0-9]+|[0-9]*\.[0-9]+|[0-9]+\.)(?![\w.])")]
+        private static partial Regex DoubleRegex();
     }
 }
