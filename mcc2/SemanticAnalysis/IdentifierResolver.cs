@@ -428,7 +428,7 @@ public class IdentifierResolver
 
     private Dictionary<string, MapEntry> CopyIdentifierMap(Dictionary<string, MapEntry> identifierMap)
     {
-        Dictionary<string, MapEntry> newMap = [];
+        Dictionary<string, MapEntry> newMap = new(identifierMap.Count);
         foreach (var item in identifierMap)
         {
             newMap.Add(item.Key, new MapEntry() { NewName = item.Value.NewName, FromCurrentScope = false });
@@ -438,7 +438,7 @@ public class IdentifierResolver
 
     private Dictionary<string, StructMapEntry> CopyStructMap(Dictionary<string, StructMapEntry> structMap)
     {
-        Dictionary<string, StructMapEntry> newMap = [];
+        Dictionary<string, StructMapEntry> newMap = new(structMap.Count);
         foreach (var item in structMap)
         {
             newMap.Add(item.Key, new StructMapEntry() { NewName = item.Value.NewName, FromCurrentScope = false });
