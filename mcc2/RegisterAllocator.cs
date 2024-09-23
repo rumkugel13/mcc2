@@ -48,10 +48,10 @@ public class RegisterAllocator
 
     private List<Instruction> AllocateRegs(List<Instruction> instructions, List<TAC.Val.Variable> aliasedVars, bool useDoubleRegs)
     {
-        List<GraphNode> interferenceGraph;
+        Dictionary<Operand, GraphNode> interferenceGraph;
         while (true)
         {
-            interferenceGraph = BuildGraph(instructions, aliasedVars, useDoubleRegs); 
+            interferenceGraph = BuildGraph(instructions, aliasedVars, useDoubleRegs);
             DisjointSets coalescedRegs = Coalesce(interferenceGraph, instructions, useDoubleRegs);
             if (coalescedRegs.NothingWasCoalesced())
                 break;
@@ -122,7 +122,7 @@ public class RegisterAllocator
         return result;
     }
 
-    private DisjointSets Coalesce(List<GraphNode> interferenceGraph, List<Instruction> instructions, bool useDoubleRegs)
+    private DisjointSets Coalesce(Dictionary<Operand, GraphNode> interferenceGraph, List<Instruction> instructions, bool useDoubleRegs)
     {
         DisjointSets coalescedRegs = new DisjointSets();
 
@@ -133,10 +133,10 @@ public class RegisterAllocator
                 var src = coalescedRegs.Find(mov.Src);
                 var dst = coalescedRegs.Find(mov.Dst);
 
-                if (interferenceGraph.Any(a => a.Id == src)
-                    && interferenceGraph.Any(b => b.Id == dst)
+                if (interferenceGraph.TryGetValue(src, out GraphNode? value)
+                    && interferenceGraph.ContainsKey(dst)
                     && src != dst
-                    && !interferenceGraph.Find(c => c.Id == src)!.Neighbors.Contains(dst)
+                    && !value.Neighbors.Contains(dst)
                     && ConservativeCoalesce(interferenceGraph, src, dst, useDoubleRegs))
                 {
                     (Operand toKeep, Operand toMerge) = src is Operand.Reg ? (src, dst) : (dst, src);
@@ -149,7 +149,7 @@ public class RegisterAllocator
         return coalescedRegs;
     }
 
-    private bool ConservativeCoalesce(List<GraphNode> interferenceGraph, Operand src, Operand dst, bool useDoubleRegs)
+    private bool ConservativeCoalesce(Dictionary<Operand, GraphNode> interferenceGraph, Operand src, Operand dst, bool useDoubleRegs)
     {
         if (BriggsTest(interferenceGraph, src, dst, useDoubleRegs))
             return true;
@@ -160,13 +160,13 @@ public class RegisterAllocator
         return false;
     }
 
-    private bool GeorgeTest(List<GraphNode> interferenceGraph, Operand hardReg, Operand pseudoReg, bool useDoubleRegs)
+    private bool GeorgeTest(Dictionary<Operand, GraphNode> interferenceGraph, Operand hardReg, Operand pseudoReg, bool useDoubleRegs)
     {
-        var pseudoNode = interferenceGraph.Find(node => node.Id == pseudoReg)!;
+        var pseudoNode = interferenceGraph[pseudoReg];
         int k = useDoubleRegs ? DoubleRegs.Length : GeneralRegs.Length;
         foreach (var neighbor in pseudoNode.Neighbors)
         {
-            var neighborNode = interferenceGraph.Find(node => node.Id == neighbor)!;
+            var neighborNode = interferenceGraph[neighbor];
             if (neighborNode.Neighbors.Contains(hardReg))
                 continue;
 
@@ -178,18 +178,18 @@ public class RegisterAllocator
         return true;
     }
 
-    private bool BriggsTest(List<GraphNode> interferenceGraph, Operand src, Operand dst, bool useDoubleRegs)
+    private bool BriggsTest(Dictionary<Operand, GraphNode> interferenceGraph, Operand src, Operand dst, bool useDoubleRegs)
     {
         int significandNeighbors = 0;
 
-        var xNode = interferenceGraph.Find(node => node.Id == src)!;
-        var yNode = interferenceGraph.Find(node => node.Id == dst)!;
+        var xNode = interferenceGraph[src];
+        var yNode = interferenceGraph[dst];
 
         var combinedNeighbors = xNode.Neighbors.Union(yNode.Neighbors);
         int k = useDoubleRegs ? DoubleRegs.Length : GeneralRegs.Length;
         foreach (var n in combinedNeighbors)
         {
-            var neighborNode = interferenceGraph.Find(node => node.Id == n)!;
+            var neighborNode = interferenceGraph[n];
             var degree = neighborNode.Neighbors.Count;
             if (xNode.Neighbors.Contains(n) && yNode.Neighbors.Contains(n))
                 degree -= 1;
@@ -200,20 +200,21 @@ public class RegisterAllocator
         return significandNeighbors < k;
     }
 
-    private void UpdateGraph(List<GraphNode> interferenceGraph, Operand x, Operand y)
+    private void UpdateGraph(Dictionary<Operand, GraphNode> interferenceGraph, Operand x, Operand y)
     {
-        var nodeToRemove = interferenceGraph.Find(a => a.Id == x)!;
+        var nodeToRemove = interferenceGraph[x];
         foreach (var neighbor in nodeToRemove.Neighbors)
         {
             AddEdge(interferenceGraph, y, neighbor);
             RemoveEdge(interferenceGraph, x, neighbor);
         }
-        interferenceGraph.Remove(nodeToRemove);
+        interferenceGraph.Remove(x);
     }
 
     private void ReplacePseudoregs(List<Instruction> instructions, Dictionary<Operand.Pseudo, RegName> registerMap)
     {
-        var Replace = (Operand op) => {
+        var Replace = (Operand op) =>
+        {
             return (op is Operand.Pseudo pseudoOp && registerMap.TryGetValue(pseudoOp, out RegName reg)) ? new Operand.Reg(reg) : op;
         };
 
@@ -267,13 +268,13 @@ public class RegisterAllocator
         instructions.RemoveAll(a => a is Instruction.Mov mov && mov.Src == mov.Dst);
     }
 
-    private Dictionary<Operand.Pseudo, RegName> CreateRegisterMap(List<GraphNode> coloredGraph, bool useDoubleRegs)
+    private Dictionary<Operand.Pseudo, RegName> CreateRegisterMap(Dictionary<Operand, GraphNode> coloredGraph, bool useDoubleRegs)
     {
         Dictionary<int, RegName> colorMap = [];
         foreach (var node in coloredGraph)
         {
-            if (node.Id is Operand.Reg reg)
-                colorMap.Add(node.Color!.Value, reg.Register);
+            if (node.Key is Operand.Reg reg)
+                colorMap.Add(node.Value.Color!.Value, reg.Register);
         }
 
         var callerSavedRegs = useDoubleRegs ? DoubleCallerSavedRegs : GeneralCallerSavedRegs;
@@ -281,11 +282,11 @@ public class RegisterAllocator
         HashSet<RegName> calleeSavedRegs = [];
         foreach (var node in coloredGraph)
         {
-            if (node.Id is Operand.Pseudo pseudo)
+            if (node.Key is Operand.Pseudo pseudo)
             {
-                if (node.Color != null)
+                if (node.Value.Color != null)
                 {
-                    var hardReg = colorMap[node.Color.Value];
+                    var hardReg = colorMap[node.Value.Color.Value];
                     registerMap.Add(pseudo, hardReg);
                     if (!callerSavedRegs.Contains(hardReg))
                         calleeSavedRegs.Add(hardReg);
@@ -298,10 +299,10 @@ public class RegisterAllocator
         return registerMap;
     }
 
-    private void ColorGraph(List<GraphNode> interferenceGraph, bool useDoubleRegs)
+    private void ColorGraph(Dictionary<Operand, GraphNode> interferenceGraph, bool useDoubleRegs)
     {
-        var remaining = interferenceGraph.Where(a => a.Pruned == false).ToList();
-        if (remaining.Count == 0)
+        var remaining = interferenceGraph.Where(a => a.Value.Pruned == false);
+        if (!remaining.Any())
             return;
 
         GraphNode? chosenNode = null;
@@ -309,10 +310,10 @@ public class RegisterAllocator
 
         foreach (var node in remaining)
         {
-            var degree = node.Neighbors.Where(a => interferenceGraph.Find(b => b.Id == a)!.Pruned == false).Count();
+            var degree = node.Value.Neighbors.Where(a => interferenceGraph[a].Pruned == false).Count();
             if (degree < k)
             {
-                chosenNode = node;
+                chosenNode = node.Value;
                 break;
             }
         }
@@ -322,11 +323,11 @@ public class RegisterAllocator
             double bestSpillMetric = double.PositiveInfinity;
             foreach (var node in remaining)
             {
-                var degree = node.Neighbors.Where(a => interferenceGraph.Find(b => b.Id == a)!.Pruned == false).Count();
-                var spillMetric = node.SpillCosts / degree;
+                var degree = node.Value.Neighbors.Where(a => interferenceGraph[a].Pruned == false).Count();
+                var spillMetric = node.Value.SpillCosts / degree;
                 if (spillMetric < bestSpillMetric)
                 {
-                    chosenNode = node;
+                    chosenNode = node.Value;
                     bestSpillMetric = spillMetric;
                 }
             }
@@ -341,7 +342,7 @@ public class RegisterAllocator
 
         foreach (var neighborId in chosenNode.Neighbors)
         {
-            var neighbor = interferenceGraph.Find(b => b.Id == neighborId)!;
+            var neighbor = interferenceGraph[neighborId];
             if (neighbor.Color != null)
                 colors.Remove(neighbor.Color.Value);
         }
@@ -358,7 +359,7 @@ public class RegisterAllocator
         }
     }
 
-    private void AddSpillCosts(List<GraphNode> interferenceGraph, List<Instruction> instructions)
+    private void AddSpillCosts(Dictionary<Operand, GraphNode> interferenceGraph, List<Instruction> instructions)
     {
         var ops = GetOperands(instructions);
         var pseudos = ops.Where(a => a is Operand.Pseudo).Select(b => (Operand.Pseudo)b).ToList();
@@ -367,18 +368,18 @@ public class RegisterAllocator
         {
             spillMap[a] = spillMap.TryGetValue(a, out double spill) ? spill + 1 : 1;
         });
-        foreach (GraphNode v in interferenceGraph)
+        foreach (var node in interferenceGraph)
         {
-            if (v.Id is Operand.Pseudo p)
+            if (node.Key is Operand.Pseudo p)
             {
-                v.SpillCosts = spillMap[p];
+                node.Value.SpillCosts = spillMap[p];
             }
         }
     }
 
-    private List<GraphNode> BuildGraph(List<Instruction> instructions, List<TAC.Val.Variable> aliasedVars, bool useDoubleRegs)
+    private Dictionary<Operand, GraphNode> BuildGraph(List<Instruction> instructions, List<TAC.Val.Variable> aliasedVars, bool useDoubleRegs)
     {
-        List<GraphNode> interferenceGraph = MakeBaseGraph(useDoubleRegs ? DoubleRegs : GeneralRegs);
+        Dictionary<Operand, GraphNode> interferenceGraph = MakeBaseGraph(useDoubleRegs ? DoubleRegs : GeneralRegs);
         AddPseudoregisters(interferenceGraph, instructions, aliasedVars, useDoubleRegs);
         var graph = new AssGraph(instructions);
         AnalyzeLiveness(graph, useDoubleRegs);
@@ -386,7 +387,7 @@ public class RegisterAllocator
         return interferenceGraph;
     }
 
-    private void AddEdges(AssGraph graph, List<GraphNode> interferenceGraph, bool useDoubleRegs)
+    private void AddEdges(AssGraph graph, Dictionary<Operand, GraphNode> interferenceGraph, bool useDoubleRegs)
     {
         foreach (var node in graph.Nodes)
         {
@@ -408,7 +409,7 @@ public class RegisterAllocator
 
                         foreach (var updated in updatedRegs)
                         {
-                            if (interferenceGraph.Any(a => a.Id == live) && interferenceGraph.Any(a => a.Id == updated) && live != updated)
+                            if (interferenceGraph.ContainsKey(live) && interferenceGraph.ContainsKey(updated) && live != updated)
                                 AddEdge(interferenceGraph, live, updated);
                         }
                     }
@@ -417,16 +418,16 @@ public class RegisterAllocator
         }
     }
 
-    private void AddEdge(List<GraphNode> interferenceGraph, Operand opA, Operand opB)
+    private void AddEdge(Dictionary<Operand, GraphNode> interferenceGraph, Operand opA, Operand opB)
     {
-        interferenceGraph.Find(a => a.Id == opA)!.Neighbors.Add(opB);
-        interferenceGraph.Find(a => a.Id == opB)!.Neighbors.Add(opA);
+        interferenceGraph[opA].Neighbors.Add(opB);
+        interferenceGraph[opB].Neighbors.Add(opA);
     }
 
-    private void RemoveEdge(List<GraphNode> interferenceGraph, Operand a, Operand b)
+    private void RemoveEdge(Dictionary<Operand, GraphNode> interferenceGraph, Operand a, Operand b)
     {
-        interferenceGraph.Find(node => node.Id == a)!.Neighbors.Remove(b);
-        interferenceGraph.Find(node => node.Id == b)!.Neighbors.Remove(a);
+        interferenceGraph[a].Neighbors.Remove(b);
+        interferenceGraph[b].Neighbors.Remove(a);
     }
 
     private void AnalyzeLiveness(AssGraph graph, bool useDoubleRegs)
@@ -573,12 +574,12 @@ public class RegisterAllocator
             default:
                 break;
         }
-        
+
         List<Operand> operandsRead = [];
         foreach (var op in used)
         {
             switch (op)
-        {
+            {
                 case Operand.Pseudo or Operand.Reg:
                     operandsRead.Add(op);
                     break;
@@ -660,7 +661,7 @@ public class RegisterAllocator
         throw new Exception($"Optimizer Error: Couldn't find annotated block id {succId}");
     }
 
-    private void AddPseudoregisters(List<GraphNode> interferenceGraph, List<Instruction> instructions, List<TAC.Val.Variable> aliasedVars, bool useDoubleRegs)
+    private void AddPseudoregisters(Dictionary<Operand, GraphNode> interferenceGraph, List<Instruction> instructions, List<TAC.Val.Variable> aliasedVars, bool useDoubleRegs)
     {
         var operands = GetOperands(instructions).Distinct();
         foreach (var op in operands)
@@ -668,7 +669,7 @@ public class RegisterAllocator
             if (op is Operand.Pseudo pseudo &&
                 ((((AsmSymbolTableEntry.ObjectEntry)AssemblyGenerator.AsmSymbolTable[pseudo.Identifier]).AssemblyType is AssemblyType.Double) == useDoubleRegs) &&
                 !(((AsmSymbolTableEntry.ObjectEntry)AssemblyGenerator.AsmSymbolTable[pseudo.Identifier]).IsStatic || aliasedVars.Any(a => a.Name == pseudo.Identifier)))
-                interferenceGraph.Add(new GraphNode(op, []));
+                interferenceGraph.Add(op, new GraphNode(op, []));
         }
     }
 
@@ -729,23 +730,26 @@ public class RegisterAllocator
             }
         }
 
-        return operands.ToList();
+        return operands;
     }
 
-    private List<GraphNode> MakeBaseGraph(RegName[] registerNames)
+    private Dictionary<Operand, GraphNode> MakeBaseGraph(RegName[] registerNames)
     {
-        List<GraphNode> graphNodes = [];
+        Dictionary<Operand, GraphNode> graphNodes = [];
         foreach (var reg in registerNames)
         {
-            graphNodes.Add(new GraphNode(new Operand.Reg(reg), []) { SpillCosts = double.PositiveInfinity });
+            graphNodes.Add(new Operand.Reg(reg), new GraphNode(new Operand.Reg(reg), []) { SpillCosts = double.PositiveInfinity });
         }
-        graphNodes.ForEach(a => a.Neighbors.UnionWith(graphNodes.Where(b => b.Id != a.Id).Select(b => b.Id)));
+        foreach (var node in graphNodes)
+        {
+            node.Value.Neighbors.UnionWith(graphNodes.Where(b => b.Key != node.Key).Select(b => b.Key));
+        }
         return graphNodes;
     }
 
     private class DisjointSets
     {
-        private  Dictionary<Operand, Operand> regMap;
+        private Dictionary<Operand, Operand> regMap;
 
         public DisjointSets()
         {
