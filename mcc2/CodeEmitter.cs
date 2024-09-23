@@ -59,7 +59,7 @@ public class CodeEmitter
 
         var isZero = IsZero(staticVariable.Inits);
         EmitLine($"\t.{(isZero ? "bss" : "data")}");
-        EmitLine($"\t.{(OperatingSystem.IsLinux() ? "align" : "balign")} {staticVariable.Alignment}");
+        EmitLine($"\t.balign {staticVariable.Alignment}");
         EmitLine($"{staticVariable.Identifier}:");
 
         if (isZero && staticVariable.Inits[0] is not StaticInit.ZeroInit)
@@ -104,10 +104,10 @@ public class CodeEmitter
 
     private void EmitStaticConstant(TopLevel.StaticConstant statConst)
     {
-        if (OperatingSystem.IsLinux())
-            EmitLine($"\t.section .rodata");
         if (OperatingSystem.IsMacOS())
             EmitLine($"\t.{(statConst.Init is StaticInit.StringInit ? "cstring" : $"literal{statConst.Alignment}")}");
+        else
+            EmitLine($"\t.section .rodata");
 
         EmitLine($"\t.{(OperatingSystem.IsLinux() ? "align" : "balign")} {statConst.Alignment}");
         EmitLine($"{statConst.Identifier}:");
