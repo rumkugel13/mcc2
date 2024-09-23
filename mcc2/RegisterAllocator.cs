@@ -502,56 +502,61 @@ public class RegisterAllocator
         switch (instruction)
         {
             case Instruction.Mov mov:
-                used = [mov.Src];
-                updated = [mov.Dst];
+                used.Add(mov.Src);
+                updated.Add(mov.Dst);
                 break;
             case Instruction.Movsx movsx:
-                used = [movsx.Src];
-                updated = [movsx.Dst];
+                used.Add(movsx.Src);
+                updated.Add(movsx.Dst);
                 break;
             case Instruction.MovZeroExtend movze:
-                used = [movze.Src];
-                updated = [movze.Dst];
+                used.Add(movze.Src);
+                updated.Add(movze.Dst);
                 break;
             case Instruction.Cvtsi2sd Cvtsi2sd:
-                used = [Cvtsi2sd.Src];
-                updated = [Cvtsi2sd.Dst];
+                used.Add(Cvtsi2sd.Src);
+                updated.Add(Cvtsi2sd.Dst);
                 break;
             case Instruction.Cvttsd2si Cvttsd2si:
-                used = [Cvttsd2si.Src];
-                updated = [Cvttsd2si.Dst];
+                used.Add(Cvttsd2si.Src);
+                updated.Add(Cvttsd2si.Dst);
                 break;
             case Instruction.Binary binary:
-                used = [binary.Src, binary.Dst];
-                updated = [binary.Dst];
+                used.Add(binary.Src);
+                used.Add(binary.Dst);
+                updated.Add(binary.Dst);
                 break;
             case Instruction.Unary unary:
-                used = [unary.Operand];
-                updated = [unary.Operand];
+                used.Add(unary.Operand);
+                updated.Add(unary.Operand);
                 break;
             case Instruction.Cmp cmp:
-                used = [cmp.OperandA, cmp.OperandB];
-                updated = [];
+                used.Add(cmp.OperandA);
+                used.Add(cmp.OperandB);
                 break;
             case Instruction.SetCC setCC:
-                used = [];
-                updated = [setCC.Operand];
+                updated.Add(setCC.Operand);
                 break;
             case Instruction.Push push:
-                used = [push.Operand];
-                updated = [];
+                used.Add(push.Operand);
                 break;
             case Instruction.Idiv idiv:
-                used = [idiv.Operand, new Operand.Reg(RegName.AX), new Operand.Reg(RegName.DX)];
-                updated = [new Operand.Reg(RegName.AX), new Operand.Reg(RegName.DX)];
+                used.Add(idiv.Operand);
+                used.Add(new Operand.Reg(RegName.AX));
+                used.Add(new Operand.Reg(RegName.DX));
+                updated.Add(new Operand.Reg(RegName.AX));
+                updated.Add(new Operand.Reg(RegName.DX));
                 break;
             case Instruction.Div div:
-                used = [div.Operand, new Operand.Reg(RegName.AX), new Operand.Reg(RegName.DX)];
-                updated = [new Operand.Reg(RegName.AX), new Operand.Reg(RegName.DX)];
+                used.Add(div.Operand);
+                used.Add(new Operand.Reg(RegName.AX));
+                used.Add(new Operand.Reg(RegName.DX));
+                updated.Add(new Operand.Reg(RegName.AX));
+                updated.Add(new Operand.Reg(RegName.DX));
                 break;
             case Instruction.Cdq cdq:
-                used = [new Operand.Reg(RegName.AX)];
-                updated = [new Operand.Reg(RegName.DX)];
+                used.Add(new Operand.Reg(RegName.AX));
+                updated.Add(new Operand.Reg(RegName.DX));
                 break;
             case Instruction.Call call:
                 var hardRegs = useDoubleRegs ? DoubleRegs : GeneralRegs;
@@ -562,12 +567,10 @@ public class RegisterAllocator
                 updated.AddRange(callerSavedRegs.Select(reg => new Operand.Reg(reg)));
                 break;
             case Instruction.Lea lea:
-                used = [lea.Src];
-                updated = [lea.Dst];
+                used.Add(lea.Src);
+                updated.Add(lea.Dst);
                 break;
             default:
-                used = [];
-                updated = [];
                 break;
         }
         
