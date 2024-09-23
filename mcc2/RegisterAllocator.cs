@@ -555,13 +555,11 @@ public class RegisterAllocator
                 break;
             case Instruction.Call call:
                 var hardRegs = useDoubleRegs ? DoubleRegs : GeneralRegs;
-                used = ((AsmSymbolTableEntry.FunctionEntry)AssemblyGenerator.AsmSymbolTable[call.Identifier]).ParamRegisters
-                    .Where(a => hardRegs.Contains(a))
-                    .Select(a => new Operand.Reg(a))
-                    .ToList<Operand>();
+                var paramRegisters = ((AsmSymbolTableEntry.FunctionEntry)AssemblyGenerator.AsmSymbolTable[call.Identifier]).ParamRegisters;
+                used.AddRange(paramRegisters.Where(reg => hardRegs.Contains(reg)).Select(reg => new Operand.Reg(reg)));
 
                 var callerSavedRegs = useDoubleRegs ? DoubleCallerSavedRegs : GeneralCallerSavedRegs;
-                updated = callerSavedRegs.Select(a => new Operand.Reg(a)).ToList<Operand>();
+                updated.AddRange(callerSavedRegs.Select(reg => new Operand.Reg(reg)));
                 break;
             case Instruction.Lea lea:
                 used = [lea.Src];
