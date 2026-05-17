@@ -4,7 +4,7 @@ Mini (toy) C compiler based on Nora Sandler's book ["Writing a C Compiler"](http
 
 ## About
 
-mcc2 is a simple (not quite) C compiler for learning how C and compilers work.
+mcc2 is a simple (not quite) C compiler, created for the purpose of learning how C and compilers work.
 It is based on this blog series by Nora Sandler: [Writing a C Compiler](https://norasandler.com/2017/11/29/Write-a-Compiler.html), more specifically the full [book](https://norasandler.com/book/).
 
 The compiler takes a C source file, preprocesses it using gcc, then compiles it to x86_64 assembly and finally uses gcc again to assemble and link the executable. (I might explore creating object/executable files without gcc in the future, let's see.)
