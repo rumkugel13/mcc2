@@ -58,11 +58,11 @@ Besides having fun and learning how compilers and C work, these are some of the 
 
 Compiling the following test files produces wrong results:
 
-chapter_19/valid/constant_folding/all_types/fold_cast_to_double
+- chapter_19/valid/constant_folding/all_types/fold_cast_to_double
   (expected 0 got 4)
-chapter_18/valid/no_structure_parameters/libraries/initializers/nested_static_struct_initializers_client
+- chapter_18/valid/no_structure_parameters/libraries/initializers/nested_static_struct_initializers_client
   (expected 0 got 4)
-chapter_13/valid/floating_expressions/logical
+- chapter_13/valid/floating_expressions/logical
   (expected 0 got 14)
 
 These are due to floating point (double) errors, to be fixed later
